@@ -36,11 +36,11 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/metrics.hpp>
 
+#include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
-#include <stout/foreach.hpp>
 
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
@@ -241,20 +241,20 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
 TEST_F(MasterTest, StopDriverWhileTaskRunning)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave(/*containerizer.get()*/);
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());  // Ignore subsequent offers.
 
   driver.start();
 
@@ -275,21 +275,21 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   vector<TaskInfo> tasks;
   tasks.push_back(task);
 
-  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> status;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&statusRunning));
+      .WillOnce(FutureArg<1>(&status));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Stop the driver while the task is running.
   driver.stop();
 
   // Request the master state.
   Future<process::http::Response> response =
-      process::http::get(master.get(), "state.json");
+    process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
@@ -297,12 +297,12 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   JSON::Object state = parse.get();
 
   auto completedFramework = state.values["completed_frameworks"]
-      .as<JSON::Array>().values.front().as<JSON::Object>();
+    .as<JSON::Array>().values.front().as<JSON::Object>();
   auto completedTasks = completedFramework.values["completed_tasks"]
-      .as<JSON::Array>().values;
+    .as<JSON::Array>();
 
   // Make sure the task landed in completed and marked as killed.
-  foreach (const JSON::Value& elem, completedTasks) {
+  foreach (const JSON::Value& elem, completedTasks.values) {
     auto task = elem.as<JSON::Object>();
     auto taskState = task.values["state"].as<JSON::String>().value;
     EXPECT_EQ("TASK_KILLED", taskState);

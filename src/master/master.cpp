@@ -4161,11 +4161,12 @@ void Master::removeFramework(Framework* framework)
         task->task_id(),
         TASK_KILLED,
         "Framework " + framework->id.value() + " removed",
-        (task->has_executor_id() ?
-            Option<ExecutorID>(task->executor_id()) : None()));
+        (task->has_executor_id() ? Option<ExecutorID>(task->executor_id())
+                                 : None()));
 
     task->add_statuses()->CopyFrom(update.status());
     task->set_state(update.status().state());
+
     removeTask(task);
   }
 
