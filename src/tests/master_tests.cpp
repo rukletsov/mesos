@@ -40,6 +40,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
+#include <stout/foreach.hpp>
 
 #include "master/allocator.hpp"
 #include "master/flags.hpp"
@@ -235,6 +236,81 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.join();
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
+}
+
+
+TEST_F(MasterTest, StopDriverWhileTaskRunning)
+{
+  Try<PID<Master> > master = StartMaster();
+  ASSERT_SOME(master);
+
+  Try<PID<Slave> > slave = StartSlave(/*containerizer.get()*/);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer> > offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers))
+      .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Launch an infinite task with the command executor.
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+
+  CommandInfo command;
+  command.set_value("cat /dev/random > /dev/null");
+  task.mutable_command()->MergeFrom(command);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(task);
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), tasks);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  // Stop the driver while the task is running.
+  driver.stop();
+
+  // Request the master state.
+  Future<process::http::Response> response =
+      process::http::get(master.get(), "state.json");
+  AWAIT_READY(response);
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+  JSON::Object state = parse.get();
+
+  auto completedFramework = state.values["completed_frameworks"]
+      .as<JSON::Array>().values.front().as<JSON::Object>();
+  auto completedTasks = completedFramework.values["completed_tasks"]
+      .as<JSON::Array>().values;
+
+  // Make sure the task landed in completed and marked as killed.
+  foreach (const JSON::Value& elem, completedTasks) {
+    auto task = elem.as<JSON::Object>();
+    auto taskState = task.values["state"].as<JSON::String>().value;
+    EXPECT_EQ("TASK_KILLED", taskState);
+  }
+
+  driver.join();
+
+  Shutdown();  // Must shutdown before 'containerizer' gets deallocated.
 }
 
 

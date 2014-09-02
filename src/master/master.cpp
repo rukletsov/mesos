@@ -4153,6 +4153,19 @@ void Master::removeFramework(Framework* framework)
       << "Unknown slave " << task->slave_id()
       << " for task " << task->task_id();
 
+    // Mark the task killed and remove it, BUT without sending the
+    // update, since framework executors are shutting down.
+    const StatusUpdate& update = protobuf::createStatusUpdate(
+        task->framework_id(),
+        task->slave_id(),
+        task->task_id(),
+        TASK_KILLED,
+        "Framework " + framework->id.value() + " removed",
+        (task->has_executor_id() ?
+            Option<ExecutorID>(task->executor_id()) : None()));
+
+    task->add_statuses()->CopyFrom(update.status());
+    task->set_state(update.status().state());
     removeTask(task);
   }
 
