@@ -251,6 +251,8 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
+  EXPECT_CALL(sched, registered(&driver, _, _)).Times(1);
+
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
@@ -259,14 +261,15 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_FALSE(offers.get().empty());
+  auto offer = offers.get()[0];
 
   // Launch an infinite task with the command executor.
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
 
   CommandInfo command;
   command.set_value("cat /dev/random > /dev/null");
@@ -279,36 +282,65 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
       .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offer.id(), tasks);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
+  // Set expectation that Master receives UnregisterFrameworkMessage.
+  UnregisterFrameworkMessage message;
+  message.mutable_framework_id()->MergeFrom(offer.framework_id());
+  Future<UnregisterFrameworkMessage> messageReceived =
+    FUTURE_PROTOBUF(message, _, master.get());
+
   // Stop the driver while the task is running.
   driver.stop();
+  driver.join();
+
+  // Wait for UnregisterFrameworkMessage message to be dispatched.
+  AWAIT_READY(messageReceived);
+
+  // Make sure the UnregisterFrameworkMessage is processed completely.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
 
   // Request the master state.
   Future<process::http::Response> response =
     process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
 
+  // These checks are not essential for the test, but may help
+  // understand what went wrong.
   Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
   ASSERT_SOME(parse);
+
   JSON::Object state = parse.get();
 
-  auto completedFramework = state.values["completed_frameworks"]
-    .as<JSON::Array>().values.front().as<JSON::Object>();
-  auto completedTasks = completedFramework.values["completed_tasks"]
-    .as<JSON::Array>();
+  ASSERT_EQ(1u, state.values.count("completed_frameworks"));
+  auto completedFrameworks = state.values["completed_frameworks"];
+  ASSERT_TRUE(completedFrameworks.is<JSON::Array>());
+
+  ASSERT_EQ(1u, completedFrameworks.as<JSON::Array>().values.size());
+  auto framework = completedFrameworks.as<JSON::Array>().values.front();
+  ASSERT_TRUE(framework.is<JSON::Object>());
+
+  ASSERT_EQ(1u, framework.as<JSON::Object>().values.count("completed_tasks"));
+  auto completedTasks = framework.as<JSON::Object>().values
+    .find("completed_tasks")->second;
+  ASSERT_TRUE(completedTasks.is<JSON::Array>());
+
+  ASSERT_EQ(1u, completedTasks.as<JSON::Array>().values.size());
+  auto killedTask = completedTasks.as<JSON::Array>().values.front();
+  ASSERT_TRUE(killedTask.is<JSON::Object>());
+
+  ASSERT_EQ(1u, killedTask.as<JSON::Object>().values.count("state"));
+  auto killedTaskState = killedTask.as<JSON::Object>().values
+    .find("state")->second;
+  ASSERT_TRUE(killedTaskState.is<JSON::String>());
 
   // Make sure the task landed in completed and marked as killed.
-  foreach (const JSON::Value& elem, completedTasks.values) {
-    auto task = elem.as<JSON::Object>();
-    auto taskState = task.values["state"].as<JSON::String>().value;
-    EXPECT_EQ("TASK_KILLED", taskState);
-  }
-
-  driver.join();
+  EXPECT_EQ("TASK_KILLED", killedTaskState.as<JSON::String>().value);
 
   Shutdown();  // Must shutdown before 'containerizer' gets deallocated.
 }
