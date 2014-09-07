@@ -36,7 +36,6 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/metrics.hpp>
 
-#include <stout/foreach.hpp>
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
