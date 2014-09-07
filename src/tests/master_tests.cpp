@@ -166,7 +166,7 @@ TEST_F(MasterTest, TaskRunning)
 
 TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
@@ -176,7 +176,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   slave::Flags flags = CreateSlaveFlags();
   flags.executor_shutdown_grace_period = Seconds(0);
 
-  Try<PID<Slave> > slave = StartSlave(&containerizer, flags);
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -186,7 +186,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  Future<vector<Offer> > offers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
@@ -194,13 +194,14 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.start();
 
   AWAIT_READY(offers);
-  EXPECT_NE(0u, offers.get().size());
+  EXPECT_FALSE(offers.get().empty());
+  auto offer = offers.get()[0];
 
   TaskInfo task;
   task.set_name("");
   task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->MergeFrom(offers.get()[0].resources());
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(offer.resources());
   task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
 
   vector<TaskInfo> tasks;
@@ -214,7 +215,7 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   Future<Nothing> update;
   EXPECT_CALL(containerizer,
-              update(_, Resources(offers.get()[0].resources())))
+              update(_, Resources(offer.resources())))
     .WillOnce(DoAll(FutureSatisfy(&update),
                     Return(Future<Nothing>())));
 
@@ -222,70 +223,12 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&status));
 
-  driver.launchTasks(offers.get()[0].id(), tasks);
+  driver.launchTasks(offer.id(), tasks);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   AWAIT_READY(update);
-
-  EXPECT_CALL(exec, shutdown(_))
-    .Times(AtMost(1));
-
-  driver.stop();
-  driver.join();
-
-  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
-}
-
-
-TEST_F(MasterTest, StopDriverWhileTaskRunning)
-{
-  Try<PID<Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  Try<PID<Slave>> slave = StartSlave();
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _)).Times(1);
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());  // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
-  auto offer = offers.get()[0];
-
-  // Launch an infinite task with the command executor.
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task.mutable_resources()->MergeFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("cat /dev/random > /dev/null");
-  task.mutable_command()->MergeFrom(command);
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(task);
-
-  Future<TaskStatus> status;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-      .WillOnce(FutureArg<1>(&status));
-
-  driver.launchTasks(offer.id(), tasks);
-
-  AWAIT_READY(status);
-  EXPECT_EQ(TASK_RUNNING, status.get().state());
 
   // Set expectation that Master receives UnregisterFrameworkMessage.
   UnregisterFrameworkMessage message;
@@ -293,19 +236,26 @@ TEST_F(MasterTest, StopDriverWhileTaskRunning)
   Future<UnregisterFrameworkMessage> messageReceived =
     FUTURE_PROTOBUF(message, _, master.get());
 
+  // Set expectation that Executor's shutdown callback is invoked.
+  Future<Nothing> shutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&shutdown));
+
   // Stop the driver while the task is running.
   driver.stop();
   driver.join();
 
-  // Wait for UnregisterFrameworkMessage message to be dispatched.
+  // Wait for UnregisterFrameworkMessage message to be dispatched and
+  // shutdown callback to be called.
   AWAIT_READY(messageReceived);
+  AWAIT_READY(shutdown);
 
   // Make sure the UnregisterFrameworkMessage is processed completely.
   Clock::pause();
   Clock::settle();
   Clock::resume();
 
-  // Request the master state.
+  // Request master state.
   Future<process::http::Response> response =
     process::http::get(master.get(), "state.json");
   AWAIT_READY(response);
