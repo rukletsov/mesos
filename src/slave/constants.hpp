@@ -38,15 +38,23 @@ namespace slave {
 // details in MESOS-1023.
 
 extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
-extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
-extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
 extern const Duration RECOVERY_TIMEOUT;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 extern const Duration RESOURCE_MONITORING_INTERVAL;
+
+// Default parameters for graceful shutdown mechanism for executor. We
+// control the shutdown on several levels, e.g.:
+//     [containerizer [base executor [command executor [task]]]]
+// Only containerizer timeout EXECUTOR_SHUTDOWN_GRACE_PERIOD is exposed
+// to the user, other should be calculated based on it. Each nested
+// timeout should be somewhat shorter than the parent one. Default
+// difference between shutdown levels is in SHUTDOWN_TIMEOUT_DELTA.
+extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+extern const Duration SHUTDOWN_TIMEOUT_DELTA;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration REGISTRATION_BACKOFF_FACTOR;

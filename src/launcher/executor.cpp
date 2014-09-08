@@ -73,15 +73,17 @@ using namespace process;
 class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
-  CommandExecutorProcess(Option<char**> override, const string& _healthCheckDir)
+  CommandExecutorProcess(Option<char**> override,
+                         const string& healthCheckDir,
+                         const Duration& escalationTimeout)
     : launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      escalationTimeout(escalationTimeout),
       driver(None()),
-      healthCheckDir(_healthCheckDir),
+      healthCheckDir(healthCheckDir),
       override(override) {}
 
   virtual ~CommandExecutorProcess() {}
@@ -504,9 +506,13 @@ private:
 class CommandExecutor: public Executor
 {
 public:
-  CommandExecutor(Option<char**> override, string healthCheckDir)
+  CommandExecutor(Option<char**> override,
+                  string healthCheckDir,
+                  const Duration& shutdownTimeout)
   {
-    process = new CommandExecutorProcess(override, healthCheckDir);
+    process = new CommandExecutorProcess(override,
+        healthCheckDir,
+        shutdownTimeout);
     spawn(process);
   }
 
@@ -619,7 +625,7 @@ int main(int argc, char** argv)
             "Prints this help message",
             false);
 
-  // Load flags from environment and command line.
+  // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
 
   if (load.isError()) {
@@ -645,11 +651,35 @@ int main(int argc, char** argv)
     }
   }
 
+  // Load flags from environment.
+  namespace mi = mesos::internal;
+
   string path = os::getenv("MESOS_LAUNCHER_DIR", false);
   if (path.empty()) {
     path = os::realpath(dirname(argv[0])).get();
   }
-  mesos::internal::CommandExecutor executor(override, path);
+
+  Duration shutdownTimeout = mi::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  auto envValue = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
+  if (!envValue.empty()) {
+    Try<Duration> mesosShutdownGracePeriod = Duration::parse(envValue);
+
+    CHECK_SOME(mesosShutdownGracePeriod)
+        << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << envValue << "': "
+        << mesosShutdownGracePeriod.error();
+
+    shutdownTimeout = mesosShutdownGracePeriod.get();
+  }
+
+  // Adjust this timeout to be shorter than the parent one (in
+  // base executor). Use default value if possible.
+  if (shutdownTimeout >= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 3) {
+    shutdownTimeout -= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 2;
+  } else {
+    shutdownTimeout /= 3;
+  }
+
+  mi::CommandExecutor executor(override, path, shutdownTimeout);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

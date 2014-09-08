@@ -109,7 +109,8 @@ Future<bool> TestContainerizer::_launch(
       slaveId,
       slavePid,
       checkpoint,
-      Duration::zero());
+      Duration::zero(),
+      Seconds(3));
 
   foreachpair (const string& name, const string variable, env) {
     os::setenv(name, variable);

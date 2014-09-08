@@ -230,7 +230,8 @@ map<string, string> executorEnvironment(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const Duration& recoveryTimeout)
+    const Duration& recoveryTimeout,
+    const Duration& executorShutdownGracePeriod)
 {
   map<string, string> env;
   // Set LIBPROCESS_PORT so that we bind to a random free port (since
@@ -276,6 +277,7 @@ map<string, string> executorEnvironment(
   env["MESOS_SLAVE_ID"] = slaveId.value();
   env["MESOS_SLAVE_PID"] = stringify(slavePid);
   env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
+  env["MESOS_SHUTDOWN_GRACE_PERIOD"] = stringify(executorShutdownGracePeriod);
 
   if (checkpoint) {
     env["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);

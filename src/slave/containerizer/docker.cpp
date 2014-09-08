@@ -848,7 +848,8 @@ Future<bool> DockerContainerizerProcess::___launch(
       slaveId,
       slavePid,
       checkpoint,
-      flags.recovery_timeout);
+      flags.recovery_timeout,
+      flags.executor_shutdown_grace_period);
 
   // Include any enviroment variables from ExecutorInfo.
   foreach (const Environment::Variable& variable,
@@ -1049,7 +1050,8 @@ Future<bool> DockerContainerizerProcess::__launch(
       slaveId,
       slavePid,
       checkpoint,
-      flags.recovery_timeout);
+      flags.recovery_timeout,
+      flags.executor_shutdown_grace_period);
 
   // Include any environment variables from CommandInfo.
   foreach (const Environment::Variable& variable,
