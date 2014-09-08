@@ -606,7 +606,8 @@ Future<bool> MesosContainerizerProcess::_launch(
       slaveId,
       slavePid,
       checkpoint,
-      flags.recovery_timeout);
+      flags.recovery_timeout,
+      flags.executor_shutdown_grace_period);
 
   // Include any enviroment variables from CommandInfo.
   foreach (const Environment::Variable& variable,
