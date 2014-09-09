@@ -127,8 +127,10 @@ public:
 
     add(&Flags::executor_shutdown_grace_period,
         "executor_shutdown_grace_period",
-        "Amount of time to wait for an executor\n"
-        "to shut down (e.g., 60secs, 3mins, etc)",
+        "Amount of time to wait for an executor to shut down\n"
+        "(e.g., 60s, 3min, etc). If this value is too small\n"
+        "(less than 5s), there may not be enough time for the\n"
+        "executor to react and can result in a hard shutdown.",
         EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
     add(&Flags::gc_delay,
