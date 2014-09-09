@@ -97,7 +97,7 @@ protected:
   }
 
 private:
-  Duration timeout;
+  const Duration timeout;
 };
 
 
@@ -113,8 +113,8 @@ public:
                   bool _local,
                   const string& _directory,
                   bool _checkpoint,
-                  Duration _recoveryTimeout,
-                  Duration _shutdownTimeout,
+                  const Duration& _recoveryTimeout,
+                  const Duration& _shutdownTimeout,
                   pthread_mutex_t* _mutex,
                   pthread_cond_t* _cond)
     : ProcessBase(ID::generate("executor")),
@@ -728,7 +728,8 @@ Status MesosExecutorDriver::start()
   }
 
   // Adjust this timeout to be shorter than the parent one (in
-  // containerizer). Use default value if possible.
+  // containerizer). We assume this is the *second* level (with
+  // contanerizer being the first). Use default delta if possible.
   if (shutdownTimeout >= slave::SHUTDOWN_TIMEOUT_DELTA * 2) {
     shutdownTimeout -= slave::SHUTDOWN_TIMEOUT_DELTA;
   } else {

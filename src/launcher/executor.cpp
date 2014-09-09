@@ -652,6 +652,7 @@ int main(int argc, char** argv)
   }
 
   // Load flags from environment.
+  namespace m = mesos;
   namespace mi = mesos::internal;
 
   string path = os::getenv("MESOS_LAUNCHER_DIR", false);
@@ -672,7 +673,9 @@ int main(int argc, char** argv)
   }
 
   // Adjust this timeout to be shorter than the parent one (in
-  // base executor). Use default value if possible.
+  // base executor). We assume this is the *third* level (with
+  // contanerizer and executor being the first and the second
+  // respectively). Use default delta if possible.
   if (shutdownTimeout >= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 3) {
     shutdownTimeout -= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 2;
   } else {
@@ -680,6 +683,6 @@ int main(int argc, char** argv)
   }
 
   mi::CommandExecutor executor(override, path, shutdownTimeout);
-  mesos::MesosExecutorDriver driver(&executor);
-  return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
+  m::MesosExecutorDriver driver(&executor);
+  return driver.run() == m::DRIVER_STOPPED ? 0 : 1;
 }
