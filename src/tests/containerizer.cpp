@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+#include "slave/constants.hpp"
+
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
@@ -110,7 +112,7 @@ Future<bool> TestContainerizer::_launch(
       slavePid,
       checkpoint,
       Duration::zero(),
-      Seconds(3));
+      mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
   foreachpair (const string& name, const string variable, env) {
     os::setenv(name, variable);

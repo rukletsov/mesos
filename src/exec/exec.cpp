@@ -55,6 +55,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/state.hpp"
+#include "slave/utils.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;
@@ -715,26 +716,25 @@ Status MesosExecutorDriver::start()
     }
   }
 
+  // Get the shutdown grace period and adjust it.
   Duration shutdownTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
-      Try<Duration> mesosShutdownGracePeriod = Duration::parse(value);
-
-      CHECK_SOME(mesosShutdownGracePeriod)
-          << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << value << "': "
-          << mesosShutdownGracePeriod.error();
-
-      shutdownTimeout = mesosShutdownGracePeriod.get();
-  }
-
-  // Adjust this timeout to be shorter than the parent one (in
-  // containerizer). We assume this is the *second* level (with
-  // contanerizer being the first). Use default delta if possible.
-  if (shutdownTimeout >= slave::SHUTDOWN_TIMEOUT_DELTA * 2) {
-    shutdownTimeout -= slave::SHUTDOWN_TIMEOUT_DELTA;
+    Try<Duration> parse = Duration::parse(value);
+    if (parse.isSome()) {
+      shutdownTimeout = parse.get();
+    } else {
+      LOG(WARNING) << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '"
+                   << value << "': " << parse.error() << endl;
+    }
   } else {
-    shutdownTimeout /= 2;
+    LOG(WARNING) << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not "
+                 << "set, using default value: " << shutdownTimeout << endl;
   }
+
+  shutdownTimeout = mesos::internal::adjustExecutorShutdownTimeout(
+      shutdownTimeout);
+  VLOG(2) << "Shutdown timeout is set to " << shutdownTimeout;
 
   CHECK(process == NULL);
 
