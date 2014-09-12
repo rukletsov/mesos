@@ -56,6 +56,7 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
+#include "slave/utils.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -73,9 +74,10 @@ using namespace process;
 class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
-  CommandExecutorProcess(Option<char**> override,
-                         const string& healthCheckDir,
-                         const Duration& escalationTimeout)
+  CommandExecutorProcess(
+      Option<char**> override,
+      const string& healthCheckDir,
+      const Duration& escalationTimeout)
     : launched(false),
       killed(false),
       killedByHealthCheck(false),
@@ -506,11 +508,13 @@ private:
 class CommandExecutor: public Executor
 {
 public:
-  CommandExecutor(Option<char**> override,
-                  string healthCheckDir,
-                  const Duration& shutdownTimeout)
+  CommandExecutor(
+      Option<char**> override,
+      const string& healthCheckDir,
+      const Duration& shutdownTimeout)
   {
-    process = new CommandExecutorProcess(override,
+    process = new CommandExecutorProcess(
+        override,
         healthCheckDir,
         shutdownTimeout);
     spawn(process);
@@ -625,6 +629,32 @@ int main(int argc, char** argv)
             "Prints this help message",
             false);
 
+  // Load flags from environment.
+  string path = os::getenv("MESOS_LAUNCHER_DIR", false);
+  if (path.empty()) {
+    path = os::realpath(dirname(argv[0])).get();
+  }
+
+  // Get the shutdown grace period and adjust it.
+  Duration shutdownTimeout =
+    mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
+  if (!value.empty()) {
+    Try<Duration> parse = Duration::parse(value);
+    if (parse.isSome()) {
+      shutdownTimeout = parse.get();
+    } else {
+      cerr << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << value << "': "
+           << parse.error() << endl;
+    }
+  } else {
+    cout << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not set, "
+         << "using default value: " << shutdownTimeout << endl;
+  }
+
+  shutdownTimeout = mesos::internal::adjustCommandExecutorShutdownTimeout(
+      shutdownTimeout);
+
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
 
@@ -651,38 +681,7 @@ int main(int argc, char** argv)
     }
   }
 
-  // Load flags from environment.
-  namespace m = mesos;
-  namespace mi = mesos::internal;
-
-  string path = os::getenv("MESOS_LAUNCHER_DIR", false);
-  if (path.empty()) {
-    path = os::realpath(dirname(argv[0])).get();
-  }
-
-  Duration shutdownTimeout = mi::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-  auto envValue = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
-  if (!envValue.empty()) {
-    Try<Duration> mesosShutdownGracePeriod = Duration::parse(envValue);
-
-    CHECK_SOME(mesosShutdownGracePeriod)
-        << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << envValue << "': "
-        << mesosShutdownGracePeriod.error();
-
-    shutdownTimeout = mesosShutdownGracePeriod.get();
-  }
-
-  // Adjust this timeout to be shorter than the parent one (in
-  // base executor). We assume this is the *third* level (with
-  // contanerizer and executor being the first and the second
-  // respectively). Use default delta if possible.
-  if (shutdownTimeout >= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 3) {
-    shutdownTimeout -= mi::slave::SHUTDOWN_TIMEOUT_DELTA * 2;
-  } else {
-    shutdownTimeout /= 3;
-  }
-
-  mi::CommandExecutor executor(override, path, shutdownTimeout);
-  m::MesosExecutorDriver driver(&executor);
-  return driver.run() == m::DRIVER_STOPPED ? 0 : 1;
+  mesos::internal::CommandExecutor executor(override, path, shutdownTimeout);
+  mesos::MesosExecutorDriver driver(&executor);
+  return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
 }

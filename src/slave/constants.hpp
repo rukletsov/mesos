@@ -48,11 +48,13 @@ extern const Duration RESOURCE_MONITORING_INTERVAL;
 
 // Default parameters for graceful shutdown mechanism for executor. We
 // control the shutdown on several levels, e.g.:
-//     [containerizer [base executor [command executor [task]]]]
-// Only containerizer timeout EXECUTOR_SHUTDOWN_GRACE_PERIOD is exposed
-// to the user, other should be calculated based on it. Each nested
-// timeout should be somewhat shorter than the parent one. Default
-// difference between shutdown levels is in SHUTDOWN_TIMEOUT_DELTA.
+//   [Containerizer [ExecutorProcess [CommandExecutorProcess [Task]]]]
+// Only containerizer timeout is exposed to the user through a slave
+// flag, other should be calculated based on it. Each nested timeout
+// should be somewhat shorter than the parent one in order to give the
+// process enough time to terminate the underlying process before
+// being killed by parent.. Default difference between shutdown levels
+// is in SHUTDOWN_TIMEOUT_DELTA.
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration SHUTDOWN_TIMEOUT_DELTA;
 
