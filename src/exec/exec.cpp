@@ -725,15 +725,14 @@ Status MesosExecutorDriver::start()
       shutdownTimeout = parse.get();
     } else {
       LOG(WARNING) << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '"
-                   << value << "': " << parse.error() << endl;
+                   << value << "': " << parse.error();
     }
   } else {
     LOG(WARNING) << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not "
-                 << "set, using default value: " << shutdownTimeout << endl;
+                 << "set, using default value: " << shutdownTimeout;
   }
 
-  shutdownTimeout = mesos::internal::adjustExecutorShutdownTimeout(
-      shutdownTimeout);
+  shutdownTimeout = slave::adjustExecutorShutdownTimeout(shutdownTimeout);
   VLOG(2) << "Shutdown timeout is set to " << shutdownTimeout;
 
   CHECK(process == NULL);

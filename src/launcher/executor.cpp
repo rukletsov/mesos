@@ -652,8 +652,8 @@ int main(int argc, char** argv)
          << "using default value: " << shutdownTimeout << endl;
   }
 
-  shutdownTimeout = mesos::internal::adjustCommandExecutorShutdownTimeout(
-      shutdownTimeout);
+  shutdownTimeout = mesos::internal::slave::
+    adjustCommandExecutorShutdownTimeout(shutdownTimeout);
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
