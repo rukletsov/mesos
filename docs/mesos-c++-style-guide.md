@@ -16,7 +16,10 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 
 ### Function Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for function names (Google uses mixed case for regular functions; and their accessors and mutators match the name of the variable).
-* Leave spaces around overloaded operators.  e.g. `operator + (...);` rather than `operator+(...);`
+* Leave spaces around overloaded operators, e.g. `operator + (...);` rather than `operator+(...);`
+
+### Namespace Names
+* We do not use namespace aliases.
 
 ## Strings
 * Strings used in log and error messages should end without a period.
@@ -77,6 +80,13 @@ allocator->resourcesRecovered(
 Try&lt;Duration&gt; failoverTimeout =
   Duration::create(FrameworkInfo().failover_timeout());
 </pre>
+
+## C++11
+We do not extensively use C++11, since we still support some older compilers (like gcc 4.4). The only features allowed are:
+* Static assertions.
+* Multiple right angle brackets.
+* Type inference (`auto` and `decltype`).
+* Rvalue references.
 
 ## Empty Lines
 * 1 blank line at the end of the file.
