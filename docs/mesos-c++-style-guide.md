@@ -82,7 +82,7 @@ Try&lt;Duration&gt; failoverTimeout =
 </pre>
 
 ## C++11
-We do not extensively use C++11, since we still support some older compilers (like gcc 4.4). The only features allowed are:
+We do not extensively use C++11, since we still support some older compilers. The only features allowed are:
 * Static assertions.
 * Multiple right angle brackets.
 * Type inference (`auto` and `decltype`).
