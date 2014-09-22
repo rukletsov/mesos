@@ -81,13 +81,6 @@ Try&lt;Duration&gt; failoverTimeout =
   Duration::create(FrameworkInfo().failover_timeout());
 </pre>
 
-## C++11
-We do not extensively use C++11, since we still support some older compilers. The only features allowed are:
-* Static assertions.
-* Multiple right angle brackets.
-* Type inference (`auto` and `decltype`).
-* Rvalue references.
-
 ## Empty Lines
 * 1 blank line at the end of the file.
 * Elements outside classes (classes, structs, global functions, etc.) should be spaced apart by 2 blank lines.
@@ -97,6 +90,19 @@ We do not extensively use C++11, since we still support some older compilers. Th
 We still support older compilers. The whitelist of supported C++11 features is:
 * Static assertions.
 * Multiple right angle brackets.
-* Type inference (`auto` and `decltype`).
+* Type inference (`auto` and `decltype`). The main goal is to increase code readability. Here are several examples:
+
+<pre>
+// 1: OK.
+auto containerizer = containerizers_.begin();
+// Compare with
+vector<Containerizer*>::iterator containerizer = containerizers_.begin();
+
+// 2: Don't use.
+auto authorizer = LocalAuthorizer::create(acls);
+// Compare with
+Try<Owned<LocalAuthorizer>> authorizer = LocalAuthorizer::create();
+</pre>
+
 * Rvalue references.
 * Variadic templates.
