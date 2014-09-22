@@ -71,6 +71,12 @@ using process::wait; // Necessary on some OS's to disambiguate.
 namespace mesos {
 namespace internal {
 
+
+// The ExecutorProcess can be garbage collected (e.g. in Java
+// executors) and delayed escalation callback won't be called.
+// Therefore we need a separate libprocess process for this. If the
+// executor cleanes up and calles os::exit() in another libprocess
+// process, than the ShutdownProcess::kill() won't be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
 public:
