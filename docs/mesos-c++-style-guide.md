@@ -94,9 +94,9 @@ We still support older compilers. The whitelist of supported C++11 features is:
 
 <pre>
 // 1: OK.
-auto containerizer = containerizers_.begin();
+const auto& value = values.find(keys.front());
 // Compare with
-vector<Containerizer*>::iterator containerizer = containerizers_.begin();
+const typename map::iterator& i = values.find(keys.front());
 
 // 2: Don't use.
 auto authorizer = LocalAuthorizer::create(acls);
