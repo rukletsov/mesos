@@ -87,14 +87,16 @@ Try&lt;Duration&gt; failoverTimeout =
 * Elements inside classes (member variables and functions) should not be spaced apart by more than 1 blank line.
 
 ## C++11
+
 We still support older compilers. The whitelist of supported C++11 features is:
+
 * Static assertions.
 * Multiple right angle brackets.
 * Type inference (`auto` and `decltype`). The main goal is to increase code readability. Here are several examples:
 
 <pre>
 // 1: OK.
-const auto& value = values.find(keys.front());
+const auto& valueIt = values.find(keys.front());
 // Compare with
 const typename map::iterator& i = values.find(keys.front());
 
