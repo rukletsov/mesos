@@ -75,7 +75,7 @@ namespace internal {
 // The ExecutorProcess can be garbage collected (e.g. in Java
 // executors) and delayed escalation callback won't be called.
 // Therefore we need a separate libprocess process for this. If the
-// executor cleanes up and calles os::exit() in another libprocess
+// executor cleans up and calls os::exit() in another libprocess
 // process, than the ShutdownProcess::kill() won't be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {

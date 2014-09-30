@@ -429,6 +429,9 @@ private:
 
   void escalated()
   {
+    // TODO(alex): If the escalation timeout is too small, the process
+    // may have already exited, but not yet reaped. If this is the
+    // case, don't kill the process.
     cout << "Process " << pid << " did not terminate after "
          << escalationTimeout << ", sending SIGKILL to "
          << "process tree at " << pid << endl;
