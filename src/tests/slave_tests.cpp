@@ -1059,8 +1059,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
   EXPECT_EQ(true, statusKilled.get().has_message());
-  EXPECT_EQ("Command terminated with signal Terminated: 15",
-            statusKilled.get().message());
+  EXPECT_NE(std::string::npos, statusKilled.get().message().find("Terminated"));
 
   // Stop the driver while the task is running.
   driver.stop();
