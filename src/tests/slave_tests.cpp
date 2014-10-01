@@ -1056,6 +1056,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   // CommandExecutor supports graceful shutdown in sending SIGTERM
   // first. If the task obeys, it will be reaped and we get
   // appropriate status message.
+  // NOTE: strsignal() behaves differently on Mac OS and Linux.
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
   EXPECT_EQ(true, statusKilled.get().has_message());
@@ -1123,7 +1124,7 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
   TaskInfo taskHanging = createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:64").get(),
-      "trap \"\" SIGTERM ; sleep 1000");
+      "trap \'\' SIGTERM; sleep 1000");
 
   EXPECT_LE(taskResponsive.resources() + taskHanging.resources(),
             offer.resources());
@@ -1166,6 +1167,7 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
 
   // If the task doesn't react to SIGTERM in a certain timeout,
   // CommandExecutor sends a SIGKILL.
+  // NOTE: strsignal() behaves differently on Mac OS and Linux.
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
   EXPECT_EQ(true, taskHangingKilled.get().has_message());
