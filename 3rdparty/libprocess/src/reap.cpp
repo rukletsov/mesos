@@ -41,10 +41,10 @@ namespace process {
 //                       (# pids)
 //
 const size_t LOW_PID_COUNT = 50;
-const Duration LOW_INTERVAL = Milliseconds(100);
+const Duration LOW_POLL_INTERVAL = Milliseconds(100);
 
 const size_t HIGH_PID_COUNT = 500;
-const Duration HIGH_INTERVAL = Seconds(1);
+const Duration HIGH_POLL_INTERVAL = Seconds(1);
 
 
 class ReaperProcess : public Process<ReaperProcess>
@@ -113,16 +113,18 @@ private:
     size_t count = promises.size();
 
     if (count <= LOW_PID_COUNT) {
-      return LOW_INTERVAL;
+      return LOW_POLL_INTERVAL;
     } else if (count >= HIGH_PID_COUNT) {
-      return HIGH_INTERVAL;
+      return HIGH_POLL_INTERVAL;
     }
 
-    // Linear interpolation between LOW_INTERVAL and HIGH_INTERVAL.
+    // Linear interpolation between low and high reap intervals.
     double fraction =
       ((double) (count - LOW_PID_COUNT) / (HIGH_PID_COUNT - LOW_PID_COUNT));
+    auto adjustedInterval =
+      LOW_POLL_INTERVAL + (HIGH_POLL_INTERVAL - LOW_POLL_INTERVAL) * fraction;
 
-    return LOW_INTERVAL + (HIGH_INTERVAL - LOW_INTERVAL) * fraction;
+    return adjustedInterval;
   }
 
   multihashmap<pid_t, Owned<Promise<Option<int> > > > promises;
