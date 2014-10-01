@@ -41,10 +41,7 @@ namespace process {
 //                       (# pids)
 //
 const size_t LOW_PID_COUNT = 50;
-const Duration LOW_POLL_INTERVAL = Milliseconds(100);
-
 const size_t HIGH_PID_COUNT = 500;
-const Duration HIGH_POLL_INTERVAL = Seconds(1);
 
 
 class ReaperProcess : public Process<ReaperProcess>
@@ -113,16 +110,16 @@ private:
     size_t count = promises.size();
 
     if (count <= LOW_PID_COUNT) {
-      return LOW_POLL_INTERVAL;
+      return lowPollInterval();
     } else if (count >= HIGH_PID_COUNT) {
-      return HIGH_POLL_INTERVAL;
+      return highPollInterval();
     }
 
     // Linear interpolation between low and high reap intervals.
     double fraction =
       ((double) (count - LOW_PID_COUNT) / (HIGH_PID_COUNT - LOW_PID_COUNT));
     auto adjustedInterval =
-      LOW_POLL_INTERVAL + (HIGH_POLL_INTERVAL - LOW_POLL_INTERVAL) * fraction;
+      lowPollInterval() + (highPollInterval() - lowPollInterval()) * fraction;
 
     return adjustedInterval;
   }

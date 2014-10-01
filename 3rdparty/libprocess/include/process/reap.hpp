@@ -9,12 +9,9 @@
 
 namespace process {
 
-// TODO(jieyu): Use static functions for all the constants. See more
-// details in MESOS-1023.
-
 // Lower and upper bounds for the poll interval in the reaper.
-extern const Duration LOW_POLL_INTERVAL;
-extern const Duration HIGH_POLL_INTERVAL;
+static inline Duration lowPollInterval() { return Milliseconds(100); }
+static inline Duration highPollInterval() { return Seconds(1); }
 
 // Returns the exit status of the specified process if and only if
 // the process is a direct child and it has not already been reaped.
