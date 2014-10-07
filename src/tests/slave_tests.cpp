@@ -1136,14 +1136,14 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
   // Separate statusUpdate() calls for responsive and hanging tasks.
   Future<TaskStatus> taskResponsiveRunning, taskResponsiveKilled;
   auto updateForTaskResponsive = lambda::bind(
-      &isStatusRelatedToTask, lambda::_1, taskResponsive.task_id());
+      &statusMatchesTask, lambda::_1, taskResponsive.task_id());
   EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskResponsive)))
     .WillOnce(FutureArg<1>(&taskResponsiveRunning))
     .WillOnce(FutureArg<1>(&taskResponsiveKilled));
 
   Future<TaskStatus> taskHangingRunning, taskHangingKilled;
   auto updateForTaskHanging = lambda::bind(
-      &isStatusRelatedToTask, lambda::_1, taskHanging.task_id());
+      &statusMatchesTask, lambda::_1, taskHanging.task_id());
   EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskHanging)))
     .WillOnce(FutureArg<1>(&taskHangingRunning))
     .WillOnce(FutureArg<1>(&taskHangingKilled));
