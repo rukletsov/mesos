@@ -53,7 +53,7 @@ extern const Duration RESOURCE_MONITORING_INTERVAL;
 // flag, other should be calculated based on it. Each nested timeout
 // should be somewhat shorter than the parent one in order to give the
 // process enough time to terminate the underlying process before
-// being killed by parent.. Default difference between shutdown levels
+// being killed by parent. Default difference between shutdown levels
 // is in SHUTDOWN_TIMEOUT_DELTA.
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration SHUTDOWN_TIMEOUT_DELTA;
