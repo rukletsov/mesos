@@ -38,16 +38,22 @@ Duration calculateShutdownTimeout(
     shutdownTimeout = mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   }
 
+  // The number of graceful shutdown levels including the current one.
+  int numLevels = (callerLevel + 1);
+
+  // The minimal base timeout required for graceful shutdown to be
+  // functional on the number of levels we currently observe.
   Duration minReasonableTimeout =
-    mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * (callerLevel + 1);
+    mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * numLevels;
+
   if (shutdownTimeout >= minReasonableTimeout) {
     shutdownTimeout -=
       mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * callerLevel;
   } else {
     LOG(WARNING) << "Shutdown grace period " << shutdownTimeout
                  << " is too small; expect at least " << minReasonableTimeout
-                 << " on level " << callerLevel;
-    shutdownTimeout /= (callerLevel + 1);
+                 << " for " << numLevels << " levels";
+    shutdownTimeout /= numLevels;
   }
 
   return shutdownTimeout;
