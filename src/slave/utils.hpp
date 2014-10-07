@@ -23,35 +23,62 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Adjust the shutdown timeout (aka shutdown grace period) to be
-// shorter than in parents. We make this to give the caller process
+// Slave           Exec      CommandExecutor
+//  +               +               +
+//  |               |               |
+//  |               |               |
+//  |   shutdown()  |               |
+//  +-^------------->               |
+//  | |             |   shutdown()  |
+//  | |             +-^-------------> shutdown()
+//  | |             | |             | ^
+//  | |             | |             | |
+//  | flags.        | timeout       | | timeout
+//  | shutdown_     | level 1       | | level 2
+//  | grace_period  | |             | v
+//  | |             | |             | escalated()
+//  | |             | v             |
+//  | |             | ShutdownProcess
+//  | |             | ::kill()      |
+//  | v             |               |
+//  | shutdownExecutorTimeout()     |
+//  |               |               |
+//  v               v               v
+//  Containerizer->destroy()
+
+// Calculates the shutdown timeout (aka shutdown grace period) so it
+// is shorter than in parents. We make this to give the caller process
 // enough time to terminate the underlying process before the caller,
-// in turn, is killed by its parent. To adjust the timeout correctly,
-// we need the caller to provide its level index in the shutdown chain
-// (containerizer has level index 0 and therefore should not adjust
-// its timeout). If the default timeout delta cannot be used, we take
-// a fraction, though this indicates the timeout is too small to serve
-// its purpose.
-Duration adjustShutdownTimeout(
+// in turn, is killed by its parent (see the sequence chart above).
+// To adjust the timeout correctly, we need the caller to provide its
+// level index in the shutdown chain (containerizer has level index 0
+// and therefore should not adjust its timeout). If the default
+// timeout delta cannot be used, we take a fraction, though this
+// indicates the timeout is too small to serve its purpose. Such
+// approach guarantees a nested timeout is always nonnegative and not
+// greater than the parent one, but not that it is sufficient for the
+// graceful shutdown to happen.
+Duration calculateShutdownTimeout(
     Duration shutdownTimeout,
     int callerLevel);
 
 
-// Adjust shutdown timeout for ExecutorProcess. We assume it is the
-// 1st level (with containerizer being 0) in the shutdown chain.
-inline Duration adjustExecutorShutdownTimeout(
+// Returns the shutdown timeout for ExecutorProcess. We assume it is
+// the 1st level (with containerizer being 0) in the shutdown chain.
+inline Duration getExecutorShutdownTimeout(
     const Duration& baseShutdownTimeout)
 {
-  return adjustShutdownTimeout(baseShutdownTimeout, 1);
+  return calculateShutdownTimeout(baseShutdownTimeout, 1);
 }
 
 
-// Adjust shutdown timeout for CommandExecutorProcess. We assume it is
-// the 2nd level (with containerizer being 0) in the shutdown chain.
-inline Duration adjustCommandExecutorShutdownTimeout(
+// Returns the shutdown timeout for CommandExecutorProcess. We assume
+// it is the 2nd level (with containerizer being 0) in the shutdown
+// chain.
+inline Duration getCommandExecutorShutdownTimeout(
     const Duration& baseShutdownTimeout)
 {
-  return adjustShutdownTimeout(baseShutdownTimeout, 2);
+  return calculateShutdownTimeout(baseShutdownTimeout, 2);
 }
 
 } // namespace slave {

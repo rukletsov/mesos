@@ -656,7 +656,7 @@ int main(int argc, char** argv)
   }
 
   shutdownTimeout = mesos::internal::slave::
-    adjustCommandExecutorShutdownTimeout(shutdownTimeout);
+    getCommandExecutorShutdownTimeout(shutdownTimeout);
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);

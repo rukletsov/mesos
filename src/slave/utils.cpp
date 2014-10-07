@@ -27,16 +27,26 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Duration adjustShutdownTimeout(
+Duration calculateShutdownTimeout(
     Duration shutdownTimeout,
     int callerLevel)
 {
-  if (shutdownTimeout >=
-      mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * (callerLevel + 1)) {
-    shutdownTimeout -= mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA *
-      callerLevel;
+  if (shutdownTimeout < Duration::zero()) {
+    LOG(WARNING) << "Shutdown grace period should be nonnegative (got "
+                 << shutdownTimeout << "), using default value: "
+                 << mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    shutdownTimeout = mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  }
+
+  Duration minReasonableTimeout =
+    mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * (callerLevel + 1);
+  if (shutdownTimeout >= minReasonableTimeout) {
+    shutdownTimeout -=
+      mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * callerLevel;
   } else {
-    LOG(WARNING) << "Shutdown grace period is too small";
+    LOG(WARNING) << "Shutdown grace period " << shutdownTimeout
+                 << " is too small; expect at least " << minReasonableTimeout
+                 << " on level " << callerLevel;
     shutdownTimeout /= (callerLevel + 1);
   }
 
