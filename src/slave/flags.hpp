@@ -128,9 +128,12 @@ public:
     add(&Flags::executor_shutdown_grace_period,
         "executor_shutdown_grace_period",
         "Amount of time to wait for an executor to shut down\n"
-        "(e.g., 60s, 3min, etc). If this value is too small\n"
-        "(less than 5s), there may not be enough time for the\n"
-        "executor to react and can result in a hard shutdown.",
+        "(e.g., 60s, 3min, etc). This specifies a top level timeout,\n"
+        "all nested timeouts (e.g. executor's timeout for a task) are\n"
+        "calculated from this one and guaranteed to be not greater\n"
+        "than it. If the value is too small (less than 5s), there\n"
+        "may not be enough time for the executor to react and can\n"
+        "result in a hard shutdown.",
         EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
     add(&Flags::gc_delay,
