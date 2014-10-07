@@ -925,7 +925,7 @@ const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
 }
 
 
-inline bool isStatusRelatedToTask(const TaskStatus& status, const TaskID& id)
+inline bool statusMatchesTask(const TaskStatus& status, const TaskID& id)
 {
   return id.value() == status.task_id().value();
 }
