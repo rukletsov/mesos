@@ -1004,7 +1004,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
 
   // Ensure escalation timeout is more than 1s (maximal reap interval).
   // TODO(alex): Use libprocess constant once it's available.
-  auto timeout = mesos::internal::slave::adjustCommandExecutorShutdownTimeout(
+  auto timeout = mesos::internal::slave::getCommandExecutorShutdownTimeout(
       mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(Seconds(1), timeout);
 
@@ -1059,7 +1059,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   // NOTE: strsignal() behaves differently on Mac OS and Linux.
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
-  EXPECT_EQ(true, statusKilled.get().has_message());
+  EXPECT_TRUE(statusKilled.get().has_message());
   EXPECT_NE(std::string::npos, statusKilled.get().message().find("Terminated"));
 
   // Stop the driver while the task is running.
@@ -1086,7 +1086,7 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
   flags.executor_shutdown_grace_period = minReapInterval;
 
   // Ensure escalation timeout is less than 100ms (minimal reap interval).
-  auto timeout = mesos::internal::slave::adjustCommandExecutorShutdownTimeout(
+  auto timeout = mesos::internal::slave::getCommandExecutorShutdownTimeout(
       flags.executor_shutdown_grace_period);
   EXPECT_GT(minReapInterval, timeout);
 
@@ -1170,7 +1170,7 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
   // NOTE: strsignal() behaves differently on Mac OS and Linux.
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
-  EXPECT_EQ(true, taskHangingKilled.get().has_message());
+  EXPECT_TRUE(taskHangingKilled.get().has_message());
   EXPECT_EQ("Command terminated with signal Killed: 9",
             taskHangingKilled.get().message());
 
