@@ -86,7 +86,6 @@ using testing::Invoke;
 using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::SaveArg;
-using testing::Truly;
 
 // Those of the overall Mesos master/slave/scheduler/driver tests
 // that seem vaguely more slave than master-related are in this file.
@@ -1336,121 +1335,5 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   driver.join();
 
   Shutdown();  // Must shutdown before 'containerizer' gets deallocated.
-  delete containerizer.get();
-}
-
-
-// This test runs two long-living tasks, one responsive to SIGTERM and
-// one not, with a small graceful shutdown period. The tasks are unable
-// to shutdown in the given timeout and are killed by the executor.
-TEST_F(SlaveTest, MesosExecutorForceShutdown)
-{
-  Try<PID<Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  // Make the grace period not bigger than the reap interval.
-  // TODO(alex): Use libprocess constant once it's available.
-  auto minReapInterval = Milliseconds(100);
-  slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period = minReapInterval;
-
-  // Ensure escalation timeout is less than 100ms (minimal reap interval).
-  auto timeout = mesos::internal::slave::getCommandExecutorShutdownTimeout(
-      flags.executor_shutdown_grace_period);
-  EXPECT_GT(minReapInterval, timeout);
-
-  Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
-      flags, true);
-  ASSERT_SOME(containerizer);
-
-  Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
-  ASSERT_SOME(slave);
-
-  MockScheduler sched;
-  MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
-
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return());  // Ignore subsequent offers.
-
-  driver.start();
-
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers.get().empty());
-  auto offer = offers.get()[0];
-
-  // Create one task responsive to SIGTERM and one that is not.
-  TaskInfo taskResponsive = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:0.1;mem:64").get(),
-      "sleep 1000");
-
-  TaskInfo taskHanging = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:0.1;mem:64").get(),
-      "trap \'\' SIGTERM; sleep 1000");
-
-  EXPECT_LE(taskResponsive.resources() + taskHanging.resources(),
-            offer.resources());
-
-  vector<TaskInfo> tasks;
-  tasks.push_back(taskResponsive);
-  tasks.push_back(taskHanging);
-
-  // Separate statusUpdate() calls for responsive and hanging tasks.
-  Future<TaskStatus> taskResponsiveRunning, taskResponsiveKilled;
-  auto updateForTaskResponsive = lambda::bind(
-      &statusMatchesTask, lambda::_1, taskResponsive.task_id());
-  EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskResponsive)))
-    .WillOnce(FutureArg<1>(&taskResponsiveRunning))
-    .WillOnce(FutureArg<1>(&taskResponsiveKilled));
-
-  Future<TaskStatus> taskHangingRunning, taskHangingKilled;
-  auto updateForTaskHanging = lambda::bind(
-      &statusMatchesTask, lambda::_1, taskHanging.task_id());
-  EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskHanging)))
-    .WillOnce(FutureArg<1>(&taskHangingRunning))
-    .WillOnce(FutureArg<1>(&taskHangingKilled));
-
-  driver.launchTasks(offer.id(), tasks);
-
-  AWAIT_READY(taskResponsiveRunning);
-  EXPECT_EQ(TASK_RUNNING, taskResponsiveRunning.get().state());
-
-  AWAIT_READY(taskHangingRunning);
-  EXPECT_EQ(TASK_RUNNING, taskHangingRunning.get().state());
-
-  driver.killTask(taskResponsive.task_id());
-  driver.killTask(taskHanging.task_id());
-
-  AWAIT_READY(taskResponsiveKilled);
-  EXPECT_EQ(TASK_KILLED, taskResponsiveKilled.get().state());
-
-  AWAIT_READY(taskHangingKilled);
-  EXPECT_EQ(TASK_KILLED, taskHangingKilled.get().state());
-
-  // If the task doesn't react to SIGTERM in a certain timeout,
-  // CommandExecutor sends a SIGKILL.
-  // NOTE: strsignal() behaves differently on Mac OS and Linux.
-  // TODO(alex): By now we have no better way to extract the kill
-  // reason. Change this once we have level 2 enums for task states.
-  EXPECT_TRUE(taskHangingKilled.get().has_message());
-  EXPECT_EQ("Command terminated with signal Killed: 9",
-            taskHangingKilled.get().message());
-
-  // NOTE: The task may have reacted to SIGTERM, but may not have been
-  // yet reaped due to insufficient timeout. In this case we still send
-  // a SIGKILL, but the task may terminate with either signal. For this
-  // reason we don't check the taskResponsiveKilled.get().message().
-
-  driver.stop();
-  driver.join();
-
-  this->Shutdown();
   delete containerizer.get();
 }

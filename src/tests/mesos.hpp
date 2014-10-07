@@ -925,12 +925,6 @@ const ::testing::Matcher<const std::vector<Offer>& > OfferEq(int cpus, int mem)
 }
 
 
-inline bool statusMatchesTask(const TaskStatus& status, const TaskID& id)
-{
-  return id.value() == status.task_id().value();
-}
-
-
 // Definition of the SendStatusUpdateFromTask action to be used with gmock.
 ACTION_P(SendStatusUpdateFromTask, state)
 {
