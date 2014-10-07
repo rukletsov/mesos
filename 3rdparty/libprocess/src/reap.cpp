@@ -110,16 +110,16 @@ private:
     size_t count = promises.size();
 
     if (count <= LOW_PID_COUNT) {
-      return lowPollInterval();
+      return lowReaperPollInterval();
     } else if (count >= HIGH_PID_COUNT) {
-      return highPollInterval();
+      return highReaperPollInterval();
     }
 
     // Linear interpolation between low and high reap intervals.
     double fraction =
       ((double) (count - LOW_PID_COUNT) / (HIGH_PID_COUNT - LOW_PID_COUNT));
-    auto adjustedInterval =
-      lowPollInterval() + (highPollInterval() - lowPollInterval()) * fraction;
+    Duration adjustedInterval = lowReaperPollInterval() +
+      (highReaperPollInterval() - lowReaperPollInterval()) * fraction;
 
     return adjustedInterval;
   }
