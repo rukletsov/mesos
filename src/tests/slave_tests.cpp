@@ -1124,7 +1124,9 @@ TEST_F(SlaveTest, MesosExecutorForceShutdown)
   TaskInfo taskHanging = createTask(
       offer.slave_id(),
       Resources::parse("cpus:0.1;mem:64").get(),
-      "trap \'\' SIGTERM; sleep 1000");
+      "( handler() { echo SIGTERM; }; trap \'handler TERM\' SIGTERM; echo $$; "
+      "echo $(which sleep); while true; do date; sleep 1; done; exit 0 )");
+
 
   EXPECT_LE(taskResponsive.resources() + taskHanging.resources(),
             offer.resources());
