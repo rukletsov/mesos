@@ -110,18 +110,16 @@ private:
     size_t count = promises.size();
 
     if (count <= LOW_PID_COUNT) {
-      return lowReaperPollInterval();
+      return LOW_REAP_INTERVAL();
     } else if (count >= HIGH_PID_COUNT) {
-      return highReaperPollInterval();
+      return HIGH_REAP_INTERVAL();
     }
 
     // Linear interpolation between low and high reap intervals.
     double fraction =
       ((double) (count - LOW_PID_COUNT) / (HIGH_PID_COUNT - LOW_PID_COUNT));
-    Duration adjustedInterval = lowReaperPollInterval() +
-      (highReaperPollInterval() - lowReaperPollInterval()) * fraction;
-
-    return adjustedInterval;
+    return (LOW_REAP_INTERVAL() +
+      (HIGH_REAP_INTERVAL() - LOW_REAP_INTERVAL()) * fraction);
   }
 
   multihashmap<pid_t, Owned<Promise<Option<int> > > > promises;

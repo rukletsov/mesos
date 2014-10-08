@@ -10,8 +10,8 @@
 namespace process {
 
 // Lower and upper bounds for the poll interval in the reaper.
-static inline Duration lowReaperPollInterval() { return Milliseconds(100); }
-static inline Duration highReaperPollInterval() { return Seconds(1); }
+static inline Duration LOW_REAP_INTERVAL() { return Milliseconds(100); }
+static inline Duration HIGH_REAP_INTERVAL() { return Seconds(1); }
 
 // Returns the exit status of the specified process if and only if
 // the process is a direct child and it has not already been reaped.
