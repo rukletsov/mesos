@@ -1033,34 +1033,73 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   EXPECT_FALSE(offers.get().empty());
   auto offer = offers.get()[0];
 
-  // Launch a long-running task responsive to SIGTERM.
-  TaskInfo taskResponsive = createTask(offer, "sleep 1000");
+  // Create one task responsive to SIGTERM and one that is not.
+  TaskInfo taskResponsive = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:64").get(),
+      "sleep 1000");
+
+  TaskInfo taskHanging = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:0.1;mem:64").get(),
+      "( handler() { echo SIGTERM; }; trap \'handler TERM\' SIGTERM; echo $$; "
+      "echo $(which sleep); while true; do date; sleep 1; done; exit 0 )");
+
+  EXPECT_LE(taskResponsive.resources() + taskHanging.resources(),
+            offer.resources());
+
   vector<TaskInfo> tasks;
   tasks.push_back(taskResponsive);
+  tasks.push_back(taskHanging);
 
-  Future<TaskStatus> statusRunning, statusKilled;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusKilled));
+  // Separate statusUpdate() calls for responsive and hanging tasks.
+  Future<TaskStatus> taskResponsiveRunning, taskResponsiveKilled;
+  auto updateForTaskResponsive = lambda::bind(
+      &statusMatchesTask, lambda::_1, taskResponsive.task_id());
+  EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskResponsive)))
+    .WillOnce(FutureArg<1>(&taskResponsiveRunning))
+    .WillOnce(FutureArg<1>(&taskResponsiveKilled));
+
+  Future<TaskStatus> taskHangingRunning, taskHangingKilled;
+  auto updateForTaskHanging = lambda::bind(
+      &statusMatchesTask, lambda::_1, taskHanging.task_id());
+  EXPECT_CALL(sched, statusUpdate(&driver, Truly(updateForTaskHanging)))
+    .WillOnce(FutureArg<1>(&taskHangingRunning))
+    .WillOnce(FutureArg<1>(&taskHangingKilled));
 
   driver.launchTasks(offer.id(), tasks);
 
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  AWAIT_READY(taskResponsiveRunning);
+  EXPECT_EQ(TASK_RUNNING, taskResponsiveRunning.get().state());
+
+  AWAIT_READY(taskHangingRunning);
+  EXPECT_EQ(TASK_RUNNING, taskHangingRunning.get().state());
 
   driver.killTask(taskResponsive.task_id());
+  driver.killTask(taskHanging.task_id());
 
-  AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  AWAIT_READY(taskResponsiveKilled);
+  EXPECT_EQ(TASK_KILLED, taskResponsiveKilled.get().state());
+
+  AWAIT_READY(taskHangingKilled);
+  EXPECT_EQ(TASK_KILLED, taskHangingKilled.get().state());
 
   // CommandExecutor supports graceful shutdown in sending SIGTERM
   // first. If the task obeys, it will be reaped and we get
-  // appropriate status message.
+  // appropriate status message. If the task doesn't react to SIGTERM
+  // in a certain timeout, CommandExecutor sends a SIGKILL.
   // NOTE: strsignal() behaves differently on Mac OS and Linux.
   // TODO(alex): By now we have no better way to extract the kill
   // reason. Change this once we have level 2 enums for task states.
-  EXPECT_TRUE(statusKilled.get().has_message());
-  EXPECT_NE(std::string::npos, statusKilled.get().message().find("Terminated"));
+  EXPECT_TRUE(taskResponsiveKilled.get().has_message());
+  EXPECT_NE(std::string::npos,
+            taskResponsiveKilled.get().message().find("Terminated"));
+
+  EXPECT_TRUE(taskHangingKilled.get().has_message());
+  EXPECT_EQ(std::string::npos,
+            taskHangingKilled.get().message().find("Killed"));
+
+  // Check that the task process has also exited!
 
   // Stop the driver while the task is running.
   driver.stop();
