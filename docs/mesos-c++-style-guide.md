@@ -96,7 +96,7 @@ We still support older compilers. The whitelist of supported C++11 features is:
 
 <pre>
 // 1: OK.
-const auto& valueIt = values.find(keys.front());
+const auto& i = values.find(keys.front());
 // Compare with
 const typename map::iterator& i = values.find(keys.front());
 
