@@ -163,6 +163,9 @@ TEST_F(MasterTest, TaskRunning)
 }
 
 
+// This test ensures that stopping a scheduler driver triggers
+// executor's shutdown callback and all still running tasks are
+// marked as killed.
 TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 {
   Try<PID<Master>> master = StartMaster();
@@ -229,7 +232,8 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
 
   AWAIT_READY(update);
 
-  // Set expectation that Master receives UnregisterFrameworkMessage.
+  // Set expectation that Master receives UnregisterFrameworkMessage,
+  // which triggers marking running tasks as killed.
   UnregisterFrameworkMessage message;
   message.mutable_framework_id()->MergeFrom(offer.framework_id());
   Future<UnregisterFrameworkMessage> messageReceived =
@@ -245,11 +249,13 @@ TEST_F(MasterTest, ShutdownFrameworkWhileTaskRunning)
   driver.join();
 
   // Wait for UnregisterFrameworkMessage message to be dispatched and
-  // shutdown callback to be called.
+  // executor's shutdown callback to be called.
   AWAIT_READY(messageReceived);
   AWAIT_READY(shutdown);
 
-  // Make sure the UnregisterFrameworkMessage is processed completely.
+  // We have to be sure the UnregisterFrameworkMessage is processed
+  // completely and running tasks enter a terminal state before we
+  // request the master state.
   Clock::pause();
   Clock::settle();
   Clock::resume();
