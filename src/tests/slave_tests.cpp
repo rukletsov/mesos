@@ -1260,10 +1260,11 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 
 // This test checks that the mechanism of calculating nested graceful
 // shutdown periods doesn't break the default behaviour and works as
-// expected
+// expected.
 TEST_F(SlaveTest, ShutdownGracePeriod)
 {
   Duration defaultTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Duration customTimeout = Seconds(10);
 
   // We used to have a signal escalation timeout constant responsibe
   // for graceful shutdown period in the CommandExecutor. Make sure
@@ -1280,10 +1281,98 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   // The new logics uses either a certain delta to calculate nested
   // timeouts or takes a fraction of the top-level timeout if
   // subtracting delta will lead to a negative result.
-  EXPECT_EQ(Seconds(8),
-            slave::getCommandExecutorShutdownTimeout(Seconds(10)));
+  EXPECT_EQ(customTimeout - Seconds(2),
+            slave::getCommandExecutorShutdownTimeout(customTimeout));
   EXPECT_EQ(Milliseconds(500),
             slave::getCommandExecutorShutdownTimeout(Milliseconds(1500)));
+
+  // Simulate the real environment and check what values for graceful
+  // shutdown period reach the executor in protobuf messages.
+  // NOTE: We check only the message contents and *not* the value
+  // stored by the executor. Currently (13 Oct 2014) there is only
+  // one shutdown period per executor which is set to the period of
+  // the first scheduled task, effectively ignoring shutdown periods
+  // of subsequent tasks.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
+  Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_FALSE(offers.get().empty());
+  auto offer = offers.get()[0];
+
+  // Create one task with grace shutdown period set and one without.
+  TaskInfo taskCustom;
+  taskCustom.set_name("Task with custom grace shutdown period");
+  taskCustom.mutable_task_id()->set_value("1");
+  taskCustom.mutable_slave_id()->MergeFrom(offer.slave_id());
+  taskCustom.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  taskCustom.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:0.1;mem:64").get());
+  taskCustom.mutable_executor()->mutable_command()->set_grace_period(
+      Seconds(customTimeout).value());
+
+  TaskInfo taskStandard;
+  taskStandard.set_name("Task with default grace shutdown period");
+  taskStandard.mutable_task_id()->set_value("2");
+  taskStandard.mutable_slave_id()->MergeFrom(offer.slave_id());
+  taskStandard.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  taskStandard.mutable_resources()->CopyFrom(
+      Resources::parse("cpus:0.1;mem:64").get());
+
+  ASSERT_LE(taskCustom.resources() + taskStandard.resources(),
+            offer.resources());
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(taskCustom);
+  tasks.push_back(taskStandard);
+
+  Future<TaskInfo> task1, task2;
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(FutureArg<1>(&task1))
+    .WillOnce(FutureArg<1>(&task2));
+
+  driver.launchTasks(offer.id(), tasks);
+
+  AWAIT_READY(task1);
+  AWAIT_READY(task2);
+
+  Duration task1Expected = (task1.get().task_id().value() == "1")
+    ? customTimeout : defaultTimeout;
+  EXPECT_DOUBLE_EQ(Seconds(task1Expected).value(),
+                   task1.get().executor().command().grace_period());
+
+  Duration task2Expected = (task2.get().task_id().value() == "1")
+    ? customTimeout : defaultTimeout;
+  EXPECT_DOUBLE_EQ(Seconds(task2Expected).value(),
+                   task2.get().executor().command().grace_period());
+
+  driver.stop();
+  driver.join();
+
+  Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
 
 
