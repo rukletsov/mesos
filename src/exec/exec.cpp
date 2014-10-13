@@ -72,10 +72,11 @@ namespace mesos {
 namespace internal {
 
 
-// The ExecutorProcess can be garbage collected (e.g. in Java
-// executors) and delayed escalation callback won't be called.
-// Therefore we need a separate libprocess process for this. If the
-// executor cleans up and calls os::exit() in another libprocess
+// A custom executor can be non-cooperative in the sense libprocess
+// process may exit (e.g. a Java executor can be garbage collected)
+// before a delayed escalation callback is invoked. Therefore we need
+// a separate libprocess process to ensure clean-up. However, if the
+// executor shuts down and calls os::exit() in another libprocess
 // process, than the ShutdownProcess::kill() won't be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {

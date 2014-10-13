@@ -27,6 +27,18 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// Calculates the shutdown timeout (aka shutdown grace period) so it
+// is shorter than in parents. We make this to give the caller process
+// enough time to terminate the underlying process before the caller,
+// in turn, is killed by its parent (see the sequence chart above).
+// To adjust the timeout correctly, we need the caller to provide its
+// level index in the shutdown chain (containerizer has level index 0
+// and therefore should not adjust its timeout). If the default
+// timeout delta cannot be used, we take a fraction, though this
+// indicates the timeout is too small to serve its purpose. Such
+// approach guarantees a nested timeout is always nonnegative and not
+// greater than the parent one, but not that it is sufficient for the
+// graceful shutdown to happen.
 Duration calculateShutdownTimeout(
     Duration shutdownTimeout,
     int callerLevel)
@@ -58,6 +70,19 @@ Duration calculateShutdownTimeout(
 
   return shutdownTimeout;
 }
+
+
+Duration getExecutorShutdownTimeout(const Duration& baseShutdownTimeout)
+{
+  return calculateShutdownTimeout(baseShutdownTimeout, 1);
+}
+
+
+Duration getCommandExecutorShutdownTimeout(const Duration& baseShutdownTimeout)
+{
+  return calculateShutdownTimeout(baseShutdownTimeout, 2);
+}
+
 
 } // namespace slave {
 } // namespace internal {
