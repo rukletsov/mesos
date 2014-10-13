@@ -1258,6 +1258,35 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 
 
 
+// This test checks that the mechanism of calculating nested graceful
+// shutdown periods doesn't break the default behaviour and works as
+// expected
+TEST_F(SlaveTest, ShutdownGracePeriod)
+{
+  Duration defaultTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
+  // We used to have a signal escalation timeout constant responsibe
+  // for graceful shutdown period in the CommandExecutor. Make sure
+  // the default behaviour persists.
+  EXPECT_EQ(Seconds(3),
+            slave::getCommandExecutorShutdownTimeout(defaultTimeout));
+
+  // If the top-level timeout is 0, all nested timeouts should be 0.
+  EXPECT_EQ(Duration::zero(),
+            slave::getExecutorShutdownTimeout(Duration::zero()));
+  EXPECT_EQ(Duration::zero(),
+            slave::getCommandExecutorShutdownTimeout(Duration::zero()));
+
+  // The new logics uses either a certain delta to calculate nested
+  // timeouts or takes a fraction of the top-level timeout if
+  // subtracting delta will lead to a negative result.
+  EXPECT_EQ(Seconds(8),
+            slave::getCommandExecutorShutdownTimeout(Seconds(10)));
+  EXPECT_EQ(Milliseconds(500),
+            slave::getCommandExecutorShutdownTimeout(Milliseconds(1500)));
+}
+
+
 // This test runs a long-living task responsive to SIGTERM and
 // attempts to kill it gracefully.
 TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
@@ -1267,13 +1296,12 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
 
   // Explicitly set the grace period for slave default.
   slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period =
-    mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
   // Ensure escalation timeout is more than 1s (maximal reap interval).
   // TODO(alex): Use libprocess constant once it's available.
-  auto timeout = mesos::internal::slave::getCommandExecutorShutdownTimeout(
-      mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+  auto timeout = slave::getCommandExecutorShutdownTimeout(
+      slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(Seconds(1), timeout);
 
   Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
@@ -1287,8 +1315,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
