@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-#include "slave/constants.hpp"
-
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
