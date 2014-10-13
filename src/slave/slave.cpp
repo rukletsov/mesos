@@ -1139,14 +1139,17 @@ void Slave::runTask(
     }
   }
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
+  // Ensure the task has grace shutdown period set.
+  TaskInfo updatedTask = ensureGracePeriod(task);
+
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, updatedTask);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_runTask()' is called.
   CHECK_NOTNULL(framework);
-  framework->pending[executorId][task.task_id()] = task;
+  framework->pending[executorId][updatedTask.task_id()] = updatedTask;
 
   // If we are about to create a new executor, unschedule the top
   // level work and meta directories from getting gc'ed.
@@ -1177,7 +1180,7 @@ void Slave::runTask(
             frameworkInfo,
             frameworkId,
             pid,
-            task));
+            updatedTask));
 }
 
 
@@ -2621,6 +2624,29 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
   }
 
   return NULL;
+}
+
+
+TaskInfo Slave::ensureGracePeriod(TaskInfo task)
+{
+  double defaultGracePeriod =
+    Seconds(flags.executor_shutdown_grace_period).value();
+
+  // Check CommandInfo in task.
+  if (task.has_command() && !task.command().has_grace_period()) {
+    task.mutable_command()->set_grace_period(defaultGracePeriod);
+  }
+
+  // Check CommandInfo in task's ExecutorInfo.
+  if (task.has_executor() &&
+      task.executor().has_command() &&
+      !task.executor().command().has_grace_period()) {
+    task.mutable_executor()->mutable_command()->set_grace_period(
+        defaultGracePeriod);
+  }
+
+  // Return either updated or unchanged TaskInfo.
+  return task;
 }
 
 
