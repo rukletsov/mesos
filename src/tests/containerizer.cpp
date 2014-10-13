@@ -111,8 +111,7 @@ Future<bool> TestContainerizer::_launch(
       slaveId,
       slavePid,
       checkpoint,
-      Duration::zero(),
-      mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+      Duration::zero());
 
   foreachpair (const string& name, const string variable, env) {
     os::setenv(name, variable);

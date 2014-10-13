@@ -444,8 +444,7 @@ Future<bool> ExternalContainerizerProcess::launch(
       slaveId,
       slavePid,
       checkpoint,
-      flags.recovery_timeout,
-      flags.executor_shutdown_grace_period);
+      flags.recovery_timeout);
 
   // TODO(tillt): Consider moving this into
   // Containerizer::executorEnvironment.

@@ -132,8 +132,7 @@ std::map<std::string, std::string> executorEnvironment(
     const SlaveID& slaveId,
     const process::PID<Slave>& slavePid,
     bool checkpoint,
-    const Duration& recoveryTimeout,
-    const Duration& executorShutdownGracePeriod);
+    const Duration& recoveryTimeout);
 
 
 std::map<std::string, std::string> fetcherEnvironment(

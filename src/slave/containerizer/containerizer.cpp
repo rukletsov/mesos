@@ -230,8 +230,7 @@ map<string, string> executorEnvironment(
     const SlaveID& slaveId,
     const PID<Slave>& slavePid,
     bool checkpoint,
-    const Duration& recoveryTimeout,
-    const Duration& executorShutdownGracePeriod)
+    const Duration& recoveryTimeout)
 {
   map<string, string> env;
   // Set LIBPROCESS_PORT so that we bind to a random free port (since
@@ -277,7 +276,19 @@ map<string, string> executorEnvironment(
   env["MESOS_SLAVE_ID"] = slaveId.value();
   env["MESOS_SLAVE_PID"] = stringify(slavePid);
   env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
-  env["MESOS_SHUTDOWN_GRACE_PERIOD"] = stringify(executorShutdownGracePeriod);
+
+  // We expect the graceful shutdown timeout to be set either by a
+  // framework or to default value from slave's flags. In case it's
+  // absent for some reason, use the hardcoded default.
+  if (executorInfo.command().has_grace_period()) {
+    env["MESOS_SHUTDOWN_GRACE_PERIOD"] = stringify(
+        Seconds(executorInfo.command().grace_period()));
+  } else {
+    LOG(WARNING) << "CommandInfo.grace_period flag is not set, "
+                 << "using default value: " << EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
+        stringify(EXECUTOR_SHUTDOWN_GRACE_PERIOD);
+  }
 
   if (checkpoint) {
     env["MESOS_RECOVERY_TIMEOUT"] = stringify(recoveryTimeout);
