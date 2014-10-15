@@ -59,6 +59,7 @@
 #include "slave/utils.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
+using namespace mesos::internal::slave;
 
 using std::cout;
 using std::cerr;
@@ -431,7 +432,7 @@ private:
   {
     // TODO(alex): If the escalation timeout is too small, the process
     // may have already exited, but not yet reaped. If this is the
-    // case, don't kill the process.
+    // case, do not kill the process.
     cout << "Process " << pid << " did not terminate after "
          << escalationTimeout << ", sending SIGKILL to "
          << "process tree at " << pid << endl;
@@ -639,8 +640,7 @@ int main(int argc, char** argv)
   }
 
   // Get the shutdown grace period and adjust it.
-  Duration shutdownTimeout =
-    mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
     Try<Duration> parse = Duration::parse(value);
@@ -655,8 +655,7 @@ int main(int argc, char** argv)
          << "using default value: " << shutdownTimeout << endl;
   }
 
-  shutdownTimeout = mesos::internal::slave::
-    getCommandExecutorShutdownTimeout(shutdownTimeout);
+  shutdownTimeout = getCommandExecutorShutdownTimeout(shutdownTimeout);
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);

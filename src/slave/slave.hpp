@@ -275,10 +275,10 @@ public:
   // Helper routine to lookup a framework.
   Framework* getFramework(const FrameworkID& frameworkId);
 
-  // Returns a TaskInfo with added grace shutdown period field in
+  // Returns a TaskInfo with grace shutdown period field added in
   // task's CommandInfo structures. If the field is alredy present,
   // does not change its value.
-  TaskInfo ensureGracePeriod(TaskInfo task);
+  const TaskInfo setGracePeriod(TaskInfo task);
 
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).

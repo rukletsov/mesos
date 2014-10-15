@@ -1140,7 +1140,7 @@ void Slave::runTask(
   }
 
   // Ensure the task has grace shutdown period set.
-  TaskInfo updatedTask = ensureGracePeriod(task);
+  TaskInfo updatedTask = setGracePeriod(task);
 
   const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, updatedTask);
   const ExecutorID& executorId = executorInfo.executor_id();
@@ -2627,7 +2627,7 @@ Framework* Slave::getFramework(const FrameworkID& frameworkId)
 }
 
 
-TaskInfo Slave::ensureGracePeriod(TaskInfo task)
+const TaskInfo Slave::setGracePeriod(TaskInfo task)
 {
   double defaultGracePeriod =
     Seconds(flags.executor_shutdown_grace_period).value();

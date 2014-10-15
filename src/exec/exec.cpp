@@ -72,16 +72,17 @@ namespace mesos {
 namespace internal {
 
 
-// A custom executor can be non-cooperative in the sense libprocess
-// process may exit (e.g. a Java executor can be garbage collected)
-// before a delayed escalation callback is invoked. Therefore we need
-// a separate libprocess process to ensure clean-up. However, if the
-// executor shuts down and calls os::exit() in another libprocess
-// process, than the ShutdownProcess::kill() won't be called.
+// A custom executor can be non-cooperative in a sense it can block
+// the shutdown callback and take over the actor thread. As a result,
+// libprocess process may exit (e.g. a Java executor can be garbage
+// collected) before a delayed shutdown callback is invoked. Therefore
+// we need a separate libprocess process to ensure clean-up. However,
+// if the executor shuts down and calls os::exit() in another
+// libprocess process, the ShutdownProcess::kill() won't be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
 public:
-  ShutdownProcess(const Duration& timeout) : timeout(timeout) {}
+  explicit ShutdownProcess(const Duration& timeout) : timeout(timeout) {}
 
 protected:
   virtual void initialize()

@@ -254,11 +254,12 @@ message CommandInfo {
 
   // If set, overrides the slave's default for graceful shutdown
   // period (in seconds).
-  // NOTE: There is no such or similar field in TaskInfo, which means
-  // grace period is tied to an executor (CommandInfo) and not task.
-  // If multiple tasks are run by a single executor, the grace period
-  // is set to the first task's value, effectively ignoring shutdown
-  // periods of subsequent tasks.
+  // NOTE: In case of a CommandExecutor, the grace period is set per
+  // task, since a task will never share the executor with any other
+  // task. In case of a custom executor that is shared among tasks,
+  // the grace period is set once for the executor using the value of
+  // the first TaskInfo received. The grace period values of
+  // subsequent tasks are ignored.
   optional double grace_period = 8;
 
   // Enables executor and tasks to run as a specific user. If the user

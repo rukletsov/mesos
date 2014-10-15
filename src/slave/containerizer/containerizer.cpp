@@ -278,7 +278,7 @@ map<string, string> executorEnvironment(
   env["MESOS_CHECKPOINT"] = checkpoint ? "1" : "0";
 
   // We expect the graceful shutdown timeout to be set either by a
-  // framework or to default value from slave's flags. In case it's
+  // framework or to default value from slave's flags. In case it is
   // absent for some reason, use the hardcoded default.
   if (executorInfo.command().has_grace_period()) {
     env["MESOS_SHUTDOWN_GRACE_PERIOD"] = stringify(

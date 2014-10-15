@@ -1259,7 +1259,7 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 
 
 // This test checks that the mechanism of calculating nested graceful
-// shutdown periods doesn't break the default behaviour and works as
+// shutdown periods does not break the default behaviour and works as
 // expected.
 TEST_F(SlaveTest, ShutdownGracePeriod)
 {
@@ -1268,7 +1268,7 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
 
   // We used to have a signal escalation timeout constant responsibe
   // for graceful shutdown period in the CommandExecutor. Make sure
-  // the default behaviour persists.
+  // the default behaviour (3s) persists.
   EXPECT_EQ(Seconds(3),
             slave::getCommandExecutorShutdownTimeout(defaultTimeout));
 
@@ -1278,16 +1278,16 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   EXPECT_EQ(Duration::zero(),
             slave::getCommandExecutorShutdownTimeout(Duration::zero()));
 
-  // The new logics uses either a certain delta to calculate nested
+  // The new logic uses either a certain delta to calculate nested
   // timeouts or takes a fraction of the top-level timeout if
-  // subtracting delta will lead to a negative result.
+  // subtracting a delta will lead to a negative result.
   EXPECT_EQ(customTimeout - Seconds(2),
             slave::getCommandExecutorShutdownTimeout(customTimeout));
   EXPECT_EQ(Milliseconds(500),
             slave::getCommandExecutorShutdownTimeout(Milliseconds(1500)));
 
-  // Simulate the real environment and check what values for graceful
-  // shutdown period reach the executor in protobuf messages.
+  // Check the graceful shutdown periods that reach the executor in
+  // protobuf messages.
   // NOTE: We check only the message contents and *not* the value
   // stored by the executor. Currently (13 Oct 2014) there is only
   // one shutdown period per executor which is set to the period of
@@ -1326,7 +1326,7 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   // Create one task with grace shutdown period set and one without.
   TaskInfo taskCustom;
   taskCustom.set_name("Task with custom grace shutdown period");
-  taskCustom.mutable_task_id()->set_value("1");
+  taskCustom.mutable_task_id()->set_value("custom");
   taskCustom.mutable_slave_id()->MergeFrom(offer.slave_id());
   taskCustom.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
   taskCustom.mutable_resources()->CopyFrom(
@@ -1334,20 +1334,20 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   taskCustom.mutable_executor()->mutable_command()->set_grace_period(
       Seconds(customTimeout).value());
 
-  TaskInfo taskStandard;
-  taskStandard.set_name("Task with default grace shutdown period");
-  taskStandard.mutable_task_id()->set_value("2");
-  taskStandard.mutable_slave_id()->MergeFrom(offer.slave_id());
-  taskStandard.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
-  taskStandard.mutable_resources()->CopyFrom(
+  TaskInfo taskDefault;
+  taskDefault.set_name("Task with default grace shutdown period");
+  taskDefault.mutable_task_id()->set_value("default");
+  taskDefault.mutable_slave_id()->MergeFrom(offer.slave_id());
+  taskDefault.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  taskDefault.mutable_resources()->CopyFrom(
       Resources::parse("cpus:0.1;mem:64").get());
 
-  ASSERT_LE(taskCustom.resources() + taskStandard.resources(),
+  ASSERT_LE(taskCustom.resources() + taskDefault.resources(),
             offer.resources());
 
   vector<TaskInfo> tasks;
   tasks.push_back(taskCustom);
-  tasks.push_back(taskStandard);
+  tasks.push_back(taskDefault);
 
   Future<TaskInfo> task1, task2;
   EXPECT_CALL(exec, launchTask(_, _))
@@ -1359,12 +1359,12 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   AWAIT_READY(task1);
   AWAIT_READY(task2);
 
-  Duration task1Expected = (task1.get().task_id().value() == "1")
+  Duration task1Expected = (task1.get().task_id().value() == "custom")
     ? customTimeout : defaultTimeout;
   EXPECT_DOUBLE_EQ(Seconds(task1Expected).value(),
                    task1.get().executor().command().grace_period());
 
-  Duration task2Expected = (task2.get().task_id().value() == "1")
+  Duration task2Expected = (task2.get().task_id().value() == "custom")
     ? customTimeout : defaultTimeout;
   EXPECT_DOUBLE_EQ(Seconds(task2Expected).value(),
                    task2.get().executor().command().grace_period());
@@ -1388,7 +1388,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
   // Ensure escalation timeout is more than 1s (maximal reap interval).
-  // TODO(alex): Use libprocess constant once it's available.
+  // TODO(alex): Use libprocess constant once it is available.
   auto timeout = slave::getCommandExecutorShutdownTimeout(
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(Seconds(1), timeout);
