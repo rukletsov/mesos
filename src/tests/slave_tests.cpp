@@ -33,6 +33,7 @@
 #include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
+#include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
 #include <stout/option.hpp>
@@ -1387,11 +1388,10 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   slave::Flags flags = CreateSlaveFlags();
   flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
-  // Ensure escalation timeout is more than 1s (maximal reap interval).
-  // TODO(alex): Use libprocess constant once it is available.
+  // Ensure escalation timeout is more than the maximal reap interval.
   auto timeout = slave::getCommandExecutorShutdownTimeout(
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
-  EXPECT_LT(Seconds(1), timeout);
+  EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
 
   Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
       flags, true);
