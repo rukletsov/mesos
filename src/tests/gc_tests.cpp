@@ -441,7 +441,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Advance clock to kill executor via isolator.
-  Clock::advance(getContainerizerGracePeriod(
+  Clock::advance(slave::getContainerizerGracePeriod(
       flags.executor_shutdown_grace_period));
 
   Clock::settle();
