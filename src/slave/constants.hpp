@@ -49,17 +49,18 @@ extern const Duration RESOURCE_MONITORING_INTERVAL;
 // Default parameters for graceful shutdown mechanism for executor. We
 // control the shutdown on several levels, e.g.:
 //   [Containerizer [ExecutorProcess [CommandExecutorProcess [Task]]]]
-// Only the containerizer timeout is exposed to the user through a
-// slave flag, other timeouts should be calculated based on it. Each
-// nested timeout should be somewhat shorter than the parent one in
-// order to give the process enough time to terminate the underlying
-// process before being killed by parent. Default difference between
-// shutdown levels is in SHUTDOWN_TIMEOUT_DELTA.
-// For example, if total timeout is 30s, ExecutorProcess timeout will
-// be (30 - SHUTDOWN_TIMEOUT_DELTA)s and CommandExecutorProcess
-// timeout (30 - 2*SHUTDOWN_TIMEOUT_DELTA)s.
+// Only the innermost shutdown grace period (aka shutdown timeout) is
+// exposed to the user through a slave flag, other timeouts should be
+// calculated based on it. Each nested timeout is somewhat shorter
+// than the parent one in order to give the process enough time to
+// terminate the underlying process before being killed by parent.
+// The difference between shutdown timeouts for neighbouring levels is
+// GRACE_PERIOD_DELTA. For example, if the innermost timeout
+// (for CommandExecutorProcess) is 5s, ExecutorProcess timeout will be
+// (5 + GRACE_PERIOD_DELTA)s and containerizer timeout
+// (5 + 2 * GRACE_PERIOD_DELTA)s.
 extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-extern const Duration SHUTDOWN_TIMEOUT_DELTA;
+extern const Duration GRACE_PERIOD_DELTA;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration REGISTRATION_BACKOFF_FACTOR;

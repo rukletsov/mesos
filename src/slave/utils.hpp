@@ -33,9 +33,9 @@ namespace slave {
 //  | |             +-^-------------> shutdown()
 //  | |             | |             | ^
 //  | |             | |             | |
-//  | flags.        | timeout       | | timeout
-//  | shutdown_     | level 1       | | level 2
-//  | grace_period  | |             | v
+//  | timeout       | timeout       | | timeout  <-- flags.
+//  | level 2       | level 1       | | level 0  <--   shutdown_grace_period
+//  | |             | |             | v
 //  | |             | |             | escalated()
 //  | |             | v             |
 //  | |             | ShutdownProcess
@@ -47,15 +47,19 @@ namespace slave {
 //  Containerizer->destroy()
 
 
-// Returns the shutdown timeout for ExecutorProcess. We assume it is
-// the 1st level (with containerizer being 0) in the shutdown chain.
-Duration getExecutorShutdownTimeout(const Duration& baseShutdownTimeout);
+// Returns the shutdown grace period for containerizer. We assume it
+// is the 2nd and the last level in the shutdown chain.
+Duration getContainerizerGracePeriod(const Duration& baseShutdownTimeout);
 
 
-// Returns the shutdown timeout for CommandExecutorProcess. We assume
-// it is the 2nd level (with containerizer being 0) in the shutdown
-// chain.
-Duration getCommandExecutorShutdownTimeout(const Duration& baseShutdownTimeout);
+// Returns the shutdown grace period for ExecutorProcess. We assume it
+// is the 1st level in the shutdown chain.
+Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout);
+
+
+// Returns the shutdown garce period for CommandExecutorProcess. It is
+// the 0 level in the shutdown chain.
+Duration getCommandExecutorGracePeriod(const Duration& baseShutdownTimeout);
 
 } // namespace slave {
 } // namespace internal {

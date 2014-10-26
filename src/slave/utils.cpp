@@ -27,60 +27,48 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Calculates the shutdown timeout (aka shutdown grace period) so it
-// is shorter than in parents. We make this to give the caller process
-// enough time to terminate the underlying process before the caller,
-// in turn, is killed by its parent (see the sequence chart above).
-// To adjust the timeout correctly, we need the caller to provide its
-// level index in the shutdown chain (containerizer has level index 0
-// and therefore should not adjust its timeout). If the default
-// timeout delta cannot be used, we take a fraction, though this
-// indicates the timeout is too small to serve its purpose. Such
-// approach guarantees a nested timeout is always nonnegative and not
-// greater than the parent one, but not that it is sufficient for the
-// graceful shutdown to happen.
-Duration calculateShutdownTimeout(
-    Duration shutdownTimeout,
+// Calculates the shutdown grace period (aka shutdown timeout ) so it
+// is bigger than the nested one. To adjust the timeout correctly, the
+// caller should provide its level index in the shutdown chain.
+// Timeout adjustment gives the caller process enough time to
+// terminate the underlying process before the caller, in turn, is
+// killed by its parent (see the sequence chart in the header). This
+// approach guarantees a nested timeout is always greater than the
+// parent one, but not that it is sufficient for the graceful shutdown
+// to happen.
+Duration calculateGracePeriod(
+    Duration gracePeriod,
     int callerLevel)
 {
-  if (shutdownTimeout < Duration::zero()) {
+  if (gracePeriod < Duration::zero()) {
     LOG(WARNING) << "Shutdown grace period should be nonnegative (got "
-                 << shutdownTimeout << "), using default value: "
+                 << gracePeriod << "), using default value: "
                  << mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-    shutdownTimeout = mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    gracePeriod = mesos::internal::slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   }
 
-  // The number of graceful shutdown levels including the current one.
-  int numLevels = (callerLevel + 1);
+  gracePeriod +=
+    mesos::internal::slave::GRACE_PERIOD_DELTA * callerLevel;
 
-  // The minimal base timeout required for graceful shutdown to be
-  // functional on the number of levels we currently observe.
-  Duration minReasonableTimeout =
-    mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * numLevels;
-
-  if (shutdownTimeout >= minReasonableTimeout) {
-    shutdownTimeout -=
-      mesos::internal::slave::SHUTDOWN_TIMEOUT_DELTA * callerLevel;
-  } else {
-    LOG(WARNING) << "Shutdown grace period " << shutdownTimeout
-                 << " is too small; expect at least " << minReasonableTimeout
-                 << " for " << numLevels << " levels";
-    shutdownTimeout /= numLevels;
-  }
-
-  return shutdownTimeout;
+  return gracePeriod;
 }
 
 
-Duration getExecutorShutdownTimeout(const Duration& baseShutdownTimeout)
+Duration getContainerizerGracePeriod(const Duration& baseShutdownTimeout)
 {
-  return calculateShutdownTimeout(baseShutdownTimeout, 1);
+  return calculateGracePeriod(baseShutdownTimeout, 2);
 }
 
 
-Duration getCommandExecutorShutdownTimeout(const Duration& baseShutdownTimeout)
+Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout)
 {
-  return calculateShutdownTimeout(baseShutdownTimeout, 2);
+  return calculateGracePeriod(baseShutdownTimeout, 1);
+}
+
+
+Duration getCommandExecutorGracePeriod(const Duration& baseShutdownTimeout)
+{
+  return calculateGracePeriod(baseShutdownTimeout, 0);
 }
 
 

@@ -78,6 +78,7 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
+#include "slave/utils.hpp"
 
 using std::list;
 using std::map;
@@ -3164,7 +3165,7 @@ void Slave::shutdownExecutor(Framework* framework, Executor* executor)
   send(executor->pid, ShutdownExecutorMessage());
 
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(flags.executor_shutdown_grace_period,
+  delay(getContainerizerGracePeriod(flags.executor_shutdown_grace_period),
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id,

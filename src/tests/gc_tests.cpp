@@ -51,6 +51,7 @@
 #include "slave/gc.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
+#include "slave/utils.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
@@ -440,7 +441,8 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedFramework)
     FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
 
   // Advance clock to kill executor via isolator.
-  Clock::advance(flags.executor_shutdown_grace_period);
+  Clock::advance(getContainerizerGracePeriod(
+      flags.executor_shutdown_grace_period));
 
   Clock::settle();
 

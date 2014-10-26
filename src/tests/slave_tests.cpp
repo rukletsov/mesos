@@ -1258,7 +1258,6 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 }
 
 
-
 // This test checks that the mechanism of calculating nested graceful
 // shutdown periods does not break the default behaviour and works as
 // expected.
@@ -1271,21 +1270,13 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   // for graceful shutdown period in the CommandExecutor. Make sure
   // the default behaviour (3s) persists.
   EXPECT_EQ(Seconds(3),
-            slave::getCommandExecutorShutdownTimeout(defaultTimeout));
+            slave::getCommandExecutorGracePeriod(defaultTimeout));
 
-  // If the top-level timeout is 0, all nested timeouts should be 0.
+  // The new logic uses a certain delta to calculate nested timeouts.
   EXPECT_EQ(Duration::zero(),
-            slave::getExecutorShutdownTimeout(Duration::zero()));
-  EXPECT_EQ(Duration::zero(),
-            slave::getCommandExecutorShutdownTimeout(Duration::zero()));
-
-  // The new logic uses either a certain delta to calculate nested
-  // timeouts or takes a fraction of the top-level timeout if
-  // subtracting a delta will lead to a negative result.
-  EXPECT_EQ(customTimeout - Seconds(2),
-            slave::getCommandExecutorShutdownTimeout(customTimeout));
-  EXPECT_EQ(Milliseconds(500),
-            slave::getCommandExecutorShutdownTimeout(Milliseconds(1500)));
+            slave::getCommandExecutorGracePeriod(Duration::zero()));
+  EXPECT_EQ(customTimeout + Seconds(2),
+            slave::getContainerizerGracePeriod(customTimeout));
 
   // Check the graceful shutdown periods that reach the executor in
   // protobuf messages.
@@ -1322,7 +1313,7 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
-  auto offer = offers.get()[0];
+  Offer offer = offers.get()[0];
 
   // Create one task with grace shutdown period set and one without.
   TaskInfo taskCustom;
@@ -1389,7 +1380,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
   // Ensure escalation timeout is more than the maximal reap interval.
-  auto timeout = slave::getCommandExecutorShutdownTimeout(
+  auto timeout = slave::getCommandExecutorGracePeriod(
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
 
@@ -1415,7 +1406,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
 
   AWAIT_READY(offers);
   EXPECT_FALSE(offers.get().empty());
-  auto offer = offers.get()[0];
+  Offer offer = offers.get()[0];
 
   // Launch a long-running task responsive to SIGTERM.
   TaskInfo taskResponsive = createTask(offer, "sleep 1000");

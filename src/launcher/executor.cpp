@@ -655,7 +655,7 @@ int main(int argc, char** argv)
          << "using default value: " << shutdownTimeout << endl;
   }
 
-  shutdownTimeout = getCommandExecutorShutdownTimeout(shutdownTimeout);
+  shutdownTimeout = getCommandExecutorGracePeriod(shutdownTimeout);
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);

@@ -740,7 +740,7 @@ Status MesosExecutorDriver::start()
                  << "set, using default value: " << shutdownTimeout;
   }
 
-  shutdownTimeout = slave::getExecutorShutdownTimeout(shutdownTimeout);
+  shutdownTimeout = slave::getExecutorGracePeriod(shutdownTimeout);
   VLOG(2) << "Shutdown timeout is set to " << shutdownTimeout;
 
   CHECK(process == NULL);
