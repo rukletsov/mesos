@@ -75,6 +75,8 @@
 #include "module/authenticator.hpp"
 #include "module/manager.hpp"
 
+#include "watcher/whitelist_watcher.hpp"
+
 using std::list;
 using std::string;
 using std::vector;
@@ -103,67 +105,6 @@ namespace internal {
 namespace master {
 
 using allocator::Allocator;
-
-
-class WhitelistWatcher : public Process<WhitelistWatcher> {
-public:
-  WhitelistWatcher(const string& _path, Allocator* _allocator)
-  : ProcessBase(process::ID::generate("whitelist")),
-    path(_path),
-    allocator(_allocator) {}
-
-protected:
-  virtual void initialize()
-  {
-    watch();
-  }
-
-  void watch()
-  {
-    // Get the list of white listed slaves.
-    Option<hashset<string>> whitelist;
-    if (path == "*") { // Accept all slaves.
-      VLOG(1) << "No whitelist given. Advertising offers for all slaves";
-    } else {
-      // Read from local file.
-      // TODO(vinod): Add support for reading from ZooKeeper.
-      // TODO(vinod): Ensure this read is atomic w.r.t external
-      // writes/updates to this file.
-      Try<string> read = os::read(
-          strings::remove(path, "file://", strings::PREFIX));
-      if (read.isError()) {
-        LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
-                   << "Retrying";
-        whitelist = lastWhitelist;
-      } else if (read.get().empty()) {
-        LOG(WARNING) << "Empty whitelist file " << path << ". "
-                     << "No offers will be made!";
-        whitelist = hashset<string>();
-      } else {
-        hashset<string> hostnames;
-        vector<string> lines = strings::tokenize(read.get(), "\n");
-        foreach (const string& hostname, lines) {
-          hostnames.insert(hostname);
-        }
-        whitelist = hostnames;
-      }
-    }
-
-    // Send the whitelist to allocator, if necessary.
-    if (whitelist != lastWhitelist) {
-      allocator->updateWhitelist(whitelist);
-    }
-
-    // Check again.
-    lastWhitelist = whitelist;
-    delay(WHITELIST_WATCH_INTERVAL, self(), &WhitelistWatcher::watch);
-  }
-
-private:
-  const string path;
-  Allocator* allocator;
-  Option<hashset<string>> lastWhitelist;
-};
 
 
 class SlaveObserver : public Process<SlaveObserver>
@@ -518,8 +459,10 @@ void Master::initialize()
   // Initialize the allocator.
   allocator->initialize(flags, self(), roleInfos);
 
-  // Parse the white list.
-  whitelistWatcher = new WhitelistWatcher(flags.whitelist, allocator);
+  // Parse the whitelist.
+  whitelistWatcher = new WhitelistWatcher(
+      flags.whitelist,
+      lambda::bind(&Allocator::updateWhitelist, allocator, lambda::_1));
   spawn(whitelistWatcher);
 
   nextFrameworkId = 0;
