@@ -59,10 +59,10 @@ void WhitelistWatcher::initialize()
 
 void WhitelistWatcher::watch()
 {
-  // Get the list of white listed nodes (slaves or masters).
+  // Get the list of white listed nodes.
   Option<hashset<string>> whitelist;
-  if (path == "*") { // Accept all slaves.
-    VLOG(1) << "No whitelist given. Communicating with all nodes";
+  if (path == "*") { // Accept all nodes.
+    VLOG(1) << "No whitelist given";
   } else {
     // Read from local file.
     // TODO(vinod): Add support for reading from ZooKeeper.
@@ -75,8 +75,7 @@ void WhitelistWatcher::watch()
                  << "Retrying";
       whitelist = lastWhitelist;
     } else if (read.get().empty()) {
-      LOG(WARNING) << "Empty whitelist file " << path << "."
-                   << "Communication is hampered with all nodes!";
+      VLOG(1) << "Empty whitelist file " << path;
       whitelist = hashset<string>();
     } else {
       hashset<string> hostnames;
