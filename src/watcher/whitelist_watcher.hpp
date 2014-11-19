@@ -32,7 +32,7 @@ namespace mesos {
 namespace internal {
 
 // Time interval to check for updated watchers list.
-extern const Duration WHITELIST_WATCH_INTERVAL;
+Duration WHITELIST_WATCH_INTERVAL();
 
 
 class WhitelistWatcher : public process::Process<WhitelistWatcher>

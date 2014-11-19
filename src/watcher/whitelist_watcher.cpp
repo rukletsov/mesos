@@ -41,7 +41,7 @@ using process::Process;
 
 using lambda::function;
 
-const Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
+Duration WHITELIST_WATCH_INTERVAL() { return Seconds(5); }
 
 
 WhitelistWatcher::WhitelistWatcher(
@@ -92,9 +92,9 @@ void WhitelistWatcher::watch()
     subscriber(whitelist);
   }
 
-  // Check again.
+  // Schedule the next check.
   lastWhitelist = whitelist;
-  delay(WHITELIST_WATCH_INTERVAL, self(), &WhitelistWatcher::watch);
+  delay(WHITELIST_WATCH_INTERVAL(), self(), &WhitelistWatcher::watch);
 }
 
 } // namespace internal {
