@@ -47,7 +47,6 @@
 #include <stout/nothing.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
-#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/utils.hpp>
