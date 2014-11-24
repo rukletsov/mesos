@@ -23,7 +23,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Slave           Exec      CommandExecutor
+// Slave           Exec          Executor
 //  +               +               +
 //  |               |               |
 //  |               |               |
@@ -54,12 +54,12 @@ Duration getContainerizerGracePeriod(const Duration& baseShutdownTimeout);
 
 // Returns the shutdown grace period for ExecutorProcess. We assume it
 // is the 1st level in the shutdown chain.
+Duration getExecGracePeriod(const Duration& baseShutdownTimeout);
+
+
+// Returns the shutdown garce period for an executor (e.g.
+// CommandExecutorProcess). It is the 0 level in the shutdown chain.
 Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout);
-
-
-// Returns the shutdown garce period for CommandExecutorProcess. It is
-// the 0 level in the shutdown chain.
-Duration getCommandExecutorGracePeriod(const Duration& baseShutdownTimeout);
 
 } // namespace slave {
 } // namespace internal {
