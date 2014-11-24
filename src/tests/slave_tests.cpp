@@ -1576,8 +1576,8 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
 
   // The grace period in ExecutorProcess should be bigger than the
   // grace period in an executor.
-//  EXPECT_LT(slave::getExecGracePeriod(defaultTimeout),
-//            slave::getExecutorGracePeriod(defaultTimeout));
+  EXPECT_GT(slave::getExecGracePeriod(defaultTimeout),
+            slave::getExecutorGracePeriod(defaultTimeout));
 
   // Check the graceful shutdown periods that reach the executor in
   // protobuf messages.
@@ -1632,8 +1632,8 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   taskDefault.mutable_resources()->CopyFrom(
       Resources::parse("cpus:0.1;mem:64").get());
 
-  ASSERT_LE(taskCustom.resources() + taskDefault.resources(),
-            offer.resources());
+  ASSERT_TRUE(Resources(offer.resources()).contains(
+      taskCustom.resources() + taskDefault.resources()));
 
   vector<TaskInfo> tasks;
   tasks.push_back(taskCustom);
