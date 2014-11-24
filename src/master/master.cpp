@@ -458,7 +458,11 @@ void Master::initialize()
   // Initialize the allocator.
   allocator->initialize(flags, self(), roleInfos);
 
-  // Parse the whitelist.
+  // Parse the whitelist. Passing allocator::updateWhitelist()
+  // callback is safe because we shut down the whitelistWatcher in
+  // Master::finalize(), while allocator lifetime is greater than
+  // masters. Therefore there is no risk of calling into an allocator
+  // that has been cleaned up.
   whitelistWatcher = new WhitelistWatcher(
       flags.whitelist,
       lambda::bind(&Allocator::updateWhitelist, allocator, lambda::_1));

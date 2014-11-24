@@ -38,6 +38,8 @@ Duration WHITELIST_WATCH_INTERVAL();
 class WhitelistWatcher : public process::Process<WhitelistWatcher>
 {
 public:
+  // NOTE: The caller should ensure a callback exists throughout
+  // WhitelistWatcher's lifetime.
   WhitelistWatcher(
       const std::string& path,
       const lambda::function<
