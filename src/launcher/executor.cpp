@@ -78,13 +78,13 @@ public:
   CommandExecutorProcess(
       Option<char**> override,
       const string& healthCheckDir,
-      const Duration& escalationTimeout)
+      const Duration& shutdownTimeout)
     : launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(escalationTimeout),
+      shutdownTimeout(shutdownTimeout),
       driver(None()),
       healthCheckDir(healthCheckDir),
       override(override) {}
@@ -328,7 +328,7 @@ public:
       // TODO(nnielsen): Make escalationTimeout configurable through
       // slave flags and/or per-framework/executor.
       escalationTimer = delay(
-          escalationTimeout,
+          shutdownTimeout,
           self(),
           &Self::escalated);
 
@@ -432,9 +432,10 @@ private:
   {
     // TODO(alex): If the escalation timeout is too small, the process
     // may have already exited, but not yet reaped. If this is the
-    // case, do not kill the process.
+    // case, do not kill the process, since its OS pid could have been
+    // already reused.
     cout << "Process " << pid << " did not terminate after "
-         << escalationTimeout << ", sending SIGKILL to "
+         << shutdownTimeout << ", sending SIGKILL to "
          << "process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
@@ -501,7 +502,7 @@ private:
   bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
-  Duration escalationTimeout;
+  Duration shutdownTimeout;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
   string healthCheckDir;
@@ -639,7 +640,7 @@ int main(int argc, char** argv)
     path = os::realpath(dirname(argv[0])).get();
   }
 
-  // Get the shutdown grace period and adjust it.
+  // Get the appropriate shutdown grace period.
   Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
@@ -655,7 +656,7 @@ int main(int argc, char** argv)
          << "using default value: " << shutdownTimeout << endl;
   }
 
-  shutdownTimeout = getCommandExecutorGracePeriod(shutdownTimeout);
+  shutdownTimeout = getExecutorGracePeriod(shutdownTimeout);
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);

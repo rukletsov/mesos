@@ -1566,24 +1566,23 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   // We used to have a signal escalation timeout constant responsibe
   // for graceful shutdown period in the CommandExecutor. Make sure
   // the default behaviour (3s) persists.
-  EXPECT_EQ(Seconds(3),
-            slave::getCommandExecutorGracePeriod(defaultTimeout));
+  EXPECT_EQ(Seconds(3), slave::getExecutorGracePeriod(defaultTimeout));
 
   // The new logic uses a certain delta to calculate nested timeouts.
-  EXPECT_EQ(Duration::zero(),
-            slave::getCommandExecutorGracePeriod(Duration::zero()));
-  EXPECT_EQ(Seconds(2),
-            slave::getContainerizerGracePeriod(Duration::zero()));
+  EXPECT_EQ(Duration::zero(), slave::getExecutorGracePeriod(Duration::zero()));
+  EXPECT_EQ(Seconds(2), slave::getContainerizerGracePeriod(Duration::zero()));
   EXPECT_EQ(customTimeout + Seconds(2),
             slave::getContainerizerGracePeriod(customTimeout));
+
+  // The grace period in ExecutorProcess should be bigger than the
+  // grace period in an executor.
+//  EXPECT_LT(slave::getExecGracePeriod(defaultTimeout),
+//            slave::getExecutorGracePeriod(defaultTimeout));
 
   // Check the graceful shutdown periods that reach the executor in
   // protobuf messages.
   // NOTE: We check only the message contents and *not* the value
-  // stored by the executor. Currently (14 Nov 2014) there is only
-  // one shutdown period per executor which is set to the period of
-  // the first scheduled task, effectively ignoring shutdown periods
-  // of subsequent tasks.
+  // stored by the executor.
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1676,7 +1675,7 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
   flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
   // Ensure escalation timeout is more than the maximal reap interval.
-  auto timeout = slave::getCommandExecutorGracePeriod(
+  auto timeout = slave::getExecutorGracePeriod(
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
 

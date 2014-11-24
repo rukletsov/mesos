@@ -72,8 +72,8 @@ namespace mesos {
 namespace internal {
 
 
-// A custom executor can be non-cooperative in a sense it can block
-// the shutdown callback and take over the actor thread. As a result,
+// A custom executor can be non-cooperative as it can block the
+// shutdown callback and take over the actor thread. As a result,
 // libprocess process may exit (e.g. a Java executor can be garbage
 // collected) before a delayed shutdown callback is invoked. Therefore
 // we need a separate libprocess process to ensure clean-up. However,
@@ -724,7 +724,7 @@ Status MesosExecutorDriver::start()
     }
   }
 
-  // Get the shutdown grace period and adjust it.
+  // Get the appropriate shutdown grace period.
   Duration shutdownTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
@@ -740,7 +740,7 @@ Status MesosExecutorDriver::start()
                  << "set, using default value: " << shutdownTimeout;
   }
 
-  shutdownTimeout = slave::getExecutorGracePeriod(shutdownTimeout);
+  shutdownTimeout = slave::getExecGracePeriod(shutdownTimeout);
   VLOG(2) << "Shutdown timeout is set to " << shutdownTimeout;
 
   CHECK(process == NULL);

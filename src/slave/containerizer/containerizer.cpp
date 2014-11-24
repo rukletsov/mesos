@@ -290,8 +290,8 @@ map<string, string> executorEnvironment(
   // framework or to default value from slave's flags. In case it is
   // absent for some reason, use the hardcoded default.
   if (executorInfo.command().has_grace_period()) {
-    env["MESOS_SHUTDOWN_GRACE_PERIOD"] = stringify(
-        Seconds(executorInfo.command().grace_period()));
+    env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
+        stringify(Seconds(executorInfo.command().grace_period()));
   } else {
     LOG(WARNING) << "CommandInfo.grace_period flag is not set, "
                  << "using default value: " << EXECUTOR_SHUTDOWN_GRACE_PERIOD;
