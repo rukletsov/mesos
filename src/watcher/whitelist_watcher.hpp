@@ -31,10 +31,6 @@
 namespace mesos {
 namespace internal {
 
-// Time interval to check for updated watchers list.
-Duration WHITELIST_WATCH_INTERVAL();
-
-
 class WhitelistWatcher : public process::Process<WhitelistWatcher>
 {
 public:
@@ -42,6 +38,7 @@ public:
   // WhitelistWatcher's lifetime.
   WhitelistWatcher(
       const std::string& path,
+      const Duration& watchInterval,
       const lambda::function<
         void(const Option<hashset<std::string>>& whitelist)>& subscriber);
 
@@ -51,6 +48,7 @@ protected:
 
 private:
   const std::string path;
+  const Duration watchInterval;
   lambda::function<void(const Option<hashset<std::string>>& whitelist)>
     subscriber;
   Option<hashset<std::string>> lastWhitelist;

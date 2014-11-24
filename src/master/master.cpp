@@ -465,6 +465,7 @@ void Master::initialize()
   // that has been cleaned up.
   whitelistWatcher = new WhitelistWatcher(
       flags.whitelist,
+      WHITELIST_WATCH_INTERVAL,
       lambda::bind(&Allocator::updateWhitelist, allocator, lambda::_1));
   spawn(whitelistWatcher);
 
