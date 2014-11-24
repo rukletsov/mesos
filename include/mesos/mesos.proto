@@ -252,14 +252,8 @@ message CommandInfo {
   optional string value = 3;
   repeated string arguments = 7;
 
-  // Propagates grace shutdown period from slave to executor
-  // (in seconds). Framework changes are ignored.
-  // NOTE: In case of CommandExecutor, the grace period is set per
-  // task, since a task will never share the executor with any other
-  // task. In case of a custom executor that is shared among tasks,
-  // the grace period is set once for the executor using the value of
-  // the first TaskInfo received. The grace period values of
-  // subsequent tasks are ignored.
+  // Shutdown grace period for the command (in seconds). Any changes
+  // made by frameworks are currently ignored.
   optional double grace_period = 8;
 
   // Enables executor and tasks to run as a specific user. If the user
