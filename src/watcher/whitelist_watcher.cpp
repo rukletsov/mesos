@@ -52,10 +52,12 @@ WhitelistWatcher::WhitelistWatcher(
     path(path),
     subscriber(subscriber) {}
 
+
 void WhitelistWatcher::initialize()
 {
   watch();
 }
+
 
 void WhitelistWatcher::watch()
 {
