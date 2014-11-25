@@ -51,6 +51,7 @@ const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 #endif
 const Duration DOCKER_REMOVE_DELAY = Hours(6);
 const std::string DEFAULT_AUTHENTICATEE = "crammd5";
+const Duration MASTERS_WATCH_INTERVAL = Seconds(15);
 
 Duration MASTER_PING_TIMEOUT()
 {

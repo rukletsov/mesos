@@ -104,6 +104,9 @@ extern const std::string DEFAULT_AUTHENTICATEE;
 // trigger a re-detection of the master to cause a re-registration.
 Duration MASTER_PING_TIMEOUT();
 
+// Time interval to check for updated masters list.
+extern const Duration MASTERS_WATCH_INTERVAL;
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
