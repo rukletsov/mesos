@@ -627,6 +627,27 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
       return;
     }
 
+    // Check if the detected master is allowed to connect to.
+    if (masters.isSome()) {
+      string masterHostname = _master.get().get().hostname();
+      VLOG(1) << "Looking up new master '" << masterHostname
+              << "' in the list of eligible masters";
+
+      if (!masters.get().contains(masterHostname)) {
+        // The new master is not in the list of allowed masters. This
+        // can happen either because operator explicitly required such
+        // behaviour for a certain timespan, or the whitelist has not
+        // been processed yet. Detection will be repeated when either
+        // when the whitelist changes or a new master is detected.
+        LOG(WARNING) << "New master '" << masterHostname << "' is not in "
+                     << " the list of eligible masters."
+                     << " Deferring discovery of new master";
+        master = None();
+      } else {
+        VLOG(1) << "New master '" << masterHostname << "' found in whitelist";
+      }
+    }
+
     // Wait for a random amount of time before authentication or
     // registration.
     Duration duration =
@@ -784,6 +805,22 @@ void Slave::updateMasters(const Option<hashset<std::string>>& whitelist)
 void Slave::_updateMasters(const Option<hashset<std::string>>& whitelist)
 {
   masters = whitelist;
+
+  if (masters.isSome()) {
+    LOG(INFO) << "Updated allowed masters: " << stringify(masters.get());
+
+    if (masters.get().empty()) {
+      LOG(WARNING) << "Masters list is empty, will not connect to any master!";
+    }
+  } else {
+    LOG(INFO) << "Allow connections to all masters";
+  }
+
+  // Run master detection using currently leading master. This may
+  // invalidate current master if it's not whitelisted. Use case is a
+  // rogue leading master that has been revealed but not yet blocked.
+  detection = detector->detect()
+    .onAny(defer(self(), &Slave::detected, lambda::_1));
 }
 
 
