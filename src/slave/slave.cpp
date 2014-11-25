@@ -80,6 +80,8 @@
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
 
+#include "watcher/whitelist_watcher.hpp"
+
 using std::list;
 using std::map;
 using std::set;
@@ -122,6 +124,7 @@ Slave::Slave(const slave::Flags& _flags,
     metaDir(paths::getMetaRootDir(flags.work_dir)),
     recoveryErrors(0),
     credential(None()),
+    masters(hashset<string>()),
     authenticatee(NULL),
     authenticating(None()),
     authenticated(false),
@@ -334,6 +337,16 @@ void Slave::initialize()
   // a very large disk_watch_interval).
   delay(flags.disk_watch_interval, self(), &Slave::checkDiskUsage);
 
+  // Parse the whitelist with masters. Passing this->updateWhitelist()
+  // callback is safe because we mastersWatcher is shut down in
+  // Slave::finalize(), and therefore there is no risk of calling into
+  // a slave that has been cleaned up.
+  mastersWatcher = new WhitelistWatcher(
+      flags.masters,
+      MASTERS_WATCH_INTERVAL,
+      lambda::bind(&Slave::updateMasters, this, lambda::_1));
+  spawn(mastersWatcher);
+
   // Start all the statistics at 0.
   stats.tasks[TASK_STAGING] = 0;
   stats.tasks[TASK_STARTING] = 0;
@@ -513,6 +526,10 @@ void Slave::finalize()
       CHECK_SOME(os::rm(paths::getLatestSlavePath(metaDir)));
     }
   }
+
+  terminate(mastersWatcher);
+  wait(mastersWatcher);
+  delete mastersWatcher;
 }
 
 
@@ -755,6 +772,18 @@ void Slave::authenticationTimeout(Future<bool> future)
   if (future.discard()) { // This is a no-op if the future is already ready.
     LOG(WARNING) << "Authentication timed out";
   }
+}
+
+
+void Slave::updateMasters(const Option<hashset<std::string>>& whitelist)
+{
+  dispatch(self(), &Self::_updateMasters, whitelist);
+}
+
+
+void Slave::_updateMasters(const Option<hashset<std::string>>& whitelist)
+{
+  masters = whitelist;
 }
 
 

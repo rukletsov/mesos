@@ -69,6 +69,7 @@ namespace internal {
 class MasterDetector; // Forward declaration.
 
 class Authenticatee;
+class WhitelistWatcher;
 
 namespace slave {
 
@@ -337,6 +338,10 @@ private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
 
+  // Updates the list of allowed masters.
+  void updateMasters(const Option<hashset<std::string>>& whitelist);
+  void _updateMasters(const Option<hashset<std::string>>& whitelist);
+
   // Inner class used to namespace HTTP route handlers (see
   // slave/http.cpp for implementations).
   class Http
@@ -456,6 +461,12 @@ private:
   unsigned int recoveryErrors;
 
   Option<Credential> credential;
+
+  // Masters slave is allowed to connect to. Initialized to empty
+  // list, therefore no masters are allowed until the watcher
+  // checks the whitelist and notifies the slave.
+  WhitelistWatcher* mastersWatcher;
+  Option<hashset<std::string>> masters;
 
   // Authenticatee name as supplied via flags.
   std::string authenticateeName;
