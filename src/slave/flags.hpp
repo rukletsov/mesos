@@ -466,7 +466,7 @@ public:
   Duration perf_duration;
 #endif
   Option<std::string> credential;
-  std::string whitelist;
+  std::string masters;
   Option<std::string> containerizer_path;
   std::string containerizers;
   Option<std::string> default_container_image;
