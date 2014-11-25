@@ -272,6 +272,13 @@ public:
         "    \"secret\": \"secret\",\n"
         "}");
 
+    add(&Flags::masters,
+        "masters",
+        "Path to a file with a list of whitelisted masters\n"
+        "(one per line) to allow slave to connect to.\n"
+        "Path could be of the form 'file:///path/to/file' or '/path/to/file'.",
+        "*");
+
     add(&Flags::containerizer_path,
         "containerizer_path",
         "The path to the external containerizer executable used when\n"
@@ -459,6 +466,7 @@ public:
   Duration perf_duration;
 #endif
   Option<std::string> credential;
+  std::string whitelist;
   Option<std::string> containerizer_path;
   std::string containerizers;
   Option<std::string> default_container_image;
