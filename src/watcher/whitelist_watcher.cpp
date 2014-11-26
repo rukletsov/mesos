@@ -92,9 +92,7 @@ void WhitelistWatcher::watch()
   }
 
   // Send the whitelist to subscriber, if necessary.
-  LOG(INFO) << "Bang 0";
   if (whitelist != lastWhitelist) {
-    LOG(INFO) << "Bang 1";
     subscriber(whitelist);
   }
 

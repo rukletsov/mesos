@@ -446,6 +446,10 @@ private:
   // Master detection future.
   process::Future<Option<MasterInfo> > detection;
 
+  // Cache a new detected master in order to re-authorize it if the
+  // the list of eligible masters changes.
+  process::Future<Option<MasterInfo>> lastDetectedMaster;
+
   // Timer for triggering re-detection when no ping is received from
   // the master.
   process::Timer pingTimer;

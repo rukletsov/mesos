@@ -344,7 +344,8 @@ void Slave::initialize()
   mastersWatcher = new WhitelistWatcher(
       flags.masters,
       MASTERS_WATCH_INTERVAL,
-      lambda::bind(&Slave::updateMasters, this, lambda::_1));
+      lambda::bind(&Slave::updateMasters, this, lambda::_1),
+      masters);
   spawn(mastersWatcher);
 
   // Start all the statistics at 0.
@@ -618,6 +619,7 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
   } else {
     latest = _master.get();
     master = UPID(_master.get().get().pid());
+    lastDetectedMaster = _master;
 
     LOG(INFO) << "New master detected at " << master.get();
     link(master.get());
@@ -639,9 +641,9 @@ void Slave::detected(const Future<Option<MasterInfo> >& _master)
         // behaviour for a certain timespan, or the whitelist has not
         // been processed yet. Detection will be repeated when either
         // when the whitelist changes or a new master is detected.
-        LOG(WARNING) << "New master '" << masterHostname << "' is not in "
-                     << " the list of eligible masters."
-                     << " Deferring discovery of new master";
+        LOG(WARNING) << "New master '" << masterHostname << "' is not in"
+                     << " the list of eligible masters,"
+                     << " deferring discovery of new master";
         master = None();
       } else {
         VLOG(1) << "New master '" << masterHostname << "' found in whitelist";
@@ -816,11 +818,15 @@ void Slave::_updateMasters(const Option<hashset<std::string>>& whitelist)
     LOG(INFO) << "Allow connections to all masters";
   }
 
-  // Run master detection using currently leading master. This may
-  // invalidate current master if it's not whitelisted. Use case is a
-  // rogue leading master that has been revealed but not yet blocked.
-  detection = detector->detect()
-    .onAny(defer(self(), &Slave::detected, lambda::_1));
+  // Run master detection using last detected master (it can also be
+  // currently leading master). This may invalidate current master if
+  // it is not whitelisted. Consider a rogue leading master that has
+  // been revealed but not yet blocked.
+  if (state != RECOVERING &&
+      lastDetectedMaster.isReady() &&
+      lastDetectedMaster.get().isSome()) {
+    dispatch(self(), &Slave::detected, lastDetectedMaster);
+  }
 }
 
 
