@@ -46,11 +46,13 @@ WhitelistWatcher::WhitelistWatcher(
     const string& path,
     const Duration& watchInterval,
     const function<
-      void(const Option<hashset<string>>& whitelist)>& subscriber)
+      void(const Option<hashset<string>>& whitelist)>& subscriber,
+    const Option<hashset<std::string>>& initialWhitelist)
   : ProcessBase(process::ID::generate("whitelist")),
     path(path),
     watchInterval(watchInterval),
-    subscriber(subscriber) {}
+    subscriber(subscriber),
+    lastWhitelist(initialWhitelist) {}
 
 
 void WhitelistWatcher::initialize()
@@ -90,7 +92,9 @@ void WhitelistWatcher::watch()
   }
 
   // Send the whitelist to subscriber, if necessary.
+  LOG(INFO) << "Bang 0";
   if (whitelist != lastWhitelist) {
+    LOG(INFO) << "Bang 1";
     subscriber(whitelist);
   }
 

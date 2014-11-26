@@ -40,7 +40,8 @@ public:
       const std::string& path,
       const Duration& watchInterval,
       const lambda::function<
-        void(const Option<hashset<std::string>>& whitelist)>& subscriber);
+        void(const Option<hashset<std::string>>& whitelist)>& subscriber,
+      const Option<hashset<std::string>>& initialWhitelist = None());
 
 protected:
   virtual void initialize();
