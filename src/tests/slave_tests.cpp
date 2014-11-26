@@ -1538,3 +1538,179 @@ TEST_F(SlaveTest, TaskLabels)
 
   Shutdown(); // Must shutdown before 'containerizer' gets deallocated.
 }
+
+
+class SlaveWhitelistTest : public SlaveTest
+{
+protected:
+  SlaveWhitelistTest()
+    : path("whitelist.txt") {}
+
+  virtual ~SlaveWhitelistTest()
+  {
+    os::rm(path);
+  }
+
+  const string path;
+};
+
+
+TEST_F(SlaveWhitelistTest, WhitelistKnownMasterHostname)
+{
+  // Add some hosts (including the current master) to the whitelist.
+  Try<string> hostname = os::hostname();
+  ASSERT_SOME(hostname);
+  string hosts = hostname.get() + "\ndummy-master";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
+
+  // Start master and hint it about its hostname.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.hostname = hostname.get();
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start slave with the whitelisted leading master.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.masters = "file://" + path;
+  slaveFlags.hostname = hostname.get();
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // If the slave agrees to commpunicate with the master, the master
+  // will make offers using slave's resources.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(SlaveWhitelistTest, WhitelistIdleMaster)
+{
+  Try<string> hostname = os::hostname();
+  ASSERT_SOME(hostname);
+
+  // Create an empty whitelist, no masters are eligible.
+  ASSERT_SOME(os::write(path, "")) << "Error writing whitelist";
+
+  // Start master and hint it about its hostname.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.hostname = hostname.get();
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // The slave should detect the leading master and reject it.
+  Future<Nothing> masterDetected =
+    FUTURE_DISPATCH(_, &Slave::detected);
+
+  // Start slave with empty eligible masters.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.masters = "file://" + path;
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(masterDetected);
+
+  // Master detection should be triggered by the whitelist update.
+  Future<Nothing> masterWhitelisted =
+    FUTURE_DISPATCH(_, &Slave::detected);
+
+  // Add some hosts (including the current master) to the whitelist.
+  string hosts = hostname.get() + "\ndummy-master";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
+
+  AWAIT_READY(masterWhitelisted);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // If the slave agrees to commpunicate with the master, the master
+  // will make offers using slave's resources.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
+
+
+TEST_F(SlaveWhitelistTest, BlacklistLeadingMaster)
+{
+  // Add some hosts (including the current master) to the whitelist.
+  Try<string> hostname = os::hostname();
+  ASSERT_SOME(hostname);
+  string hosts = hostname.get() + "\ndummy-master";
+  ASSERT_SOME(os::write(path, hosts)) << "Error writing whitelist";
+
+  // Start master and hint it about its hostname.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.hostname = hostname.get();
+  Try<PID<Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Start slave with the whitelisted leading master.
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.masters = "file://" + path;
+  slaveFlags.hostname = hostname.get();
+  Try<PID<Slave>> slave = StartSlave(slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // If the slave agrees to commpunicate with the master, the master
+  // will make offers using slave's resources.
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  // Master detection should be triggered by the whitelist update.
+  Future<Nothing> masterBlacklisted =
+    FUTURE_DISPATCH(_, &Slave::detected);
+
+  // Blacklist all hosts.
+  ASSERT_SOME(os::write(path, "")) << "Error writing whitelist";
+
+  AWAIT_READY(masterBlacklisted);
+
+  // Check that the slave is disconnected from the master.
+
+  driver.stop();
+  driver.join();
+
+  Shutdown();
+}
