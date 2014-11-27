@@ -1583,7 +1583,7 @@ TEST_F(SlaveWhitelistTest, WhitelistKnownMasterHostname)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  // If the slave agrees to commpunicate with the master, the master
+  // If the slave agrees to communicate with the master, the master
   // will make offers using slave's resources.
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1643,7 +1643,7 @@ TEST_F(SlaveWhitelistTest, WhitelistIdleMaster)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  // If the slave agrees to commpunicate with the master, the master
+  // If the slave agrees to communicate with the master, the master
   // will make offers using slave's resources.
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1688,7 +1688,7 @@ TEST_F(SlaveWhitelistTest, BlacklistLeadingMaster)
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
 
-  // If the slave agrees to commpunicate with the master, the master
+  // If the slave agrees to communicate with the master, the master
   // will make offers using slave's resources.
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))

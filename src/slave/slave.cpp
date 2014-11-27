@@ -823,7 +823,7 @@ void Slave::_updateMasters(const Option<hashset<std::string>>& whitelist)
   // it is not whitelisted. Consider a rogue leading master that has
   // been revealed but not yet blocked.
   // NOTE: We should not run complete new master acknowledgement
-  // procedure (authentication + authrization) on every change in the
+  // procedure (authentication + authorization) on every change in the
   // list of eligible masters. If such change neither invalidates
   // current master nor accepts previously rejected candidate,
   // authentication should not be re-triggered.
