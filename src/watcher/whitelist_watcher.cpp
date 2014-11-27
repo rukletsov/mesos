@@ -57,8 +57,8 @@ WhitelistWatcher::WhitelistWatcher(
 void WhitelistWatcher::initialize()
 {
   // If no whitelist file is given, no need to watch. Notify the
-  // subscriber that there is no whitelist only if initial whitelist
-  // was provided.
+  // subscriber that there is no whitelist only if a valid initial
+  // whitelist has been provided.
   if (path == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
     Option<hashset<string>> whitelist = None();
