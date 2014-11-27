@@ -45,21 +45,26 @@ using lambda::function;
 WhitelistWatcher::WhitelistWatcher(
     const string& path,
     const Duration& watchInterval,
-    const function<
-      void(const Option<hashset<string>>& whitelist)>& subscriber)
+    const function<void(const Option<hashset<string>>& whitelist)>& subscriber,
+    const Option<hashset<std::string>>& initialWhitelist)
   : ProcessBase(process::ID::generate("whitelist")),
     path(path),
     watchInterval(watchInterval),
-    subscriber(subscriber) {}
+    subscriber(subscriber),
+    lastWhitelist(initialWhitelist) {}
 
 
 void WhitelistWatcher::initialize()
 {
   // If no whitelist file is given, no need to watch. Notify the
-  // subscriber that there is no whitelist.
+  // subscriber that there is no whitelist only if initial whitelist
+  // was provided.
   if (path == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
-    subscriber(Option<hashset<string>>(None()));
+    Option<hashset<string>> whitelist = None();
+    if (whitelist != lastWhitelist) {
+      subscriber(whitelist);
+    }
   } else {
     watch();
   }
