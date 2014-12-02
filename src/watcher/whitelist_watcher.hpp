@@ -34,6 +34,8 @@ namespace internal {
 class WhitelistWatcher : public process::Process<WhitelistWatcher>
 {
 public:
+  // Provide initial whitelist if you would like watcher to track
+  // changes against it.
   // NOTE: The caller should ensure a callback exists throughout
   // WhitelistWatcher's lifetime.
   WhitelistWatcher(

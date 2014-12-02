@@ -61,9 +61,8 @@ void WhitelistWatcher::initialize()
   // whitelist has been provided.
   if (path == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
-    Option<hashset<string>> whitelist = None();
-    if (whitelist != lastWhitelist) {
-      subscriber(whitelist);
+    if (lastWhitelist.isSome()) {
+      subscriber(None());
     }
   } else {
     watch();
