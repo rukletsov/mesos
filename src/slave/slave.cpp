@@ -2669,12 +2669,12 @@ const TaskInfo Slave::setGracePeriod(TaskInfo task)
   // TODO(alexr): do not overwrite present value for frameworks that
   // are authorized to set grace periods for their executors.
 
-  // Check CommandInfo in task.
+  // Update CommandInfo in task.
   if (task.has_command()) {
     task.mutable_command()->set_grace_period(defaultGracePeriod);
   }
 
-  // Check CommandInfo in task's ExecutorInfo.
+  // Update CommandInfo in task's ExecutorInfo.
   if (task.has_executor() &&
       task.executor().has_command()) {
     task.mutable_executor()->mutable_command()->set_grace_period(
