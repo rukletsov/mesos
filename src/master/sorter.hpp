@@ -81,7 +81,7 @@ public:
 
   virtual hashmap<std::string, std::pair<Resources, Duration>> usageHistory() = 0;
 
-  virtual resetUsageHistory() = 0;
+  virtual void resetUsageHistory() = 0;
 };
 
 } // namespace allocator {

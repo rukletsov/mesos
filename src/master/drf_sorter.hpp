@@ -93,6 +93,8 @@ public:
 
   virtual hashmap<std::string, std::pair<Resources, Duration>> usageHistory();
 
+  virtual void resetUsageHistory();
+
 private:
   // Recalculates the share for the client and moves
   // it in 'clients' accordingly.

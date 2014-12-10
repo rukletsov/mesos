@@ -261,6 +261,10 @@ hashmap<std::string, std::pair<Resources, Duration>> DRFSorter::usageHistory()
   return hashmap<std::string, std::pair<Resources, Duration>>();
 }
 
+void DRFSorter::resetUsageHistory()
+{
+}
+
 } // namespace allocator {
 } // namespace master {
 } // namespace internal {
