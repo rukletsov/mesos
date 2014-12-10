@@ -92,6 +92,12 @@ extern const uint32_t MAX_COMPLETED_FRAMEWORKS;
 // cache.  TODO(thomasm): Make configurable.
 extern const uint32_t MAX_COMPLETED_TASKS_PER_FRAMEWORK;
 
+// Duration of an aggregation interval or resource usage bookkeeping.
+extern const Duration RESOURCE_USAGE_WINDOW;
+
+// Maximum number resource usage samples to store in the cache.
+extern const uint32_t MAX_RESOURCE_USAGE_SAMPLES;
+
 // Time interval to check for updated watchers list.
 extern const Duration WHITELIST_WATCH_INTERVAL;
 
