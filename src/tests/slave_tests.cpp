@@ -1651,10 +1651,12 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
 
   // Currently (14 Nov 2014) grace periods customized by frameworks
   // are ignored.
-  EXPECT_DOUBLE_EQ(Seconds(defaultTimeout).value(),
-                   task1.get().executor().command().grace_period());
-  EXPECT_DOUBLE_EQ(Seconds(defaultTimeout).value(),
-                   task2.get().executor().command().grace_period());
+  EXPECT_DOUBLE_EQ(
+      Seconds(defaultTimeout).value(),
+      task1.get().executor().command().grace_period());
+  EXPECT_DOUBLE_EQ
+      (Seconds(defaultTimeout).value(),
+      task2.get().executor().command().grace_period());
 
   driver.stop();
   driver.join();

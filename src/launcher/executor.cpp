@@ -651,6 +651,7 @@ int main(int argc, char** argv)
   }
 
   shutdownTimeout = getExecutorGracePeriod(shutdownTimeout);
+  cout << "Shutdown timeout is set to " << shutdownTimeout;
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);
