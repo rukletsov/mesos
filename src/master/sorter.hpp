@@ -21,6 +21,7 @@
 
 #include <list>
 
+#include <stout/hashmap.hpp>
 
 namespace mesos {
 namespace internal {
@@ -77,6 +78,10 @@ public:
   // Returns the number of clients this Sorter contains,
   // either active or deactivated.
   virtual int count() = 0;
+
+  virtual hashmap<std::string, std::pair<Resources, Duration>> usageHistory() = 0;
+
+  virtual resetUsageHistory() = 0;
 };
 
 } // namespace allocator {

@@ -108,6 +108,8 @@ void DRFSorter::allocated(
 
   allocations[name] += resources;
 
+  // TODO(nnielsen): Store timestamp and resources per framework.
+
   // If the total resources have changed, we're going to
   // recalculate all the shares, so don't bother just
   // updating this client.
@@ -252,6 +254,11 @@ set<Client, DRFComparator>::iterator DRFSorter::find(const string& name)
   }
 
   return it;
+}
+
+hashmap<std::string, std::pair<Resources, Duration>> DRFSorter::usageHistory()
+{
+  return hashmap<std::string, std::pair<Resources, Duration>>();
 }
 
 } // namespace allocator {

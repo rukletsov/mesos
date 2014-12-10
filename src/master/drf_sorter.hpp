@@ -91,6 +91,8 @@ public:
 
   virtual int count();
 
+  virtual hashmap<std::string, std::pair<Resources, Duration>> usageHistory();
+
 private:
   // Recalculates the share for the client and moves
   // it in 'clients' accordingly.
