@@ -3433,6 +3433,68 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
   stats.validStatusUpdates++;
   metrics.valid_status_updates++;
+
+  usage.record(task);
+}
+
+void Master::UsageHistory::record(Task* task)
+{
+  if (!protobuf::isTerminalState(task->state())) {
+    // Record start of new task.
+    started[task->framework_id()][task->task_id()] = Clock::now();
+  } else {
+    if (!started.contains(task->framework_id())) {
+      return;
+    }
+
+    if (!started[task->framework_id()].contains(task->task_id())) {
+      return;
+    }
+
+    // Compute and record computing hours for task.
+    Duration elapsed = Clock::now() - started[task->framework_id()][task->task_id()];
+    started[task->framework_id()].erase(task->task_id());
+
+    double cpu = 0;
+    double mem = 0;
+
+    foreach (const Resource resource, task->resources()) {
+      if (resource.name() == "cpus") {
+        cpu = resource.scalar().value();
+      } else if (resource.name() == "mem") {
+        mem = resource.scalar().value();
+      }
+    }
+
+    double cpuSeconds = cpu * elapsed.secs();
+    double memSeconds = mem * elapsed.secs();
+
+    LOG(INFO) << "Framework " << task->framework_id() << " used "
+              << task->resources() << " over " << elapsed
+              << " ( cpu/s: " << cpuSeconds << " mem/s: " << memSeconds << " )";
+
+    Try<Resources> out =
+      Resources::parse("cpus:" + stringify(cpuSeconds) + ";mem:" +
+          stringify(memSeconds));
+
+    if (out.isError()) {
+      LOG(WARNING) << "Could not parse resource/time: " << out.error();
+      return;
+    }
+
+    std::pair<Resources, Duration> result;
+    if (consumed.contains(task->framework_id())) {
+      result = consumed[task->framework_id()];
+    }
+    result.first += out.get();
+    result.second += elapsed;
+
+    consumed[task->framework_id()] = result;
+  }
+}
+
+void Master::UsageHistory::reset() {
+  consumed.clear();
 }
 
 

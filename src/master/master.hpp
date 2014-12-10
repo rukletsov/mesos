@@ -473,6 +473,15 @@ private:
     Master* master;
   } http;
 
+  struct UsageHistory {
+    void record(Task*);
+
+    void reset();
+
+    hashmap<FrameworkID, hashmap<TaskID, process::Time>> started;
+    hashmap<FrameworkID, std::pair<Resources, Duration>> consumed;
+  } usage;
+
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 
