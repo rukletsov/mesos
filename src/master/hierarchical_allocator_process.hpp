@@ -634,10 +634,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
   LOG(INFO) << "Resource stats:";
 
   foreach (const std::string& role, roleSorter->sort()) {
-    foreach (const std::string& frameworkIdValue, sorters[role]->sort()) {
-        Resources allocated = sorters[role]->allocation(frameworkIdValue);
-        LOG(INFO) << frameworkIdValue << " is consuming" << allocated;
-    }
+    hashmap<std::string, std::pair<Resources, Duration>> history =
+      sorters[role]->usageHistory();
   }
 }
 
