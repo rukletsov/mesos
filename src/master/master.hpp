@@ -456,6 +456,10 @@ private:
     process::Future<process::http::Response> tasks(
         const process::http::Request& request);
 
+    // /master/usage.json
+    process::Future<process::http::Response> usage(
+        const process::http::Request& request);
+
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;

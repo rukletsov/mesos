@@ -609,6 +609,9 @@ void Master::initialize()
   route("/tasks.json",
         Http::TASKS_HELP,
         lambda::bind(&Http::tasks, http, lambda::_1));
+  route("/usage.json",
+        None(),
+        lambda::bind(&Http::usage, http, lambda::_1));
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

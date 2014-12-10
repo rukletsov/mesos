@@ -216,6 +216,27 @@ JSON::Object model(const Role& role)
 }
 
 
+JSON::Object model(
+    const FrameworkID& frameworkId,
+    const std::pair<Resources, Duration>& resourceUsage) {
+  JSON::Object object;
+
+  object.values["framework_id"] = frameworkId.value();
+
+  if (resourceUsage.first.cpus().isSome()) {
+    object.values["cpus"] = stringify(resourceUsage.first.cpus().get());
+  }
+
+  if (resourceUsage.first.mem().isSome()) {
+    object.values["mem"] = stringify(resourceUsage.first.mem().get());
+  }
+
+  object.values["duration"] = stringify(resourceUsage.second.secs());
+
+  return object;
+}
+
+
 const string Master::Http::HEALTH_HELP = HELP(
     TLDR(
         "Health check of the Master."),
@@ -839,6 +860,59 @@ Future<Response> Master::Http::tasks(const Request& request)
 
   JSON::Object object;
   object.values["tasks"] = array;
+
+  return OK(object, request.query.get("jsonp"));
+}
+
+
+Future<Response> Master::Http::usage(const Request& request)
+{
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
+
+  // Get request parameters (framework, resource, samples count).
+  Option<string> frameworkIdRequest = request.query.get("framework_id");
+  Option<FrameworkID> frameworkId = None();
+  if (frameworkIdRequest.isSome()) {
+    FrameworkID converted;
+    converted.set_value(frameworkIdRequest.get());
+    frameworkId = converted;
+  }
+
+  Result<int> result = numify<int>(request.query.get("samples"));
+  size_t samplesCount = result.isSome()
+      ? std::min(size_t(result.get()), master->resourceUsage.size())
+      : master->resourceUsage.size();
+
+  // Get last samplesCount samples and filter by framework if
+  // requested.
+  JSON::Array samplesArray;
+  boost::circular_buffer<UsageHistory::Sample>::iterator it =
+    master->resourceUsage.end() - samplesCount;
+  boost::circular_buffer<UsageHistory::Sample>::iterator endIt =
+    master->resourceUsage.end();
+
+  for ( ; it != endIt; ++it) {
+
+    UsageHistory::Sample& sample = *it;
+
+    // Filter if by framework if necessary.
+    JSON::Array frameworksArray;
+    if (frameworkId.isSome()) {
+      frameworksArray.values.push_back(
+          model(frameworkId.get(), sample[frameworkId.get()]));
+    } else {
+      foreachkey (const FrameworkID& frameworkId, sample) {
+        frameworksArray.values.push_back(
+            model(frameworkId, sample[frameworkId]));
+      }
+    }
+
+    samplesArray.values.push_back(frameworksArray);
+  }
+
+
+  JSON::Object object;
+  object.values["usage"] = samplesArray;
 
   return OK(object, request.query.get("jsonp"));
 }
