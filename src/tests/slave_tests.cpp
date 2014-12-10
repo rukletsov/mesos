@@ -49,7 +49,7 @@
 #include "slave/gc.hpp"
 #include "slave/flags.hpp"
 #include "slave/slave.hpp"
-#include "slave/grace_shutdown.hpp"
+#include "slave/graceful_shutdown.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
 

@@ -79,7 +79,7 @@
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 #include "slave/status_update_manager.hpp"
-#include "slave/grace_shutdown.hpp"
+#include "slave/graceful_shutdown.hpp"
 
 using std::list;
 using std::map;

@@ -51,7 +51,7 @@
 #include "slave/gc.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
-#include "slave/grace_shutdown.hpp"
+#include "slave/graceful_shutdown.hpp"
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"

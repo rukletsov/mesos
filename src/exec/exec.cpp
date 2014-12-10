@@ -55,7 +55,7 @@
 
 #include "slave/constants.hpp"
 #include "slave/state.hpp"
-#include "slave/grace_shutdown.hpp"
+#include "slave/graceful_shutdown.hpp"
 
 using namespace mesos;
 using namespace mesos::internal;

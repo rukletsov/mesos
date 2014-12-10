@@ -56,7 +56,7 @@
 #include "messages/messages.hpp"
 
 #include "slave/constants.hpp"
-#include "slave/grace_shutdown.hpp"
+#include "slave/graceful_shutdown.hpp"
 
 using process::wait; // Necessary on some OS's to disambiguate.
 using namespace mesos::internal::slave;
@@ -634,12 +634,6 @@ int main(int argc, char** argv)
             "Prints this help message",
             false);
 
-  // Load flags from environment.
-  string path = os::getenv("MESOS_LAUNCHER_DIR", false);
-  if (path.empty()) {
-    path = os::realpath(dirname(argv[0])).get();
-  }
-
   // Get the appropriate shutdown grace period.
   Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   auto value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
@@ -684,6 +678,10 @@ int main(int argc, char** argv)
     }
   }
 
+  string path = os::getenv("MESOS_LAUNCHER_DIR", false);
+  if (path.empty()) {
+    path = os::realpath(dirname(argv[0])).get();
+  }
   mesos::internal::CommandExecutor executor(override, path, shutdownTimeout);
   mesos::MesosExecutorDriver driver(&executor);
   return driver.run() == mesos::DRIVER_STOPPED ? 0 : 1;
