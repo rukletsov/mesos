@@ -22,6 +22,8 @@
 #include <algorithm>
 #include <vector>
 
+#include <boost/circular_buffer.hpp>
+
 #include <mesos/resources.hpp>
 
 #include <process/delay.hpp>
@@ -127,6 +129,9 @@ protected:
   // Callback for doing batch allocations.
   void batch();
 
+  // Callback for updating resource usage statistics.
+  void updateUsageStats();
+
   // Allocate any allocatable resources.
   void allocate();
 
@@ -190,6 +195,10 @@ protected:
 
   // Sorter containing all active roles.
   RoleSorter* roleSorter;
+
+  //
+  boost::circular_buffer<hashmap<std::string, std::pair<Resources, Duration>>>
+    resourceUsageStats;
 };
 
 
@@ -228,7 +237,8 @@ public:
 template <class RoleSorter, class FrameworkSorter>
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::HierarchicalAllocatorProcess() // NOLINT(whitespace/line_length)
   : ProcessBase(process::ID::generate("hierarchical-allocator")),
-    initialized(false) {}
+    initialized(false),
+    resourceUsageStats(1000) {}
 
 
 template <class RoleSorter, class FrameworkSorter>
@@ -266,6 +276,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
           << "with master : " << master;
 
   delay(flags.allocation_interval, self(), &Self::batch);
+  delay(Seconds(10), self(), &Self::updateUsageStats);
 }
 
 
@@ -637,6 +648,36 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::batch()
     hashmap<std::string, std::pair<Resources, Duration>> history =
       sorters[role]->usageHistory();
   }
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateUsageStats()
+{
+  // TODO(alexr): Introduce a constant for aggregate interval.
+  delay(Seconds(10), self(), &Self::updateUsageStats);
+
+  hashmap<std::string, std::pair<Resources, Duration>> usageHistory;
+
+  // Merge resource usage history across all roles.
+  foreach (const std::string& role, roleSorter->sort()) {
+    const auto& roleHistory = sorters[role]->usageHistory();
+    usageHistory.insert(roleHistory.begin(), roleHistory.end());
+    LOG(INFO) << "For role " << role << " there are " << roleHistory.size()
+              << " frameworks";
+  }
+
+  // Add the usage statistics for the current window.
+  resourceUsageStats.push_back(usageHistory);
+
+  // Temp, check we aggregated correctly.
+  Resources totalResources;
+  foreachkey (const std::string& frameworkId, usageHistory) {
+    totalResources += usageHistory[frameworkId].first;
+  }
+  LOG(INFO) << "Number of frameworks: " << usageHistory.size();
+  LOG(INFO) << "Resources in use: " << totalResources;
 }
 
 
