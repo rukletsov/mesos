@@ -403,6 +403,9 @@ protected:
   // Remove an offer and optionally rescind the offer as well.
   void removeOffer(Offer* offer, bool rescind = false);
 
+  // Callback for tracking resource usage statistics.
+  void updateResourceUsage();
+
   Framework* getFramework(const FrameworkID& frameworkId);
   Slave* getSlave(const SlaveID& slaveId);
   Offer* getOffer(const OfferID& offerId);
@@ -620,6 +623,10 @@ private:
   } stats;
 
   Metrics metrics;
+
+  // All resources used by frameworks are bookkeeped.
+  boost::circular_buffer<hashmap<std::string, std::pair<Resources, Duration>>>
+    resourceUsage;
 
   // Gauge handlers.
   double _uptime_secs()

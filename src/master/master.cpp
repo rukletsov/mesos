@@ -213,6 +213,7 @@ Master::Master(
     detector(_detector),
     authorizer(_authorizer),
     metrics(*this),
+    resourceUsage(MAX_RESOURCE_USAGE_SAMPLES),
     electedTime(None())
 {
   // NOTE: We populate 'info_' here instead of inside 'initialize()'
@@ -637,6 +638,9 @@ void Master::initialize()
     .onAny(defer(self(), &Master::contended, lambda::_1));
   detector->detect()
     .onAny(defer(self(), &Master::detected, lambda::_1));
+
+  // Start bookkeeping resource usage statistics.
+  delay(RESOURCE_USAGE_WINDOW, self(), &Self::updateResourceUsage);
 }
 
 
@@ -4926,6 +4930,17 @@ void Master::removeOffer(Offer* offer, bool rescind)
   // Delete it.
   offers.erase(offer->id());
   delete offer;
+}
+
+
+void Master::updateResourceUsage()
+{
+  // Continue tracking resources.
+  delay(RESOURCE_USAGE_WINDOW, self(), &Self::updateResourceUsage);
+
+  LOG(INFO) << "Aggregate resource usage for the last "
+            << RESOURCE_USAGE_WINDOW << "s";
+
 }
 
 
