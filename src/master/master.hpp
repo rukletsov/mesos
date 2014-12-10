@@ -477,12 +477,14 @@ private:
   } http;
 
   struct UsageHistory {
+    typedef hashmap<FrameworkID, std::pair<Resources, Duration>> Sample;
+
     void record(Task*);
 
     void reset();
 
     hashmap<FrameworkID, hashmap<TaskID, process::Time>> started;
-    hashmap<FrameworkID, std::pair<Resources, Duration>> consumed;
+    Sample consumed;
   } usage;
 
   Master(const Master&);              // No copying.
@@ -625,8 +627,7 @@ private:
   Metrics metrics;
 
   // All resources used by frameworks are bookkeeped.
-  boost::circular_buffer<hashmap<std::string, std::pair<Resources, Duration>>>
-    resourceUsage;
+  boost::circular_buffer<UsageHistory::Sample> resourceUsage;
 
   // Gauge handlers.
   double _uptime_secs()

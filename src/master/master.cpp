@@ -4941,11 +4941,9 @@ void Master::updateResourceUsage()
   LOG(INFO) << "Aggregate resource usage for the last "
             << RESOURCE_USAGE_WINDOW << "s";
 
-  // TEMP, replace with actual data.
-  hashmap<std::string, std::pair<Resources, Duration>> usageHistory;
-
   // Add the usage statistics for the current window.
-  resourceUsage.push_back(usageHistory);
+  resourceUsage.push_back(usage.consumed);
+  usage.reset();
 }
 
 
