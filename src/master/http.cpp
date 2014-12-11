@@ -216,12 +216,8 @@ JSON::Object model(const Role& role)
 }
 
 
-JSON::Object model(
-    const FrameworkID& frameworkId,
-    const std::pair<Resources, Duration>& resourceUsage) {
+JSON::Object model(const std::pair<Resources, Duration>& resourceUsage) {
   JSON::Object object;
-
-  object.values["framework_id"] = frameworkId.value();
 
   if (resourceUsage.first.cpus().isSome()) {
     object.values["cpus"] = stringify(resourceUsage.first.cpus().get());
@@ -895,22 +891,21 @@ Future<Response> Master::Http::usage(const Request& request)
     UsageHistory::Sample sample = it->second;
 
     // Filter if by framework if necessary.
-    JSON::Array frameworksArray;
+    JSON::Object frameworksMap;
     if (frameworkId.isSome() && sample.contains(frameworkId.get())) {
-      frameworksArray.values.push_back(
-          model(frameworkId.get(), sample[frameworkId.get()]));
+      frameworksMap.values[frameworkId.get().value()] =
+          model(sample[frameworkId.get()]);
     } else {
       foreachkey (const FrameworkID& frameworkId, sample) {
-        frameworksArray.values.push_back(
-            model(frameworkId, sample[frameworkId]));
+        frameworksMap.values[frameworkId.value()] = model(sample[frameworkId]);
       }
     }
 
     // Add a sample only if there is anything to show.
-    if (!frameworksArray.values.empty()) {
+    if (!frameworksMap.values.empty()) {
       JSON::Object sampleObj;
       sampleObj.values["timestamp"] = stringify(it->first);
-      sampleObj.values["frameworks"] = frameworksArray;
+      sampleObj.values["frameworks"] = frameworksMap;
       samplesArray.values.push_back(sampleObj);
     }
   }
