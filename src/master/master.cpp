@@ -3446,9 +3446,12 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
 
 void Master::UsageHistory::record(Task* task)
 {
+  auto timestamp = Clock::now();
+
   if (!protobuf::isTerminalState(task->state())) {
     // Record start of new task.
-    started[task->framework_id()][task->task_id()] = Clock::now();
+    started[task->framework_id()][task->task_id()] =
+        std::make_pair(timestamp, task->resources());
   } else {
     if (!started.contains(task->framework_id())) {
       return;
@@ -3459,49 +3462,78 @@ void Master::UsageHistory::record(Task* task)
     }
 
     // Compute and record computing hours for task.
-    Duration elapsed = Clock::now() - started[task->framework_id()][task->task_id()];
+    addConsumption(
+        task->framework_id(), task->task_id(), task->resources(), timestamp);
     started[task->framework_id()].erase(task->task_id());
 
-    double cpu = 0;
-    double mem = 0;
+  }
+}
 
-    foreach (const Resource resource, task->resources()) {
-      if (resource.name() == "cpus") {
-        cpu = resource.scalar().value();
-      } else if (resource.name() == "mem") {
-        mem = resource.scalar().value();
-      }
+void Master::UsageHistory::snapshot() {
+  // Move part of the run task to consumed.
+  auto timestamp = Clock::now();
+  foreachkey (const FrameworkID& frameworkId, started) {
+    foreachkey (const TaskID& taskId, started[frameworkId]) {
+      addConsumption(
+          frameworkId,
+          taskId,
+          started[frameworkId][taskId].second,
+          timestamp);
+      started[frameworkId][taskId] =
+          std::make_pair(timestamp, started[frameworkId][taskId].second);
     }
 
-    double cpuSeconds = cpu * elapsed.secs();
-    double memSeconds = mem * elapsed.secs();
-
-    LOG(INFO) << "Framework " << task->framework_id() << " used "
-              << task->resources() << " over " << elapsed
-              << " ( cpu/s: " << cpuSeconds << " mem/s: " << memSeconds << " )";
-
-    Try<Resources> out =
-      Resources::parse("cpus:" + stringify(cpuSeconds) + ";mem:" +
-          stringify(memSeconds));
-
-    if (out.isError()) {
-      LOG(WARNING) << "Could not parse resource/time: " << out.error();
-      return;
-    }
-
-    std::pair<Resources, Duration> result;
-    if (consumed.contains(task->framework_id())) {
-      result = consumed[task->framework_id()];
-    }
-    result.first += out.get();
-    result.second += elapsed;
-
-    consumed[task->framework_id()] = result;
   }
 }
 
 void Master::UsageHistory::reset() {
   consumed.clear();
+}
+
+void Master::UsageHistory::addConsumption(
+    const FrameworkID framework,
+    const TaskID& task,
+    const Resources& resources,
+    const process::Time& timestamp)
+{
+  // Compute and record computing hours for task.
+  Duration elapsed = timestamp - started[framework][task].first;
+
+  double cpu = 0;
+  double mem = 0;
+
+  foreach (const Resource resource, resources) {
+    if (resource.name() == "cpus") {
+      cpu = resource.scalar().value();
+    } else if (resource.name() == "mem") {
+      mem = resource.scalar().value();
+    }
+  }
+
+  double cpuSeconds = cpu * elapsed.secs();
+  double memSeconds = mem * elapsed.secs();
+
+  LOG(INFO) << "Framework " << framework << " used "
+            << resources << " over " << elapsed
+            << " ( cpu/s: " << cpuSeconds << " mem/s: " << memSeconds << " )";
+
+  Try<Resources> out =
+    Resources::parse("cpus:" + stringify(cpuSeconds) + ";mem:" +
+        stringify(memSeconds));
+
+  if (out.isError()) {
+    LOG(WARNING) << "Could not parse resource/time: " << out.error();
+    return;
+  }
+
+  std::pair<Resources, Duration> result;
+  if (consumed.contains(framework)) {
+    result = consumed[framework];
+  }
+  result.first += out.get();
+  result.second += elapsed;
+
+  consumed[framework] = result;
 }
 
 
@@ -4945,6 +4977,7 @@ void Master::updateResourceUsage()
             << RESOURCE_USAGE_WINDOW << "s";
 
   // Add the usage statistics for the current window.
+  usage.snapshot();
   resourceUsage.push_back(usage.consumed);
   usage.reset();
 }

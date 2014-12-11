@@ -481,14 +481,25 @@ private:
   } http;
 
   struct UsageHistory {
-    typedef hashmap<FrameworkID, std::pair<Resources, Duration>> Sample;
+    typedef std::pair<Resources, Duration> Consumption;
+    typedef hashmap<FrameworkID, Consumption> Sample;
 
     void record(Task*);
 
+    void snapshot();
+
     void reset();
 
-    hashmap<FrameworkID, hashmap<TaskID, process::Time>> started;
+    hashmap<FrameworkID, hashmap<TaskID, std::pair<process::Time, Resources>>>
+      started;
     Sample consumed;
+
+  private:
+    void addConsumption(
+        const FrameworkID framework,
+        const TaskID& task,
+        const Resources& resources,
+        const process::Time& timestamp);
   } usage;
 
   Master(const Master&);              // No copying.
