@@ -892,9 +892,6 @@ Future<Response> Master::Http::usage(const Request& request)
     iterator endIt = master->resourceUsage.end();
 
   for ( ; it != endIt; ++it) {
-    JSON::Object sampleObj;
-    sampleObj.values["timestamp"] = stringify(it->first);
-
     UsageHistory::Sample sample = it->second;
 
     // Filter if by framework if necessary.
@@ -909,8 +906,13 @@ Future<Response> Master::Http::usage(const Request& request)
       }
     }
 
-    sampleObj.values["frameworks"] = frameworksArray;
-    samplesArray.values.push_back(sampleObj);
+    // Add a sample only if there is anything to show.
+    if (!frameworksArray.values.empty()) {
+      JSON::Object sampleObj;
+      sampleObj.values["timestamp"] = stringify(it->first);
+      sampleObj.values["frameworks"] = frameworksArray;
+      samplesArray.values.push_back(sampleObj);
+    }
   }
 
 
