@@ -899,7 +899,7 @@ Future<Response> Master::Http::usage(const Request& request)
 
     // Filter if by framework if necessary.
     JSON::Array frameworksArray;
-    if (frameworkId.isSome()) {
+    if (frameworkId.isSome() && sample.contains(frameworkId.get())) {
       frameworksArray.values.push_back(
           model(frameworkId.get(), sample[frameworkId.get()]));
     } else {
