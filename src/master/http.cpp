@@ -886,14 +886,16 @@ Future<Response> Master::Http::usage(const Request& request)
   // Get last samplesCount samples and filter by framework if
   // requested.
   JSON::Array samplesArray;
-  boost::circular_buffer<UsageHistory::Sample>::iterator it =
-    master->resourceUsage.end() - samplesCount;
-  boost::circular_buffer<UsageHistory::Sample>::iterator endIt =
-    master->resourceUsage.end();
+  boost::circular_buffer<std::pair<process::Time, UsageHistory::Sample>>::
+    iterator it = master->resourceUsage.end() - samplesCount;
+  boost::circular_buffer<std::pair<process::Time, UsageHistory::Sample>>::
+    iterator endIt = master->resourceUsage.end();
 
   for ( ; it != endIt; ++it) {
+    JSON::Object sampleObj;
+    sampleObj.values["timestamp"] = stringify(it->first);
 
-    UsageHistory::Sample& sample = *it;
+    UsageHistory::Sample sample = it->second;
 
     // Filter if by framework if necessary.
     JSON::Array frameworksArray;
@@ -907,7 +909,8 @@ Future<Response> Master::Http::usage(const Request& request)
       }
     }
 
-    samplesArray.values.push_back(frameworksArray);
+    sampleObj.values["frameworks"] = frameworksArray;
+    samplesArray.values.push_back(sampleObj);
   }
 
 

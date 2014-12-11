@@ -642,7 +642,8 @@ private:
   Metrics metrics;
 
   // All resources used by frameworks are bookkeeped.
-  boost::circular_buffer<UsageHistory::Sample> resourceUsage;
+  boost::circular_buffer<std::pair<process::Time, UsageHistory::Sample>>
+    resourceUsage;
 
   // Gauge handlers.
   double _uptime_secs()

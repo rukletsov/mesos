@@ -4978,7 +4978,8 @@ void Master::updateResourceUsage()
 
   // Add the usage statistics for the current window.
   usage.snapshot();
-  resourceUsage.push_back(usage.consumed);
+  process::Time timestamp = Clock::now();
+  resourceUsage.push_back(std::make_pair(timestamp, usage.consumed));
   usage.reset();
 }
 
