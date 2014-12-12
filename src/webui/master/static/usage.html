@@ -8,6 +8,10 @@
 </head>
 <body>
 <h1>Mesos Resource Accounting</h1>
+<div class="btn-group" role="group" aria-label="...">
+  <button type="button" class="btn btn-default" id="btn-accumulated">Accumulated</button>
+  <button type="button" class="btn btn-default" id="btn-snapshot">Snapshot</button>
+</div>
 <div id="chart"></div>
 <table class="table table-striped">
 <thead>
@@ -25,6 +29,8 @@ Mem/hr
 </tbody>
 </table>
 <script>
+var g_accumulate = false
+
 var loc = "/master/usage.json"
 
 var chart = 0
@@ -55,7 +61,11 @@ function load() {
           group.push(framework_id)
         }
 
-        currentSum[framework_id] += parseFloat(sample.cpus)
+        if (g_accumulate) {
+          currentSum[framework_id] += parseFloat(sample.cpus)
+        } else {
+          currentSum[framework_id] = parseFloat(sample.cpus)
+        }
         runningSum[framework_id][timestamp] = currentSum[framework_id]
       }
     }
@@ -111,6 +121,18 @@ function load() {
 
 load()
 var stop = setInterval(load, 10000)
+
+var btnaccumulated = document.getElementById("btn-accumulated")
+btnaccumulated.onclick = function(){
+  g_accumulate = true
+  load()
+}
+
+var btnsnapshot = document.getElementById("btn-snapshot")
+btnsnapshot.onclick = function(){
+  g_accumulate = false
+  load()
+}
 
 </script>
 </body>
