@@ -408,6 +408,7 @@ nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 moduledir = $(pkgincludedir)/module
 
 module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/allocator.hpp			\
   $(top_srcdir)/include/mesos/module/anonymous.hpp			\
   $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
