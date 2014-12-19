@@ -53,11 +53,11 @@ static Allocator* createDRFAllocator(const Parameters& parameters)
 
 
 // Declares a DRFAllocator module named 'TestAllocator'.
-mesos::modules::Module<Allocator> org_apache_mesos_TestAllocator(
+mesos::modules::Module<Allocator> org_apache_mesos_TestDRFAllocator(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
     "Apache Mesos",
     "modules@mesos.apache.org",
-    "Test Allocator module.",
+    "Test DRFAllocator module.",
     compatible,
     createDRFAllocator);

@@ -93,6 +93,25 @@ static void addAuthenticationModules(Modules& modules)
 }
 
 
+// Add available Allocator modules.
+static void addAllocatorModules(Modules& modules)
+{
+  const string libraryPath = path::join(
+      tests::flags.build_dir,
+      "src",
+      ".libs",
+      os::libraries::expandName("testallocator"));
+
+  // Now add our allocator modules.
+  Modules::Library* library = modules.add_libraries();
+  library->set_file(libraryPath);
+
+  // To add a new module from this library, create a new ModuleID enum
+  // and tie it with a module name.
+  addModule(library, TestDRFAllocator, "org_apache_mesos_TestDRFAllocator");
+}
+
+
 Try<Nothing> tests::initModules(const Option<Modules>& modules)
 {
   // First get the user provided modules.
@@ -106,6 +125,9 @@ Try<Nothing> tests::initModules(const Option<Modules>& modules)
 
   // Add authentication modules from testauthentication library.
   addAuthenticationModules(mergedModules);
+
+  // Add allocator modules from testallocator library.
+  addAllocatorModules(mergedModules);
 
   return ModuleManager::load(mergedModules);
 }
