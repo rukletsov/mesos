@@ -1231,10 +1231,10 @@ libtestisolator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libtestisolator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
 # Library containing test allocator module.
-lib_LTLIBRARIES += libtestallocator.la
-libtestallocator_la_SOURCES = examples/test_allocator_module.cpp
-libtestallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-libtestallocator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
+lib_LTLIBRARIES += libtestdrfallocator.la
+libtestdrfallocator_la_SOURCES = examples/test_allocator_module.cpp
+libtestdrfallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestdrfallocator_la_LDFLAGS = -release $(PACKAGE_VERSION) -shared
 
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
