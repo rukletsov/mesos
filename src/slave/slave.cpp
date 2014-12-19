@@ -833,6 +833,8 @@ void Slave::_updateMasters(const Option<hashset<std::string>>& whitelist)
      lastDetectedMaster.get().isSome());
   bool currentMasterInvalidated =
     (master.isSome() &&
+     lastDetectedMaster.isReady() &&
+     lastDetectedMaster.get().isSome() &&
      !masters.get().contains(lastDetectedMaster.get().get().hostname()));
   if (state != RECOVERING &&
       (rejectedCandidateExists || currentMasterInvalidated)) {
