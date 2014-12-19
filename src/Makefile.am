@@ -1278,6 +1278,12 @@ libexamplemodule_la_SOURCES = examples/example_module_impl.cpp
 libexamplemodule_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libexamplemodule_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
+# Library containing the test DRF allocator module.
+noinst_LTLIBRARIES += libtestdrfallocator.la
+libtestdrfallocator_la_SOURCES = examples/test_allocator_module.cpp
+libtestdrfallocator_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+libtestdrfallocator_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+
 # Library containing the test CRAM-MD5 authentication modules.
 # TODO(tillt): Add cyrus-sasl2 dependency while removing it from libmesos.
 # TODO(tillt): Enable optional building of this module library.
