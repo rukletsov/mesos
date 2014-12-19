@@ -397,6 +397,7 @@ nodist_fetcher_HEADERS = ../include/mesos/fetcher/fetcher.pb.h
 moduledir = $(pkgincludedir)/module
 
 module_HEADERS =							\
+  $(top_srcdir)/include/mesos/module/allocator.hpp			\
   $(top_srcdir)/include/mesos/module/anonymous.hpp			\
   $(top_srcdir)/include/mesos/module/authenticatee.hpp			\
   $(top_srcdir)/include/mesos/module/authenticator.hpp			\
@@ -520,6 +521,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/allocator/sorter/drf/sorter.hpp				\
 	master/allocator/sorter/sorter.hpp				\
 	messages/messages.hpp						\
+	module/allocator.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\
 	sched/flags.hpp							\
