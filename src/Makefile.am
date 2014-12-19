@@ -465,6 +465,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/allocation/sorter.hpp					\
 	master/allocation/sorters/drf.hpp				\
 	messages/messages.hpp						\
+	module/allocator.hpp						\
 	module/authenticatee.hpp					\
 	module/authenticator.hpp					\
 	module/hook.hpp							\
