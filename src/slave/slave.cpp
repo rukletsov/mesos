@@ -1162,16 +1162,16 @@ void Slave::runTask(
   }
 
   // Ensure the task has grace shutdown period set.
-  const TaskInfo& updatedTask = setGracePeriod(task);
+  const TaskInfo& task_ = setGracePeriod(task);
 
-  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, updatedTask);
+  const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task_);
   const ExecutorID& executorId = executorInfo.executor_id();
 
   // We add the task to 'pending' to ensure the framework is not
   // removed and the framework and top level executor directories
   // are not scheduled for deletion before '_runTask()' is called.
   CHECK_NOTNULL(framework);
-  framework->pending[executorId][updatedTask.task_id()] = updatedTask;
+  framework->pending[executorId][task_.task_id()] = task_;
 
   // If we are about to create a new executor, unschedule the top
   // level work and meta directories from getting gc'ed.
@@ -1202,7 +1202,7 @@ void Slave::runTask(
             frameworkInfo,
             frameworkId,
             pid,
-            updatedTask));
+            task_));
 }
 
 
