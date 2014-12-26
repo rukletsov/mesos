@@ -2671,13 +2671,13 @@ const TaskInfo Slave::setGracePeriod(TaskInfo task)
 
   // Update CommandInfo in task.
   if (task.has_command()) {
-    task.mutable_command()->set_grace_period(defaultGracePeriod);
+    task.mutable_command()->set_grace_period_seconds(defaultGracePeriod);
   }
 
   // Update CommandInfo in task's ExecutorInfo.
   if (task.has_executor() &&
       task.executor().has_command()) {
-    task.mutable_executor()->mutable_command()->set_grace_period(
+    task.mutable_executor()->mutable_command()->set_grace_period_seconds(
         defaultGracePeriod);
   }
 
