@@ -273,7 +273,7 @@ public:
 
   // Returns a TaskInfo with grace shutdown period field added in
   // task's CommandInfo structures.
-  const TaskInfo setGracePeriod(TaskInfo task);
+  static const TaskInfo updateGracePeriod(TaskInfo task, double grace_period);
 
   // Returns an ExecutorInfo for a TaskInfo (possibly
   // constructing one if the task has a CommandInfo).
