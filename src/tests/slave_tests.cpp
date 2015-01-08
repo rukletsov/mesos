@@ -1621,7 +1621,7 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   taskCustom.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
   taskCustom.mutable_resources()->CopyFrom(
       Resources::parse("cpus:0.1;mem:64").get());
-  taskCustom.mutable_executor()->mutable_command()->set_grace_period(
+  taskCustom.mutable_executor()->mutable_command()->set_grace_period_seconds(
       Seconds(customTimeout).value());
 
   TaskInfo taskDefault;
@@ -1653,10 +1653,10 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   // are ignored.
   EXPECT_DOUBLE_EQ(
       Seconds(defaultTimeout).value(),
-      task1.get().executor().command().grace_period());
+      task1.get().executor().command().grace_period_seconds());
   EXPECT_DOUBLE_EQ
       (Seconds(defaultTimeout).value(),
-      task2.get().executor().command().grace_period());
+      task2.get().executor().command().grace_period_seconds());
 
   driver.stop();
   driver.join();
@@ -1681,8 +1681,9 @@ TEST_F(SlaveTest, MesosExecutorGracefulShutdown)
       slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD);
   EXPECT_LT(process::MAX_REAP_INTERVAL(), timeout);
 
+  Fetcher fetcher;
   Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
-      flags, true);
+      flags, true, &fetcher);
   ASSERT_SOME(containerizer);
 
   Try<PID<Slave>> slave = StartSlave(containerizer.get(), flags);
