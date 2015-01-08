@@ -305,6 +305,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	slave/monitor.cpp						\
 	slave/state.cpp							\
 	slave/slave.cpp							\
+	slave/graceful_shutdown.cpp					\
 	slave/containerizer/containerizer.cpp				\
 	slave/containerizer/composing.cpp				\
 	slave/containerizer/composing.hpp				\
@@ -473,6 +474,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	slave/slave.hpp							\
 	slave/state.hpp							\
 	slave/status_update_manager.hpp					\
+	slave/graceful_shutdown.hpp					\
 	slave/containerizer/containerizer.hpp				\
 	slave/containerizer/fetcher.hpp					\
 	slave/containerizer/external_containerizer.hpp			\
