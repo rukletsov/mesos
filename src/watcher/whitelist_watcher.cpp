@@ -56,9 +56,11 @@ WhitelistWatcher::WhitelistWatcher(
 
 void WhitelistWatcher::initialize()
 {
-  // If no whitelist file is given, no need to watch. Notify the
-  // subscriber that there is no whitelist only if a valid initial
-  // whitelist has been provided.
+  // If no whitelist file is given (loaded whitelist is in state
+  // (1) absent), then there is no need to watch. In case the
+  // subscriber's initial policy was not permissive (initial
+  // whitelist is not in (1) absent), notify the subscriber that
+  // there is no whitelist any more.
   if (path == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
     if (lastWhitelist.isSome()) {

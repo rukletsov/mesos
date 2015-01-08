@@ -31,11 +31,20 @@
 namespace mesos {
 namespace internal {
 
+// A whitelist may be (1) absent, (2) empty, (3) non-empty. The
+// watcher notifies the subscriber if the state of the whitelist
+// changes or if the contents changes in case the whitelist is in
+// state (3) non-empty.
 class WhitelistWatcher : public process::Process<WhitelistWatcher>
 {
 public:
-  // Provide initial whitelist if you would like watcher to track
-  // changes against it.
+  // By default the initial policy is assumed to be permissive
+  // (initial whitelist is in state (1) absent), in which case the
+  // subscriber will be notified if a whitelist is loaded (see the
+  // comment above). If a subscriber initially uses, for example, a
+  // nonpermissive policy (initial whitelist is in (2) empty or
+  // (3) non-empty), provide the watcher with the initial whitelist,
+  // so that the subscriber is notified only in case of a change.
   // NOTE: The caller should ensure a callback exists throughout
   // WhitelistWatcher's lifetime.
   WhitelistWatcher(
