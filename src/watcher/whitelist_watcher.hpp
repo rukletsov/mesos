@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __WHITELIST_WATCHER_HPP__
-#define __WHITELIST_WATCHER_HPP__
+#ifndef __WATCHER_WHITELIST_WATCHER_HPP__
+#define __WATCHER_WHITELIST_WATCHER_HPP__
 
 #include <string>
 
@@ -57,4 +57,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __WHITELIST_WATCHER_HPP__
+#endif // __WATCHER_WHITELIST_WATCHER_HPP__
