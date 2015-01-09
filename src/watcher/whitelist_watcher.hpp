@@ -38,13 +38,17 @@ namespace internal {
 class WhitelistWatcher : public process::Process<WhitelistWatcher>
 {
 public:
-  // By default the initial policy is assumed to be permissive
-  // (initial whitelist is in state (1) absent), in which case the
-  // subscriber will be notified if a whitelist is loaded (see the
-  // comment above). If a subscriber initially uses, for example, a
-  // nonpermissive policy (initial whitelist is in (2) empty or
-  // (3) non-empty), provide the watcher with the initial whitelist,
-  // so that the subscriber is notified only in case of a change.
+  // By default the initial policy is assumed to be permissive, i.e.
+  // initial whitelist is in state (1), meaning that peers are
+  // accepted before a whitelist is first loaded. In this case a
+  // subscriber is notified only if a set of peers (possibly empty)
+  // is loaded from the whitelist file.
+  // If a subscriber initially uses a nonpermissive policy, i.e.
+  // initial whitelist is in state (2) or (3), peers before first
+  // loaded whitelist are rejected. In this case a subscriber must
+  // provide the initial whitelist and will be notified if the policy
+  // becomes permissive (no whitelist file) or if a set of peers
+  // loaded from the whitelist file changes.
   // NOTE: The caller should ensure a callback exists throughout
   // WhitelistWatcher's lifetime.
   WhitelistWatcher(
