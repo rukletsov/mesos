@@ -89,7 +89,7 @@ protected:
 
   // Starts a master with the specified allocator process and flags.
   virtual Try<process::PID<master::Master> > StartMaster(
-      master::allocator::AllocatorProcess* allocator,
+      master::allocator::Allocator* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.
@@ -674,15 +674,12 @@ public:
 };
 
 
-template <typename T = master::allocator::AllocatorProcess>
-class MockAllocatorProcess : public master::allocator::AllocatorProcess
+template <typename T = master::allocator::HierarchicalDRFAllocator>
+class MockAllocator : public master::allocator::Allocator
 {
 public:
-  MockAllocatorProcess()
+  MockAllocator()
   {
-    // Spawn the underlying allocator process.
-    process::spawn(real);
-
     using ::testing::_;
 
     ON_CALL(*this, initialize(_, _, _))
@@ -728,11 +725,7 @@ public:
       .WillByDefault(InvokeOffersRevived(this));
   }
 
-  ~MockAllocatorProcess()
-  {
-    process::terminate(real);
-    process::wait(real);
-  }
+  ~MockAllocator() {}
 
   MOCK_METHOD3(initialize, void(
       const master::Flags&,
@@ -802,130 +795,79 @@ public:
 
 ACTION_P(InvokeInitialize, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::initialize,
-      arg0,
-      arg1,
-      arg2);
+  allocator->real.initialize(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeFrameworkAdded, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::addFramework,
-      arg0,
-      arg1,
-      arg2);
+  allocator->real.addFramework(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeFrameworkRemoved, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::removeFramework, arg0);
+  allocator->real.removeFramework(arg0);
 }
 
 
 ACTION_P(InvokeFrameworkActivated, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::activateFramework,
-      arg0);
+  allocator->real.activateFramework(arg0);
 }
 
 
 ACTION_P(InvokeFrameworkDeactivated, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::deactivateFramework,
-      arg0);
+  allocator->real.deactivateFramework(arg0);
 }
 
 
 ACTION_P(InvokeSlaveAdded, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::addSlave,
-      arg0,
-      arg1,
-      arg2,
-      arg3);
+  allocator->real.addSlave(arg0, arg1, arg2, arg3);
 }
 
 
 ACTION_P(InvokeSlaveRemoved, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::removeSlave,
-      arg0);
+  allocator->real.removeSlave(arg0);
 }
 
 
 ACTION_P(InvokeSlaveReactivated, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::activateSlave,
-      arg0);
+  allocator->real.activateSlave(arg0);
 }
 
 
 ACTION_P(InvokeSlaveDeactivated, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::deactivateSlave,
-      arg0);
+  allocator->real.deactivateSlave(arg0);
 }
 
 
 ACTION_P(InvokeUpdateWhitelist, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::updateWhitelist,
-      arg0);
+  allocator->real.updateWhitelist(arg0);
 }
 
 
 ACTION_P(InvokeResourcesRequested, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::requestResources,
-      arg0,
-      arg1);
+  allocator->real.requestResources(arg0, arg1);
 }
 
 
 ACTION_P(InvokeTransformAllocation, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::transformAllocation,
-      arg0,
-      arg1,
-      arg2);
+  allocator->real.transformAllocation(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeResourcesRecovered, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::recoverResources,
-      arg0,
-      arg1,
-      arg2,
-      arg3);
+  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
 }
 
 
@@ -934,22 +876,13 @@ ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
   Filters filters;
   filters.set_refuse_seconds(timeout);
 
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::recoverResources,
-      arg0,
-      arg1,
-      arg2,
-      filters);
+  allocator->real.recoverResources(arg0, arg1, arg2, filters);
 }
 
 
 ACTION_P(InvokeOffersRevived, allocator)
 {
-  process::dispatch(
-      allocator->real,
-      &master::allocator::AllocatorProcess::reviveOffers,
-      arg0);
+  allocator->real.reviveOffers(arg0);
 }
 
 

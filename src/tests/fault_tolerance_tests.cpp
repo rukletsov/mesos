@@ -613,7 +613,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
   AWAIT_READY(frameworkId);
 
   Future<Nothing> deactivateFramework = FUTURE_DISPATCH(
-      _, &master::allocator::AllocatorProcess::deactivateFramework);
+      _, &master::allocator::MesosAllocatorProcess::deactivateFramework);
 
   Future<Nothing> frameworkFailoverTimeout =
     FUTURE_DISPATCH(_, &Master::frameworkFailoverTimeout);
@@ -699,7 +699,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
   AWAIT_READY(frameworkId);
 
   Future<Nothing> removeFramework = FUTURE_DISPATCH(
-      _, &master::allocator::AllocatorProcess::removeFramework);
+      _, &master::allocator::MesosAllocatorProcess::removeFramework);
 
   // Unregister the framework.
   driver1.stop();

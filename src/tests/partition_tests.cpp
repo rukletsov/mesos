@@ -43,7 +43,7 @@ using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::master::allocator::AllocatorProcess;
+using mesos::internal::master::allocator::MesosAllocatorProcess;
 
 using mesos::internal::slave::Slave;
 
@@ -445,7 +445,7 @@ TEST_F(PartitionTest, OneWayPartitionMasterToSlave)
   AWAIT_READY(ping);
 
   Future<Nothing> deactivateSlave =
-    FUTURE_DISPATCH(_, &AllocatorProcess::deactivateSlave);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
 
   // Inject a slave exited event at the master causing the master
   // to mark the slave as disconnected. The slave should not notice

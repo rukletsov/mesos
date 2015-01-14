@@ -45,8 +45,7 @@ using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using process::Clock;
 using process::Future;
@@ -68,15 +67,13 @@ class HierarchicalAllocatorTest : public ::testing::Test
 {
 protected:
   HierarchicalAllocatorTest()
-    : allocatorProcess(new HierarchicalDRFAllocatorProcess()),
-      allocator(new Allocator(allocatorProcess)),
+    : allocator(new HierarchicalDRFAllocator),
       nextSlaveId(1),
       nextFrameworkId(1) {}
 
   ~HierarchicalAllocatorTest()
   {
     delete allocator;
-    delete allocatorProcess;
   }
 
   void initialize(
@@ -141,7 +138,6 @@ private:
 protected:
   master::Flags flags;
 
-  AllocatorProcess* allocatorProcess;
   Allocator* allocator;
 
   process::Queue<Allocation> queue;
