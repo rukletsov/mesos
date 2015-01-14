@@ -36,7 +36,7 @@ using namespace mesos::tests;
 
 using mesos::master::Master;
 
-using mesos::master::allocator::AllocatorProcess;
+using mesos::master::allocator::MesosAllocatorProcess;
 
 using process::metrics::internal::MetricsProcess;
 
@@ -188,7 +188,7 @@ TEST_F(RateLimitingTest, NoRateLimiting)
   }
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver->stop();
   driver->join();
@@ -567,7 +567,7 @@ TEST_F(RateLimitingTest, DifferentPrincipalFrameworks)
   // 3. Remove a framework and its message counters are deleted while
   // the other framework's counters stay.
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
@@ -734,7 +734,7 @@ TEST_F(RateLimitingTest, SamePrincipalFrameworks)
   AWAIT_READY(duplicateFrameworkRegisteredMessage2);
 
   Future<Nothing> removeFramework =
-    FUTURE_DISPATCH(_, &AllocatorProcess::removeFramework);
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::removeFramework);
 
   driver1->stop();
   driver1->join();
