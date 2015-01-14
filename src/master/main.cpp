@@ -186,10 +186,7 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  allocator::AllocatorProcess* allocatorProcess =
-    new allocator::HierarchicalDRFAllocatorProcess();
-  allocator::Allocator* allocator =
-    new allocator::Allocator(allocatorProcess);
+  allocator::Allocator* allocator = new allocator::HierarchicalDRFAllocator();
 
   state::Storage* storage = NULL;
   Log* log = NULL;
@@ -323,7 +320,6 @@ int main(int argc, char** argv)
   process::wait(master->self());
   delete master;
   delete allocator;
-  delete allocatorProcess;
 
   delete registrar;
   delete repairer;

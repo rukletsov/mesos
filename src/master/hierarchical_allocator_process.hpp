@@ -56,6 +56,9 @@ class HierarchicalAllocatorProcess;
 typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
 
+typedef MesosAllocator<HierarchicalDRFAllocatorProcess>
+HierarchicalDRFAllocator;
+
 
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.

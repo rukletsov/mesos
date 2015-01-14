@@ -47,8 +47,7 @@ using namespace mesos::internal;
 using namespace mesos::internal::tests;
 
 using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::AllocatorProcess;
-using mesos::internal::master::allocator::HierarchicalDRFAllocatorProcess;
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
 
@@ -76,15 +75,16 @@ class MasterAllocatorTest : public MesosTest
 protected:
   void StopAllocator()
   {
-    process::terminate(allocator.real);
-    process::wait(allocator.real);
+    // TODO(alexr): Several tests have been reported flaky if no
+    // explicit stopping of allocation is used. Ensure allocation
+    // is stopped here.
   }
 
-  MockAllocatorProcess<T> allocator;
+  MockAllocator<T> allocator;
 };
 
 
-typedef ::testing::Types<HierarchicalDRFAllocatorProcess> AllocatorTypes;
+typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
@@ -1375,7 +1375,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  MockAllocatorProcess<TypeParam> allocator2;
+  MockAllocator<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1500,7 +1500,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   this->ShutdownMasters();
   this->StopAllocator();
 
-  MockAllocatorProcess<TypeParam> allocator2;
+  MockAllocator<TypeParam> allocator2;
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
