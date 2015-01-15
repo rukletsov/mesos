@@ -23,10 +23,8 @@
 
 #include <mesos/resources.hpp>
 
-#include <process/future.hpp>
 #include <process/dispatch.hpp>
 #include <process/owned.hpp>
-#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/shared.hpp>
 
@@ -36,8 +34,6 @@
 #include <stout/option.hpp>
 
 #include "master/flags.hpp"
-
-#include "messages/messages.hpp"
 
 namespace mesos {
 namespace internal {

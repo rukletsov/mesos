@@ -32,7 +32,6 @@
 #include <stout/strings.hpp>
 
 #include "allocation/allocator.hpp"
-#include "allocation/drf_sorter.hpp"
 #include "allocation/hierarchical_allocator.hpp"
 
 #include "authorizer/authorizer.hpp"
@@ -68,7 +67,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::log;
 
 using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::DRFSorter;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
