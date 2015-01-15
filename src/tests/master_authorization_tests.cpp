@@ -31,7 +31,8 @@
 #include <stout/gtest.hpp>
 #include <stout/try.hpp>
 
-#include "master/allocator.hpp"
+#include "allocation/allocator.hpp"
+
 #include "master/master.hpp"
 
 #include "messages/messages.hpp"

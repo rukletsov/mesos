@@ -46,16 +46,17 @@
 #include "linux/cgroups.hpp"
 #endif // __linux__
 
+#include "allocation/allocator.hpp"
+#include "allocation/hierarchical_allocator.hpp"
+
 #include "authorizer/authorizer.hpp"
 
 #include "log/log.hpp"
 
 #include "log/tool/initialize.hpp"
 
-#include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"

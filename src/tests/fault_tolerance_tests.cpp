@@ -35,9 +35,10 @@
 #include <stout/json.hpp>
 #include <stout/stringify.hpp>
 
+#include "allocation/allocator.hpp"
+
 #include "common/protobuf_utils.hpp"
 
-#include "master/allocator.hpp"
 #include "master/master.hpp"
 
 #include "sched/constants.hpp"

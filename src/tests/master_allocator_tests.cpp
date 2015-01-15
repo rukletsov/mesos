@@ -33,10 +33,11 @@
 #include <stout/some.hpp>
 #include <stout/strings.hpp>
 
-#include "master/allocator.hpp"
+#include "allocation/allocator.hpp"
+#include "allocation/hierarchical_allocator.hpp"
+
 #include "master/constants.hpp"
 #include "master/detector.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 
 #include "tests/containerizer.hpp"

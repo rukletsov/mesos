@@ -53,6 +53,8 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include "allocation/allocator.hpp"
+
 #include "authentication/authenticator.hpp"
 #include "authentication/cram_md5/authenticator.hpp"
 
@@ -70,7 +72,6 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
