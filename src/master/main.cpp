@@ -37,7 +37,6 @@
 #include <stout/try.hpp>
 
 #include "allocation/allocator.hpp"
-#include "allocation/drf_sorter.hpp"
 #include "allocation/hierarchical_allocator.hpp"
 
 #include "authorizer/authorizer.hpp"

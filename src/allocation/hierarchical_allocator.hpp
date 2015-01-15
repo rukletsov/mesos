@@ -37,7 +37,7 @@
 #include "allocation/allocator.hpp"
 #include "allocation/drf_sorter.hpp"
 
-#include "master/master.hpp"
+#include "common/type_utils.hpp"
 
 namespace mesos {
 namespace internal {
