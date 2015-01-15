@@ -177,7 +177,7 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 
   Future<Nothing> recoverResources;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+    .WillOnce(DoAll(InvokeRecoverResources(&this->allocator),
                     FutureSatisfy(&recoverResources)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -266,7 +266,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
       &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, addFramework(_, Eq(frameworkInfo1), _))
-    .WillOnce(InvokeFrameworkAdded(&this->allocator));
+    .WillOnce(InvokeAddFramework(&this->allocator));
 
   FrameworkID frameworkId1;
   EXPECT_CALL(sched1, registered(_, _, _))
@@ -301,7 +301,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 
   Future<Nothing> removeFramework;
   EXPECT_CALL(this->allocator, removeFramework(Eq(frameworkId1)))
-    .WillOnce(DoAll(InvokeFrameworkRemoved(&this->allocator),
+    .WillOnce(DoAll(InvokeRemoveFramework(&this->allocator),
                     FutureSatisfy(&removeFramework)));
 
   driver1.stop();
@@ -334,7 +334,7 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
       &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(this->allocator, addFramework(_, Eq(frameworkInfo2), _))
-    .WillOnce(InvokeFrameworkAdded(&this->allocator));
+    .WillOnce(InvokeAddFramework(&this->allocator));
 
   FrameworkID frameworkId2;
   EXPECT_CALL(sched2, registered(_, _, _))
@@ -408,9 +408,9 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(InvokeResourcesRecoveredWithFilters(&this->allocator, 0))
+    .WillOnce(InvokeRecoverResourcesWithFilters(&this->allocator, 0))
     // For subsequent offers.
-    .WillRepeatedly(InvokeResourcesRecoveredWithFilters(&this->allocator, 0));
+    .WillRepeatedly(InvokeRecoverResourcesWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -431,7 +431,7 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 
   Future<Nothing> deactivateFramework;
   EXPECT_CALL(this->allocator, deactivateFramework(_))
-    .WillOnce(DoAll(InvokeFrameworkDeactivated(&this->allocator),
+    .WillOnce(DoAll(InvokeDeactivateFramework(&this->allocator),
                     FutureSatisfy(&deactivateFramework)));
 
   driver1.stop();
@@ -538,7 +538,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   // The framework does not use all the resources.
   Future<Nothing> recoverResources;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+    .WillOnce(DoAll(InvokeRecoverResources(&this->allocator),
                     FutureSatisfy(&recoverResources)));
 
   EXPECT_CALL(exec1, registered(_, _, _, _));
@@ -582,7 +582,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   // The framework 2 does not use all the resources.
   Future<Nothing> recoverResources2;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+    .WillOnce(DoAll(InvokeRecoverResources(&this->allocator),
                     FutureSatisfy(&recoverResources2)));
 
   EXPECT_CALL(exec2, registered(_, _, _, _));
@@ -661,7 +661,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   Future<Nothing> recoverResources;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(DoAll(InvokeResourcesRecovered(&this->allocator),
+    .WillOnce(DoAll(InvokeRecoverResources(&this->allocator),
                     FutureSatisfy(&recoverResources)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -692,7 +692,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   Future<Nothing> removeSlave;
   EXPECT_CALL(this->allocator, removeSlave(_))
-    .WillOnce(DoAll(InvokeSlaveRemoved(&this->allocator),
+    .WillOnce(DoAll(InvokeRemoveSlave(&this->allocator),
                     FutureSatisfy(&removeSlave)));
 
   EXPECT_CALL(exec, shutdown(_))
@@ -784,8 +784,8 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   // immediately and will get combined with slave2's
   // resources for a single offer.
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillOnce(InvokeResourcesRecoveredWithFilters(&this->allocator, 0.1))
-    .WillRepeatedly(InvokeResourcesRecoveredWithFilters(&this->allocator, 0));
+    .WillOnce(InvokeRecoverResourcesWithFilters(&this->allocator, 0.1))
+    .WillRepeatedly(InvokeRecoverResourcesWithFilters(&this->allocator, 0));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
 
@@ -877,7 +877,7 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   // aggregate them with the resources from the finished task.
   Future<Nothing> recoverResources;
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
-    .WillRepeatedly(DoAll(InvokeResourcesRecovered(&this->allocator),
+    .WillRepeatedly(DoAll(InvokeRecoverResources(&this->allocator),
                           FutureSatisfy(&recoverResources)));
 
   EXPECT_CALL(exec, registered(_, _, _, _));
@@ -1284,7 +1284,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   Future<Nothing> addFramework;
   EXPECT_CALL(allocator2, addFramework(_, _, _))
-    .WillOnce(DoAll(InvokeFrameworkAdded(&allocator2),
+    .WillOnce(DoAll(InvokeAddFramework(&allocator2),
                     FutureSatisfy(&addFramework)));
 
   EXPECT_CALL(sched, registered(&driver, _, _));
@@ -1397,7 +1397,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   Future<Nothing> addSlave;
   EXPECT_CALL(allocator2, addSlave(_, _, _, _))
-    .WillOnce(DoAll(InvokeSlaveAdded(&allocator2),
+    .WillOnce(DoAll(InvokeAddSlave(&allocator2),
                     FutureSatisfy(&addSlave)));
 
   Try<PID<Master> > master2 = this->StartMaster(&allocator2);
