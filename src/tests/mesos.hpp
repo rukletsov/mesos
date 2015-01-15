@@ -687,43 +687,43 @@ public:
       .WillByDefault(InvokeInitialize(this));
 
     ON_CALL(*this, addFramework(_, _, _))
-      .WillByDefault(InvokeFrameworkAdded(this));
+      .WillByDefault(InvokeAddFramework(this));
 
     ON_CALL(*this, removeFramework(_))
-      .WillByDefault(InvokeFrameworkRemoved(this));
+      .WillByDefault(InvokeRemoveFramework(this));
 
     ON_CALL(*this, activateFramework(_))
-      .WillByDefault(InvokeFrameworkActivated(this));
+      .WillByDefault(InvokeActivateFramework(this));
 
     ON_CALL(*this, deactivateFramework(_))
-      .WillByDefault(InvokeFrameworkDeactivated(this));
+      .WillByDefault(InvokeDeactivateFramework(this));
 
     ON_CALL(*this, addSlave(_, _, _, _))
-      .WillByDefault(InvokeSlaveAdded(this));
+      .WillByDefault(InvokeAddSlave(this));
 
     ON_CALL(*this, removeSlave(_))
-      .WillByDefault(InvokeSlaveRemoved(this));
+      .WillByDefault(InvokeRemoveSlave(this));
 
     ON_CALL(*this, activateSlave(_))
-      .WillByDefault(InvokeSlaveReactivated(this));
+      .WillByDefault(InvokeActivateSlave(this));
 
     ON_CALL(*this, deactivateSlave(_))
-      .WillByDefault(InvokeSlaveDeactivated(this));
+      .WillByDefault(InvokeDeactivateSlave(this));
 
     ON_CALL(*this, updateWhitelist(_))
       .WillByDefault(InvokeUpdateWhitelist(this));
 
     ON_CALL(*this, requestResources(_, _))
-      .WillByDefault(InvokeResourcesRequested(this));
+      .WillByDefault(InvokeRequestResources(this));
 
     ON_CALL(*this, transformAllocation(_, _, _))
       .WillByDefault(InvokeTransformAllocation(this));
 
     ON_CALL(*this, recoverResources(_, _, _, _))
-      .WillByDefault(InvokeResourcesRecovered(this));
+      .WillByDefault(InvokeRecoverResources(this));
 
     ON_CALL(*this, reviveOffers(_))
-      .WillByDefault(InvokeOffersRevived(this));
+      .WillByDefault(InvokeReviveOffers(this));
   }
 
   ~MockAllocator() {}
@@ -791,7 +791,7 @@ public:
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
 // EXPECT_CALL(allocator, addFramework(_, _, _))
-//   .WillOnce(DoAll(InvokeFrameworkAdded(&allocator),
+//   .WillOnce(DoAll(InvokeAddFramework(&allocator),
 //                   FutureSatisfy(&addFramework)));
 
 ACTION_P(InvokeInitialize, allocator)
@@ -800,49 +800,49 @@ ACTION_P(InvokeInitialize, allocator)
 }
 
 
-ACTION_P(InvokeFrameworkAdded, allocator)
+ACTION_P(InvokeAddFramework, allocator)
 {
   allocator->real.addFramework(arg0, arg1, arg2);
 }
 
 
-ACTION_P(InvokeFrameworkRemoved, allocator)
+ACTION_P(InvokeRemoveFramework, allocator)
 {
   allocator->real.removeFramework(arg0);
 }
 
 
-ACTION_P(InvokeFrameworkActivated, allocator)
+ACTION_P(InvokeActivateFramework, allocator)
 {
   allocator->real.activateFramework(arg0);
 }
 
 
-ACTION_P(InvokeFrameworkDeactivated, allocator)
+ACTION_P(InvokeDeactivateFramework, allocator)
 {
   allocator->real.deactivateFramework(arg0);
 }
 
 
-ACTION_P(InvokeSlaveAdded, allocator)
+ACTION_P(InvokeAddSlave, allocator)
 {
   allocator->real.addSlave(arg0, arg1, arg2, arg3);
 }
 
 
-ACTION_P(InvokeSlaveRemoved, allocator)
+ACTION_P(InvokeRemoveSlave, allocator)
 {
   allocator->real.removeSlave(arg0);
 }
 
 
-ACTION_P(InvokeSlaveReactivated, allocator)
+ACTION_P(InvokeActivateSlave, allocator)
 {
   allocator->real.activateSlave(arg0);
 }
 
 
-ACTION_P(InvokeSlaveDeactivated, allocator)
+ACTION_P(InvokeDeactivateSlave, allocator)
 {
   allocator->real.deactivateSlave(arg0);
 }
@@ -854,7 +854,7 @@ ACTION_P(InvokeUpdateWhitelist, allocator)
 }
 
 
-ACTION_P(InvokeResourcesRequested, allocator)
+ACTION_P(InvokeRequestResources, allocator)
 {
   allocator->real.requestResources(arg0, arg1);
 }
@@ -866,13 +866,13 @@ ACTION_P(InvokeTransformAllocation, allocator)
 }
 
 
-ACTION_P(InvokeResourcesRecovered, allocator)
+ACTION_P(InvokeRecoverResources, allocator)
 {
   allocator->real.recoverResources(arg0, arg1, arg2, arg3);
 }
 
 
-ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
+ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
 {
   Filters filters;
   filters.set_refuse_seconds(timeout);
@@ -881,7 +881,7 @@ ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
 }
 
 
-ACTION_P(InvokeOffersRevived, allocator)
+ACTION_P(InvokeReviveOffers, allocator)
 {
   allocator->real.reviveOffers(arg0);
 }
