@@ -31,6 +31,10 @@
 #include <stout/try.hpp>
 #include <stout/strings.hpp>
 
+#include "allocation/allocator.hpp"
+#include "allocation/drf_sorter.hpp"
+#include "allocation/hierarchical_allocator.hpp"
+
 #include "authorizer/authorizer.hpp"
 
 #include "common/protobuf_utils.hpp"
@@ -40,11 +44,8 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
-#include "master/drf_sorter.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"

@@ -41,11 +41,12 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "allocation/allocator.hpp"
+
 #include "authorizer/authorizer.hpp"
 
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
-#include "master/allocator.hpp"
 #include "master/detector.hpp"
 #include "master/master.hpp"
 

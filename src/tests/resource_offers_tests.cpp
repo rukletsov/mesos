@@ -26,7 +26,8 @@
 #include <stout/strings.hpp>
 #include <stout/uuid.hpp>
 
-#include "master/hierarchical_allocator_process.hpp"
+#include "allocation/hierarchical_allocator.hpp"
+
 #include "master/master.hpp"
 
 #include "slave/slave.hpp"

@@ -25,7 +25,8 @@
 
 #include <process/metrics/metrics.hpp>
 
-#include "master/allocator.hpp"
+#include "allocation/allocator.hpp"
+
 #include "master/flags.hpp"
 #include "master/master.hpp"
 

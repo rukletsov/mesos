@@ -266,6 +266,7 @@ nodist_libmesos_no_3rdparty_la_SOURCES =				\
 # TODO(tillt): Remove authentication/cram_md5/* which will enable us to
 # lose the immediate cyrus-sasl2 dependency.
 libmesos_no_3rdparty_la_SOURCES =					\
+	allocation/drf_sorter.cpp					\
 	authentication/cram_md5/auxprop.cpp				\
 	authorizer/authorizer.cpp					\
 	common/attributes.cpp						\
@@ -286,7 +287,6 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/contender.cpp						\
 	master/constants.cpp						\
 	master/detector.cpp						\
-	master/drf_sorter.cpp						\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/metrics.cpp						\
@@ -417,6 +417,10 @@ if WITH_NETWORK_ISOLATOR
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
+	allocation/allocator.hpp					\
+	allocation/drf_sorter.hpp					\
+	allocation/hierarchical_allocator.hpp				\
+	allocation/sorter.hpp						\
 	authentication/authenticatee.hpp				\
 	authentication/authenticator.hpp				\
 	authentication/cram_md5/authenticatee.hpp			\
@@ -447,18 +451,14 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	local/local.hpp							\
 	logging/flags.hpp						\
 	logging/logging.hpp						\
-	master/allocator.hpp						\
 	master/contender.hpp						\
 	master/constants.hpp						\
 	master/detector.hpp						\
-	master/drf_sorter.hpp						\
 	master/flags.hpp						\
-	master/hierarchical_allocator_process.hpp			\
 	master/master.hpp						\
 	master/metrics.hpp						\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
-	master/sorter.hpp						\
 	messages/messages.hpp						\
 	module/authenticatee.hpp					\
 	module/authenticator.hpp					\
