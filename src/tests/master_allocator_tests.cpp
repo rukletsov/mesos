@@ -74,14 +74,6 @@ template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
 protected:
-  void StopAllocator()
-  {
-    // TODO(alexr): Several tests have been reported flaky if no
-    // explicit stopping of allocation is used. Since allocators are
-    // not tied to the AllocatorProcess anymore, provide a method in
-    // Allocator to pause or cease allocation.
-  }
-
   MockAllocator<T> allocator;
 };
 
@@ -1374,8 +1366,11 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(this->allocator, ceaseAllocation())
+    .WillOnce(DoDefault());
+
   this->ShutdownMasters();
-  this->StopAllocator();
+  this->allocator.ceaseAllocation();
 
   MockAllocator<TypeParam> allocator2;
 
@@ -1499,8 +1494,11 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   EXPECT_CALL(this->allocator, recoverResources(_, _, _, _))
     .WillRepeatedly(DoDefault());
 
+  EXPECT_CALL(this->allocator, ceaseAllocation())
+    .WillOnce(DoDefault());
+
   this->ShutdownMasters();
-  this->StopAllocator();
+  this->allocator.ceaseAllocation();
 
   MockAllocator<TypeParam> allocator2;
 

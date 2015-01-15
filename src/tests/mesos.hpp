@@ -724,6 +724,9 @@ public:
 
     ON_CALL(*this, reviveOffers(_))
       .WillByDefault(InvokeOffersRevived(this));
+
+    ON_CALL(*this, ceaseAllocation())
+      .WillByDefault(InvokeCeaseAllocation(this));
   }
 
   ~MockAllocator() {}
@@ -783,6 +786,8 @@ public:
       const Option<Filters>& filters));
 
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
+
+  MOCK_METHOD0(ceaseAllocation, void());
 
   T real;
 };
@@ -884,6 +889,12 @@ ACTION_P2(InvokeResourcesRecoveredWithFilters, allocator, timeout)
 ACTION_P(InvokeOffersRevived, allocator)
 {
   allocator->real.reviveOffers(arg0);
+}
+
+
+ACTION_P(InvokeCeaseAllocation, allocator)
+{
+  allocator->real.ceaseAllocation();
 }
 
 

@@ -132,6 +132,10 @@ public:
   // offers for those resources the master invokes this callback.
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
+
+  // Stops the allocator, resume may not be possible. This function
+  // may be called multiple times.
+  virtual void ceaseAllocation() = 0;
 };
 
 
@@ -218,6 +222,10 @@ public:
   // offers for those resources the master invokes this callback.
   void reviveOffers(
       const FrameworkID& frameworkId);
+
+  // Stops the underlying process, resume is not possible. This
+  // function may be called multiple times.
+  void ceaseAllocation();
 
 private:
   MesosAllocator(const MesosAllocator&); // Not copyable.
@@ -309,8 +317,7 @@ MesosAllocator<MesosAllocatorProcess>::MesosAllocator()
 template <typename MesosAllocatorProcess>
 MesosAllocator<MesosAllocatorProcess>::~MesosAllocator()
 {
-  process::terminate(process.get());
-  process::wait(process.get());
+  ceaseAllocation();
 }
 
 
@@ -493,6 +500,14 @@ inline void MesosAllocator<MesosAllocatorProcess>::reviveOffers(
       process.get(),
       &AllocatorProcess::reviveOffers,
       frameworkId);
+}
+
+
+template <typename MesosAllocatorProcess>
+inline void MesosAllocator<MesosAllocatorProcess>::ceaseAllocation()
+{
+  process::terminate(process.get());
+  process::wait(process.get());
 }
 
 } // namespace allocator {
