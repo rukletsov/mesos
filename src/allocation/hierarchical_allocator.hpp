@@ -34,8 +34,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
-#include "allocation/allocator.hpp"
 #include "allocation/drf_sorter.hpp"
+#include "allocation/mesos_allocator.hpp"
 
 #include "common/type_utils.hpp"
 
@@ -162,6 +162,8 @@ protected:
 
   bool initialized;
 
+  // TODO(alexr): Remove dependency on master::Flags by e.g.
+  // introducing allocator::Options.
   master::Flags flags;
 
   lambda::function<
@@ -920,6 +922,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
+  // TODO(alexr): These constants should go into allocator::Options.
   return (cpus.isSome() && cpus.get() >= master::MIN_CPUS) ||
          (mem.isSome() && mem.get() >= master::MIN_MEM);
 }
