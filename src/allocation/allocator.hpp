@@ -25,6 +25,7 @@
 
 #include <process/future.hpp>
 #include <process/dispatch.hpp>
+#include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/shared.hpp>
@@ -222,8 +223,7 @@ private:
   MesosAllocator(const MesosAllocator&); // Not copyable.
   MesosAllocator& operator=(const MesosAllocator&); // Not assignable.
 
-  // TODO(alexr): make it owned.
-  MesosAllocatorProcess* process;
+  process::Owned<MesosAllocatorProcess> process;
 };
 
 
@@ -300,18 +300,17 @@ public:
 
 template <typename MesosAllocatorProcess>
 MesosAllocator<MesosAllocatorProcess>::MesosAllocator()
+  : process(new MesosAllocatorProcess())
 {
-  process = new MesosAllocatorProcess();
-  process::spawn(process);
+  process::spawn(process.get());
 }
 
 
 template <typename MesosAllocatorProcess>
 MesosAllocator<MesosAllocatorProcess>::~MesosAllocator()
 {
-  process::terminate(process);
-  process::wait(process);
-  delete process;
+  process::terminate(process.get());
+  process::wait(process.get());
 }
 
 
@@ -324,7 +323,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::initialize(
     const hashmap<std::string, RoleInfo>& roles)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::initialize,
       flags,
       offerCallback,
@@ -339,7 +338,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::addFramework(
     const Resources& used)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::addFramework,
       frameworkId,
       frameworkInfo,
@@ -352,7 +351,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::removeFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::removeFramework,
       frameworkId);
 }
@@ -363,7 +362,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::activateFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::activateFramework,
       frameworkId);
 }
@@ -374,7 +373,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::deactivateFramework(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::deactivateFramework,
       frameworkId);
 }
@@ -388,7 +387,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::addSlave(
     const hashmap<FrameworkID, Resources>& used)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::addSlave,
       slaveId,
       slaveInfo,
@@ -402,7 +401,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::removeSlave(
     const SlaveID& slaveId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::removeSlave,
       slaveId);
 }
@@ -413,7 +412,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::activateSlave(
     const SlaveID& slaveId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::activateSlave,
       slaveId);
 }
@@ -424,7 +423,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::deactivateSlave(
     const SlaveID& slaveId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::deactivateSlave,
       slaveId);
 }
@@ -435,7 +434,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::updateWhitelist(
     const Option<hashset<std::string> >& whitelist)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::updateWhitelist,
       whitelist);
 }
@@ -447,7 +446,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::requestResources(
     const std::vector<Request>& requests)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::requestResources,
       frameworkId,
       requests);
@@ -461,7 +460,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::transformAllocation(
     const process::Shared<Resources::Transformation>& transformation)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::transformAllocation,
       frameworkId,
       slaveId,
@@ -477,7 +476,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::recoverResources(
     const Option<Filters>& filters)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::recoverResources,
       frameworkId,
       slaveId,
@@ -491,7 +490,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::reviveOffers(
     const FrameworkID& frameworkId)
 {
   process::dispatch(
-      process,
+      process.get(),
       &AllocatorProcess::reviveOffers,
       frameworkId);
 }
