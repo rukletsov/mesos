@@ -31,8 +31,7 @@
 
 namespace mesos {
 namespace internal {
-namespace master {
-namespace allocator {
+namespace allocation {
 
 struct Client
 {
@@ -123,8 +122,7 @@ private:
   Resources resources;
 };
 
-} // namespace allocator {
-} // namespace master {
+} // namespace allocation {
 } // namespace internal {
 } // namespace mesos {
 

@@ -41,8 +41,7 @@
 
 namespace mesos {
 namespace internal {
-namespace master {
-namespace allocator {
+namespace allocation {
 
 // Forward declarations.
 class Filter;
@@ -73,7 +72,7 @@ public:
   process::PID<HierarchicalAllocatorProcess> self();
 
   void initialize(
-      const Flags& flags,
+      const master::Flags& flags,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -163,7 +162,7 @@ protected:
 
   bool initialized;
 
-  Flags flags;
+  master::Flags flags;
 
   lambda::function<
       void(const FrameworkID&,
@@ -264,7 +263,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::self()
 template <class RoleSorter, class FrameworkSorter>
 void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::initialize(
-    const Flags& _flags,
+    const master::Flags& _flags,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& _offerCallback,
@@ -921,12 +920,11 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
-  return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
-         (mem.isSome() && mem.get() >= MIN_MEM);
+  return (cpus.isSome() && cpus.get() >= master::MIN_CPUS) ||
+         (mem.isSome() && mem.get() >= master::MIN_MEM);
 }
 
-} // namespace allocator {
-} // namespace master {
+} // namespace allocation {
 } // namespace internal {
 } // namespace mesos {
 
