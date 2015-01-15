@@ -102,7 +102,7 @@ public:
     // be managed by the caller.
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags(),
-        const Option<master::allocator::Allocator*>& allocator = None(),
+        const Option<allocation::Allocator*>& allocator = None(),
         const Option<Authorizer*>& authorizer = None());
 
     // Stops and cleans up a master at the specified PID.
@@ -123,11 +123,11 @@ public:
     struct Master
     {
       Master()
-        : defaultAllocator(new master::allocator::HierarchicalDRFAllocator()),
+        : defaultAllocator(new allocation::HierarchicalDRFAllocator()),
           master(NULL) {}
 
-      process::Owned<master::allocator::Allocator> defaultAllocator;
-      master::allocator::Allocator* allocator;
+      process::Owned<allocation::Allocator> defaultAllocator;
+      allocation::Allocator* allocator;
 
       process::Owned<log::Log> log;
       process::Owned<state::Storage> storage;
@@ -249,7 +249,7 @@ inline void Cluster::Masters::shutdown()
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags,
-    const Option<master::allocator::Allocator*>& allocator,
+    const Option<allocation::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer)
 {
   // Disallow multiple masters when not using ZooKeeper.

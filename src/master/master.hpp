@@ -74,13 +74,13 @@ class AuthenticatorSession;
 class Authorizer;
 class WhitelistWatcher;
 
-namespace master {
-
-// Forward declarations.
-namespace allocator {
+namespace allocation {
 class Allocator;
 }
 
+namespace master {
+
+// Forward declarations.
 class Repairer;
 class SlaveObserver;
 
@@ -92,7 +92,7 @@ struct Slave;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(allocator::Allocator* allocator,
+  Master(allocation::Allocator* allocator,
          Registrar* registrar,
          Repairer* repairer,
          Files* files,
@@ -490,7 +490,7 @@ private:
     return leader.isSome() && leader.get() == info_;
   }
 
-  allocator::Allocator* allocator;
+  allocation::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
   Repairer* repairer;

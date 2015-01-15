@@ -42,11 +42,11 @@
 using namespace mesos;
 using namespace mesos::internal;
 
+using mesos::internal::allocation::Allocator;
+using mesos::internal::allocation::HierarchicalDRFAllocator;
+
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
-
-using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using process::Clock;
 using process::Future;

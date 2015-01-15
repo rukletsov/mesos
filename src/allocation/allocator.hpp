@@ -37,11 +37,7 @@
 
 namespace mesos {
 namespace internal {
-namespace master {
-
-class Master; // Forward declaration.
-
-namespace allocator {
+namespace allocation {
 
 // Basic model of an allocator: resources are allocated to a framework
 // in the form of offers. A framework can refuse some resources in
@@ -62,7 +58,7 @@ public:
   virtual ~Allocator() {}
 
   virtual void initialize(
-      const Flags& flags,
+      const master::Flags& flags,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -152,7 +148,7 @@ public:
   ~MesosAllocator();
 
   void initialize(
-      const Flags& flags,
+      const master::Flags& flags,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -244,7 +240,7 @@ public:
   using process::ProcessBase::initialize;
 
   virtual void initialize(
-      const Flags& flags,
+      const master::Flags& flags,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -319,7 +315,7 @@ MesosAllocator<MesosAllocatorProcess>::~MesosAllocator()
 
 template <typename MesosAllocatorProcess>
 inline void MesosAllocator<MesosAllocatorProcess>::initialize(
-    const Flags& flags,
+    const master::Flags& flags,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -506,8 +502,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::ceaseAllocation()
   process::wait(process.get());
 }
 
-} // namespace allocator {
-} // namespace master {
+} // namespace allocation {
 } // namespace internal {
 } // namespace mesos {
 

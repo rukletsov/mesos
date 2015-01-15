@@ -26,8 +26,7 @@
 
 namespace mesos {
 namespace internal {
-namespace master {
-namespace allocator {
+namespace allocation {
 
 // Sorters implement the logic for determining the
 // order in which users or frameworks should receive
@@ -99,8 +98,7 @@ public:
   virtual int count() = 0;
 };
 
-} // namespace allocator {
-} // namespace master {
+} // namespace allocation {
 } // namespace internal {
 } // namespace mesos {
 
