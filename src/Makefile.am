@@ -421,6 +421,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	allocation/allocator.hpp					\
 	allocation/drf_sorter.hpp					\
 	allocation/hierarchical_allocator.hpp				\
+	allocation/mesos_allocator.hpp					\
 	allocation/sorter.hpp						\
 	authentication/authenticatee.hpp				\
 	authentication/authenticator.hpp				\
