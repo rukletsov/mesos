@@ -70,9 +70,10 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
+
+#include "master/allocation/allocator.hpp"
 
 #include "module/authenticator.hpp"
 #include "module/manager.hpp"

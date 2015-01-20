@@ -18,7 +18,7 @@
 
 #include "logging/logging.hpp"
 
-#include "master/drf_sorter.hpp"
+#include "master/allocation/sorters/drf.hpp"
 
 using std::list;
 using std::set;
