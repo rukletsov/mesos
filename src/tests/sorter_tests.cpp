@@ -32,7 +32,7 @@
 
 using namespace mesos;
 
-using mesos::internal::master::allocator::DRFSorter;
+using mesos::internal::master::allocation::DRFSorter;
 
 using std::list;
 using std::string;

@@ -189,7 +189,7 @@ Try<process::PID<master::Master> > MesosTest::StartMaster(
 
 
 Try<process::PID<master::Master> > MesosTest::StartMaster(
-    master::allocator::Allocator* allocator,
+    master::allocation::Allocator* allocator,
     const Option<master::Flags>& flags)
 {
   return cluster.masters.start(

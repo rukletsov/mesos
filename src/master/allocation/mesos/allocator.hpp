@@ -27,7 +27,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 // A wrapper for AllocatorProcess-based allocators. It redirects all
 // function invokations to the underlying  AllocatorProcess and
@@ -387,7 +387,7 @@ inline void MesosAllocator<MesosAllocatorProcess>::reviveOffers(
       frameworkId);
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
