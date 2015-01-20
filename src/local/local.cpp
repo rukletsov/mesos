@@ -40,14 +40,15 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
-#include "master/allocator.hpp"
 #include "master/contender.hpp"
 #include "master/detector.hpp"
-#include "master/drf_sorter.hpp"
-#include "master/hierarchical_allocator_process.hpp"
 #include "master/master.hpp"
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
+
+#include "master/allocation/allocator.hpp"
+#include "master/allocation/mesos/hierarchical.hpp"
+#include "master/allocation/sorters/drf.hpp"
 
 #include "module/manager.hpp"
 
