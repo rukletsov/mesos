@@ -67,8 +67,8 @@
 using namespace mesos::internal;
 using namespace mesos::internal::log;
 
-using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+using mesos::internal::master::allocation::Allocator;
+using mesos::internal::master::allocation::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
 using mesos::internal::master::Registrar;
