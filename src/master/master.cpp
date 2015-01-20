@@ -108,7 +108,7 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-using allocator::Allocator;
+using allocation::Allocator;
 
 
 class SlaveObserver : public Process<SlaveObserver>
@@ -466,7 +466,7 @@ void Master::initialize()
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
       roleInfos);
 
-  // Parse the whitelist. Passing allocator::updateWhitelist()
+  // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in
   // Master::finalize(), while allocator lifetime is greater than
   // masters. Therefore there is no risk of calling into an allocator

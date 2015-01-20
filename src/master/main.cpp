@@ -186,7 +186,7 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  allocator::Allocator* allocator = new allocator::HierarchicalDRFAllocator();
+  allocation::Allocator* allocator = new allocation::HierarchicalDRFAllocator();
 
   state::Storage* storage = NULL;
   Log* log = NULL;
