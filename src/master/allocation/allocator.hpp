@@ -23,9 +23,7 @@
 
 #include <mesos/resources.hpp>
 
-#include <process/future.hpp>
 #include <process/dispatch.hpp>
-#include <process/pid.hpp>
 #include <process/process.hpp>
 #include <process/shared.hpp>
 
@@ -36,14 +34,9 @@
 
 #include "master/flags.hpp"
 
-#include "messages/messages.hpp"
-
 namespace mesos {
 namespace internal {
 namespace master {
-
-class Master; // Forward declaration.
-
 namespace allocator {
 
 // Basic model of an allocator: resources are allocated to a framework
