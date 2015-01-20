@@ -42,7 +42,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 // Forward declarations.
 class Filter;
@@ -918,7 +918,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
          (mem.isSome() && mem.get() >= MIN_MEM);
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

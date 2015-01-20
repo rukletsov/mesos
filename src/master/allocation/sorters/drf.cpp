@@ -28,7 +28,7 @@ using std::string;
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 bool DRFComparator::operator () (const Client& client1, const Client& client2)
 {
@@ -289,7 +289,7 @@ set<Client, DRFComparator>::iterator DRFSorter::find(const string& name)
   return it;
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

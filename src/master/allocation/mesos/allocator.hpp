@@ -27,7 +27,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 // The basic interface for all Process-based allocators.
 class MesosAllocatorProcess : public process::Process<MesosAllocatorProcess>
@@ -375,7 +375,7 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
       frameworkId);
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
