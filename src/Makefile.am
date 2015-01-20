@@ -461,6 +461,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/registrar.hpp						\
 	master/allocation/allocator.hpp					\
 	master/allocation/sorter.hpp					\
+	master/allocation/mesos/allocator.hpp				\
 	master/allocation/mesos/hierarchical.hpp			\
 	master/allocation/sorters/drf.hpp				\
 	messages/messages.hpp						\
