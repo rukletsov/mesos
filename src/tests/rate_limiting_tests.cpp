@@ -38,7 +38,7 @@ using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::master::allocator::MesosAllocatorProcess;
+using mesos::internal::master::allocation::MesosAllocatorProcess;
 
 using process::metrics::internal::MetricsProcess;
 

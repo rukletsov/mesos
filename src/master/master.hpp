@@ -78,7 +78,7 @@ class WhitelistWatcher;
 namespace master {
 
 // Forward declarations.
-namespace allocator {
+namespace allocation {
 class Allocator;
 }
 
@@ -93,7 +93,7 @@ struct Slave;
 class Master : public ProtobufProcess<Master>
 {
 public:
-  Master(allocator::Allocator* allocator,
+  Master(allocation::Allocator* allocator,
          Registrar* registrar,
          Repairer* repairer,
          Files* files,
@@ -517,7 +517,7 @@ private:
 
   Option<MasterInfo> leader; // Current leading master.
 
-  allocator::Allocator* allocator;
+  allocation::Allocator* allocator;
   WhitelistWatcher* whitelistWatcher;
   Registrar* registrar;
   Repairer* repairer;

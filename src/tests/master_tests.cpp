@@ -63,7 +63,7 @@ using namespace mesos::internal::tests;
 
 using mesos::internal::master::Master;
 
-using mesos::internal::master::allocator::MesosAllocatorProcess;
+using mesos::internal::master::allocation::MesosAllocatorProcess;
 
 using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::Slave;

@@ -27,7 +27,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 class MesosAllocatorProcess;
 
@@ -377,7 +377,7 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
       frameworkId);
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
