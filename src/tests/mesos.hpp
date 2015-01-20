@@ -90,7 +90,7 @@ protected:
 
   // Starts a master with the specified allocator process and flags.
   virtual Try<process::PID<master::Master> > StartMaster(
-      master::allocator::Allocator* allocator,
+      master::allocation::Allocator* allocator,
       const Option<master::Flags>& flags = None());
 
   // Starts a master with the specified authorizer and flags.
@@ -675,8 +675,8 @@ public:
 };
 
 
-template <typename T = master::allocator::HierarchicalDRFAllocator>
-class MockAllocator : public master::allocator::Allocator
+template <typename T = master::allocation::HierarchicalDRFAllocator>
+class MockAllocator : public master::allocation::Allocator
 {
 public:
   MockAllocator()
