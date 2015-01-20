@@ -42,7 +42,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 // Forward declarations.
 class Filter;
@@ -164,7 +164,7 @@ protected:
   bool initialized;
 
   // TODO(alexr): Remove dependency on master::Flags by e.g.
-  // introducing allocator::Options.
+  // introducing allocation::Options.
   Flags flags;
 
   lambda::function<
@@ -924,12 +924,12 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
-  // TODO(alexr): These constants should go into allocator::Options.
+  // TODO(alexr): These constants should go into allocation::Options.
   return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
          (mem.isSome() && mem.get() >= MIN_MEM);
 }
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
