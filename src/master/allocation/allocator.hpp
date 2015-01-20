@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __ALLOCATOR_HPP__
-#define __ALLOCATOR_HPP__
+#ifndef __ALLOCATION_ALLOCATOR_HPP__
+#define __ALLOCATION_ALLOCATOR_HPP__
 
 #include <string>
 #include <vector>
@@ -498,4 +498,4 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __ALLOCATOR_HPP__
+#endif // __ALLOCATION_ALLOCATOR_HPP__
