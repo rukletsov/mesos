@@ -54,7 +54,6 @@
 
 #include "master/allocation/allocator.hpp"
 #include "master/allocation/mesos/hierarchical.hpp"
-#include "master/allocation/sorters/drf.hpp"
 
 #include "module/manager.hpp"
 
