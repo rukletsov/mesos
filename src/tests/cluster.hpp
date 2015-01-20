@@ -100,7 +100,7 @@ public:
     // Start a new master with the provided flags and injections.
     Try<process::PID<master::Master> > start(
         const master::Flags& flags = master::Flags(),
-        const Option<master::allocator::Allocator*>& allocator = None(),
+        const Option<master::allocation::Allocator*>& allocator = None(),
         const Option<Authorizer*>& authorizer = None());
 
     // Stops and cleans up a master at the specified PID.
@@ -122,7 +122,7 @@ public:
     {
       Master() : allocator(NULL), createdAllocator(false), master(NULL) {}
 
-      master::allocator::Allocator* allocator;
+      master::allocation::Allocator* allocator;
       bool createdAllocator; // Whether we own the allocator.
 
       process::Owned<log::Log> log;
@@ -245,7 +245,7 @@ inline void Cluster::Masters::shutdown()
 
 inline Try<process::PID<master::Master> > Cluster::Masters::start(
     const master::Flags& flags,
-    const Option<master::allocator::Allocator*>& allocator,
+    const Option<master::allocation::Allocator*>& allocator,
     const Option<Authorizer*>& authorizer)
 {
   // Disallow multiple masters when not using ZooKeeper.
@@ -260,7 +260,7 @@ inline Try<process::PID<master::Master> > Cluster::Masters::start(
   if (allocator.isSome()) {
     master.allocator = allocator.get();
   } else {
-    master.allocator = new master::allocator::HierarchicalDRFAllocator();
+    master.allocator = new master::allocation::HierarchicalDRFAllocator();
     master.createdAllocator = true;
   }
 

@@ -36,7 +36,7 @@
 namespace mesos {
 namespace internal {
 namespace master {
-namespace allocator {
+namespace allocation {
 
 // Basic model of an allocator: resources are allocated to a framework
 // in the form of offers. A framework can refuse some resources in
@@ -56,7 +56,7 @@ public:
   virtual ~Allocator() {}
 
   // TODO(alexr): Eliminate dependency on master::Flags by e.g.
-  // introducing allocator::Options.
+  // introducing allocation::Options.
   virtual void initialize(
       const Flags& flags,
       const lambda::function<
@@ -126,7 +126,7 @@ public:
       const FrameworkID& frameworkId) = 0;
 };
 
-} // namespace allocator {
+} // namespace allocation {
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
