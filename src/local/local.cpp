@@ -47,7 +47,6 @@
 #include "master/repairer.hpp"
 
 #include "master/allocation/allocator.hpp"
-#include "master/allocation/sorters/drf.hpp"
 #include "master/allocation/mesos/hierarchical.hpp"
 
 #include "module/manager.hpp"
@@ -68,7 +67,6 @@ using namespace mesos::internal;
 using namespace mesos::internal::log;
 
 using mesos::internal::master::allocator::Allocator;
-using mesos::internal::master::allocator::DRFSorter;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
