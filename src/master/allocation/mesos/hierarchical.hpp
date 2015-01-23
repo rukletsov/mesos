@@ -36,7 +36,7 @@
 
 #include "common/type_utils.hpp"
 
-#include "master/allocation/allocator.hpp"
+#include "master/allocation/mesos/allocator.hpp"
 #include "master/allocation/sorters/drf.hpp"
 
 namespace mesos {
@@ -163,6 +163,8 @@ protected:
 
   bool initialized;
 
+  // TODO(alexr): Remove dependency on master::Flags by e.g.
+  // introducing allocator::Options.
   Flags flags;
 
   lambda::function<
@@ -922,6 +924,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocatable(
   Option<double> cpus = resources.cpus();
   Option<Bytes> mem = resources.mem();
 
+  // TODO(alexr): These constants should go into allocator::Options.
   return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
          (mem.isSome() && mem.get() >= MIN_MEM);
 }
