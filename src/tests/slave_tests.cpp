@@ -1701,6 +1701,9 @@ TEST_F(SlaveTest, CommandExecutorGracefulShutdown)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
+  Future<ExecutorRegisteredMessage> executorRegisteredMessage =
+    FUTURE_PROTOBUF(ExecutorRegisteredMessage(), _, _);
+
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers))
@@ -1726,6 +1729,10 @@ TEST_F(SlaveTest, CommandExecutorGracefulShutdown)
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+
+  AWAIT_READY(executorRegisteredMessage);
+  std::cout << executorRegisteredMessage.get().executor_info()
+                 .command().grace_period_seconds() << std::endl;
 
   driver.killTask(taskResponsive.task_id());
 
