@@ -293,7 +293,7 @@ map<string, string> executorEnvironment(
     env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
       stringify(Seconds(executorInfo.command().grace_period_seconds()));
   } else {
-    LOG(WARNING) << "CommandInfo.grace_period flag is not set, "
+    LOG(WARNING) << "CommandInfo.grace_period_seconds flag is not set, "
                  << "using default value: " << EXECUTOR_SHUTDOWN_GRACE_PERIOD;
     env["MESOS_SHUTDOWN_GRACE_PERIOD"] =
       stringify(EXECUTOR_SHUTDOWN_GRACE_PERIOD);
