@@ -18,6 +18,8 @@
 
 #include "stout/duration.hpp"
 
+#include <fstream>
+
 #include "logging/logging.hpp"
 
 #include "slave/constants.hpp"
@@ -55,18 +57,31 @@ Duration calculateGracePeriod(
 
 Duration getContainerizerGracePeriod(const Duration& baseShutdownTimeout)
 {
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  outs << "!!! ContainerizerGracePeriod: "
+       << calculateGracePeriod(baseShutdownTimeout, 2)
+       << std::endl;
+
   return calculateGracePeriod(baseShutdownTimeout, 2);
 }
 
 
 Duration getExecGracePeriod(const Duration& baseShutdownTimeout)
 {
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  outs << "!!! ExecGracePeriod: "
+       << calculateGracePeriod(baseShutdownTimeout, 1)
+       << std::endl;
   return calculateGracePeriod(baseShutdownTimeout, 1);
 }
 
 
 Duration getExecutorGracePeriod(const Duration& baseShutdownTimeout)
 {
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  outs << "!!! ExecutorGracePeriod: "
+       << calculateGracePeriod(baseShutdownTimeout, 0)
+       << std::endl;
   return calculateGracePeriod(baseShutdownTimeout, 0);
 }
 

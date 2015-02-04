@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+#include <fstream>
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h> // For random().
@@ -1200,6 +1201,18 @@ void Slave::runTask(
   const TaskInfo& task_ = updateGracePeriod(
       task,
       Seconds(flags.executor_shutdown_grace_period).value());
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  if (task_.has_executor()) {
+  outs << "Updated task (executor->command) grace period to "
+          << task_.executor().command().grace_period_seconds()
+             <<std::endl;
+  } else if (task_.has_command()) {
+    outs << "Updated task (command) grace period to "
+            << task_.command().grace_period_seconds()
+               <<std::endl;
+  } else {
+    outs << "Could not update task's grace period" << std::endl;
+  }
 
   const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task_);
   const ExecutorID& executorId = executorInfo.executor_id();
@@ -1262,6 +1275,27 @@ void Slave::_runTask(
   }
 
   const ExecutorInfo& executorInfo = getExecutorInfo(frameworkId, task);
+
+
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+
+  if (task.has_executor()) {
+    outs << "Check in _runTask (executor->command) "
+         << task.executor().command().grace_period_seconds()
+         <<std::endl;
+  } else if (task.has_command()) {
+    outs << "Check in _runTask: (command)"
+         << task.command().grace_period_seconds()
+         <<std::endl;
+  } else {
+    outs << "Could not Check in _runTask" << std::endl;
+  }
+
+
+  outs << "Check executor in _runTask: "
+       << executorInfo.command().grace_period_seconds() << std::endl;
+
+
   const ExecutorID& executorId = executorInfo.executor_id();
 
   if (framework->pending.contains(executorId) &&
@@ -2031,6 +2065,7 @@ void Slave::registerExecutor(
       message.mutable_framework_info()->MergeFrom(framework->info);
       message.mutable_slave_id()->MergeFrom(info.id());
       message.mutable_slave_info()->MergeFrom(info);
+
       send(executor->pid, message);
 
       // TODO(vinod): Use foreachvalue instead once LinkedHashmap
@@ -2770,6 +2805,11 @@ ExecutorInfo Slave::getExecutorInfo(
     if (task.command().has_user()) {
         executor.mutable_command()->set_user(task.command().user());
     }
+
+//    if (task.command().has_grace_period_seconds()) {
+//      executor.mutable_command()->set_grace_period_seconds(
+//          task.command().grace_period_seconds());
+//    }
 
     Result<string> path = os::realpath(
         path::join(flags.launcher_dir, "mesos-executor"));
@@ -3955,12 +3995,15 @@ Executor* Framework::launchExecutor(
   }
 
   // Launch the container.
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+
   Future<bool> launch;
   if (!executor->isCommandExecutor()) {
     // If the executor is _not_ a command executor, this means that
     // the task will include the executor to run. The actual task to
     // run will be enqueued and subsequently handled by the executor
     // when it has registered to the slave.
+    outs << "Launch containerizer (no command exec)" << std::endl;
     launch = slave->containerizer->launch(
         containerId,
         executorInfo_, // modified to include the task's resources.
@@ -3978,6 +4021,7 @@ Executor* Framework::launchExecutor(
     // executor info works as a placeholder.
     // TODO(nnielsen): Obsolete the requirement for executors to run
     // one-off tasks.
+    outs << "Launch containerizer (command exec)" << std::endl;
     launch = slave->containerizer->launch(
         containerId,
         taskInfo,

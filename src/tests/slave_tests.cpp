@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+#include <fstream>
 #include <unistd.h>
 
 #include <gmock/gmock.h>
@@ -1561,13 +1561,15 @@ TEST_F(SlaveTest, TaskLabels)
 // expected.
 TEST_F(SlaveTest, ShutdownGracePeriod)
 {
-  Duration defaultTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  // Make default timeout different from the fallback one to catch
+  // the case when the timeout is not propagated correctly.
+  Duration defaultTimeout = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD + Seconds(1);
   Duration customTimeout = Seconds(10);
 
   // We used to have a signal escalation timeout constant responsibe
   // for graceful shutdown period in the CommandExecutor. Make sure
-  // the default behaviour (3s) persists.
-  EXPECT_EQ(Seconds(3), slave::getExecutorGracePeriod(defaultTimeout));
+  // the default behaviour (3+1s) persists.
+  EXPECT_EQ(Seconds(4), slave::getExecutorGracePeriod(defaultTimeout));
 
   // The new logic uses a certain delta to calculate nested timeouts.
   EXPECT_EQ(Duration::zero(), slave::getExecutorGracePeriod(Duration::zero()));
@@ -1591,7 +1593,7 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   TestContainerizer containerizer(&exec);
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.executor_shutdown_grace_period = slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  flags.executor_shutdown_grace_period = defaultTimeout;
 
   Try<PID<Slave>> slave = StartSlave(&containerizer, flags);
   ASSERT_SOME(slave);
@@ -1601,7 +1603,12 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
-  EXPECT_CALL(exec, registered(_, _, _, _));
+\
+  // Cache the ExecutorInfo we get from the slave to check what is
+  // the actual timeout value.
+  Future<ExecutorInfo> execInfo;
+  EXPECT_CALL(exec, registered(_, _, _, _))
+      .WillOnce(FutureArg<1>(&execInfo));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1650,13 +1657,20 @@ TEST_F(SlaveTest, ShutdownGracePeriod)
   AWAIT_READY(task1);
   AWAIT_READY(task2);
 
+  //
+  AWAIT_READY(execInfo);
+  EXPECT_DOUBLE_EQ(
+      Seconds(defaultTimeout).value(),
+      execInfo.get().command().grace_period_seconds());
+  std::cout << "Real: " << execInfo.get().command().grace_period_seconds() << std::endl;
+
   // Currently (14 Nov 2014) grace periods customized by frameworks
   // are ignored.
   EXPECT_DOUBLE_EQ(
       Seconds(defaultTimeout).value(),
       task1.get().executor().command().grace_period_seconds());
-  EXPECT_DOUBLE_EQ
-      (Seconds(defaultTimeout).value(),
+  EXPECT_DOUBLE_EQ(
+      Seconds(defaultTimeout).value(),
       task2.get().executor().command().grace_period_seconds());
 
   driver.stop();

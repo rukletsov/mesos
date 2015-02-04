@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 
 #include <iostream>
+#include <fstream>
 #include <list>
 #include <string>
 #include <vector>
@@ -510,6 +511,7 @@ private:
 };
 
 
+
 class CommandExecutor: public Executor
 {
 public:
@@ -522,6 +524,10 @@ public:
         override,
         healthCheckDir,
         shutdownTimeout);
+
+    std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+    outs << "!!! Shutdown timeout in executor: " << shutdownTimeout
+         << std::endl;
     spawn(process);
   }
 
@@ -635,23 +641,34 @@ int main(int argc, char** argv)
             false);
 
   // Get the appropriate shutdown grace period.
+
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+
   Duration shutdownTimeout = EXECUTOR_SHUTDOWN_GRACE_PERIOD;
   string value = os::getenv("MESOS_SHUTDOWN_GRACE_PERIOD", false);
   if (!value.empty()) {
     Try<Duration> parse = Duration::parse(value);
     if (parse.isSome()) {
       shutdownTimeout = parse.get();
+      outs << "Parsed env value (command executor) is "
+           << shutdownTimeout << std::endl;
     } else {
       cerr << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << value << "': "
+           << parse.error() << endl;
+      outs << "Cannot parse MESOS_SHUTDOWN_GRACE_PERIOD '" << value << "': "
            << parse.error() << endl;
     }
   } else {
     cout << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not set, "
          << "using default value: " << shutdownTimeout << endl;
+
+    outs << "Environment variable MESOS_SHUTDOWN_GRACE_PERIOD is not set, "
+         << "using default value: " << shutdownTimeout << endl;
   }
 
   shutdownTimeout = getExecutorGracePeriod(shutdownTimeout);
   cout << "Shutdown timeout is set to " << shutdownTimeout;
+  outs << "Shutdown timeout (command executor) is set to " << shutdownTimeout;
 
   // Load flags from command line.
   Try<Nothing> load = flags.load(None(), &argc, &argv);

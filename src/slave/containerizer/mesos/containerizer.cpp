@@ -23,6 +23,7 @@
 #include <process/subprocess.hpp>
 
 #include <stout/os.hpp>
+#include <fstream>
 
 #include "module/isolator.hpp"
 #include "module/manager.hpp"
@@ -577,6 +578,8 @@ Future<bool> MesosContainerizerProcess::_launch(
   }
 
   // Prepare environment variables for the executor.
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  outs << "Setting up environment (mesos containerizer)" << std::endl;
   map<string, string> env = executorEnvironment(
       executorInfo,
       directory,
