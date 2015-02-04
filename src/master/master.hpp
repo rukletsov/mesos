@@ -450,6 +450,10 @@ private:
     process::Future<process::http::Response> health(
         const process::http::Request& request);
 
+    // /master/frameworks/{framework}/tasks/{task}
+    process::Future<process::http::Response> frameworks(
+        const process::http::Request& request);
+
     // /master/observe
     process::Future<process::http::Response> observe(
         const process::http::Request& request);
@@ -479,6 +483,7 @@ private:
         const process::http::Request& request);
 
     const static std::string HEALTH_HELP;
+    const static std::string FRAMEWORKS_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
     const static std::string SHUTDOWN_HELP;

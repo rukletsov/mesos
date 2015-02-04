@@ -598,6 +598,9 @@ void Master::initialize()
   route("/health",
         Http::HEALTH_HELP,
         lambda::bind(&Http::health, http, lambda::_1));
+  route("/frameworks",
+        Http::FRAMEWORKS_HELP,
+        lambda::bind(&Http::frameworks, http, lambda::_1));
   route("/observe",
         Http::OBSERVE_HELP,
         lambda::bind(&Http::observe, http, lambda::_1));

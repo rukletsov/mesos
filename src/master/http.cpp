@@ -174,6 +174,34 @@ JSON::Object model(const Framework& framework)
 }
 
 
+JSON::Array model(
+    const hashmap<FrameworkID, Framework*>& frameworks) {
+  JSON::Array array;
+
+  // Returns only the values, since the frameworkId is already in the
+  // frameworkId model.
+  foreachvalue(const Framework *framework, frameworks) {
+    array.values.push_back(model(*framework));
+  }
+
+  return array;
+}
+
+
+JSON::Array model(
+    const hashmap<TaskID, Task*>& tasks) {
+  JSON::Array array;
+
+  // Returns only the values, since the frameworkId is already in the
+  // taskId model.
+  foreachvalue(const Task *task, tasks) {
+    array.values.push_back(model(*task));
+  }
+
+  return array;
+}
+
+
 // Returns a JSON object modeled after a Slave.
 JSON::Object model(const Slave& slave)
 {
@@ -230,6 +258,108 @@ Future<Response> Master::Http::health(const Request& request)
 {
   return OK();
 }
+
+
+const string Master::Http::FRAMEWORKS_HELP = HELP(
+    TLDR(
+        "Information about frameworks and their assigned tasks."),
+    USAGE(
+        "/master/frameworks/{frameworkId}/tasks/{taskId}"),
+    DESCRIPTION(
+        "Each subpath retrieves different information related to the",
+        "registered frameworks the assigned tasks formated as json objects.",
+        "If only /master/frameworks is requested, a description of all",
+        "registered frameworks and its endpoints is retrieved.",
+        "If /master/frameworks/{frameworkId} is requested, only de description",
+        "of the requested framework is retrieved. If no framework with the",
+        "given id is found, a json object with en empty array is returned.",
+        "If /master/frameworks/{frameworkId}/tasks is requested, the list of",
+        "tasks assigned to the given framework is retrieved.",
+        "If /master/framework/{frameworkId}/tasks/{taskId} is requested, only",
+        "the data about the given taskId in the given framework is",
+        "retrieved."));
+
+
+Future<Response> Master::Http::frameworks(const Request& request) {
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
+
+  const string pattern = "/master/frameworks/{framework}/tasks/{task}";
+
+  // Creates a map where the keys are the entrys / separated in
+  // pattern and the values are the actual string appearing in the
+  // path.
+  Try<hashmap<string, string>> parse =
+    process::http::path::parse(pattern, request.path);
+
+  if (parse.isError()) {
+    return BadRequest(
+        "Failed to parse path '" + request.path + "': " + parse.error() + ".");
+  }
+
+  hashmap<string, string> path = parse.get();
+
+  if (path.contains("framework")) {
+    FrameworkID frameworkId;
+    frameworkId.set_value(path["framework"]);
+
+    Option<Framework*> framework =
+      master->frameworks.registered.get(frameworkId);
+
+    if (!framework.isSome()) {
+      JSON::Object object;
+      string key = "frameworks";
+
+      if (path.contains("tasks")) {
+        key = "tasks";
+      }
+
+      object.values[key] = JSON::Array();
+      return OK(object, request.query.get("jsonp"));
+    }
+
+    if (path.contains("tasks")) {
+      if (path.contains("task")) {
+        TaskID taskId;
+        taskId.set_value(path["task"]);
+
+        if (framework.get()->tasks.contains(taskId)) {
+          JSON::Array array;
+          array.values.push_back(model(*framework.get()->tasks[taskId]));
+
+          JSON::Object object;
+          object.values["tasks"] = array;
+
+          return OK(object, request.query.get("jsonp"));
+        } else {
+          JSON::Object object;
+          object.values["tasks"] = JSON::Array();
+          return OK(object, request.query.get("jsonp"));
+        }
+      }
+
+      JSON::Object object;
+      object.values["tasks"] = model(framework.get()->tasks);
+
+      return OK(object, request.query.get("jsonp"));
+    }
+
+    JSON::Array array;
+    array.values.push_back(model(*framework.get()));
+
+    JSON::Object object;
+    object.values["frameworks"] = array;
+
+    return OK(object, request.query.get("jsonp"));
+  }
+
+  JSON::Array array = model(master->frameworks.registered);
+
+  JSON::Object object;
+  object.values["frameworks"] = array;
+
+  return OK(object, request.query.get("jsonp"));
+}
+
 
 const static string HOSTS_KEY = "hosts";
 const static string LEVEL_KEY = "level";

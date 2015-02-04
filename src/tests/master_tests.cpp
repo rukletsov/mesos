@@ -40,6 +40,7 @@
 #include <stout/net.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include "master/allocator.hpp"
@@ -75,6 +76,8 @@ using process::Future;
 using process::Owned;
 using process::PID;
 using process::UPID;
+
+using path::join;
 
 using std::string;
 using std::vector;
@@ -1563,6 +1566,829 @@ TEST_F(MasterTest, MetricsInStatsEndpoint)
 
   EXPECT_EQ(1u, stats.values.count("registrar/state_fetch_ms"));
   EXPECT_EQ(1u, stats.values.count("registrar/state_store_ms"));
+
+  Shutdown();
+}
+
+
+// This tests ensures that no data about frameworks and proper error
+// codes are returned when requesting information about frameworks
+// from a master where no frameworks have been registered.
+TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Query the master.
+  string path = "frameworks";
+  Future<process::http::Response> response =
+    process::http::get(master.get(), path);
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"frameworks\" : []"
+      "}");
+  ASSERT_SOME(expected);
+
+  // Verify that no one was registered.
+  Try<JSON::Value> parse = JSON::parse(response.get().body);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  // Request some framework ID, any string works.
+  path = join(path, "20150202-114748-2433094316-64606-89315-0000");
+
+  response = process::http::get(master.get(), path);
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse(response.get().body);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  // Now check for the tasks of the given framework.
+  path = join(path, "tasks");
+
+  response = process::http::get(master.get(), path);
+  AWAIT_READY(response);
+
+  expected = JSON::parse(
+      "{"
+      "  \"tasks\" : []"
+      "}");
+  ASSERT_SOME(expected);
+
+  parse = JSON::parse(response.get().body);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  // And finally for an specific task within the same framework.
+  path = join(path, "1234");
+
+  response = process::http::get(master.get(), path);
+  AWAIT_READY(response);
+
+  parse = JSON::parse(response.get().body);
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  Shutdown();
+}
+
+
+// This tests ensures that the frameworks/ endpoint returns the right
+// values when there are frameworks registered, with and without
+// tasks asigned to them.
+TEST_F(MasterTest, FrameworksEndpoint)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start up two slaves, so no black magic on the offers need to be
+  // done.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  StartSlave(&containerizer, flags);
+
+  // Start up first framework.
+  MockScheduler sched1;
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId1;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  // Start up second framework.
+  MockScheduler sched2;
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId2;
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId2))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver2.start();
+
+  // Wait for framework1 to be ready.
+  AWAIT_READY(frameworkId1);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Add a couple of tasks to the framework1.
+  const Resources taskResources = Resources::parse("cpus:1;mem:512").get();
+
+  TaskInfo taskInfo1;
+  taskInfo1.set_name("dummy_task1");
+  taskInfo1.mutable_task_id()->set_value("1");
+  taskInfo1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo1.mutable_resources()->MergeFrom(taskResources);
+  taskInfo1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  TaskInfo taskInfo2;
+  taskInfo2.set_name("dummy_task2");
+  taskInfo2.mutable_task_id()->set_value("2");
+  taskInfo2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo2.mutable_resources()->MergeFrom(taskResources);
+  taskInfo2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(taskInfo1);
+  tasks.push_back(taskInfo2);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver1.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait until the tasks are running.
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // For framework2 only knowing it is registered is enough.
+  AWAIT_READY(frameworkId2);
+
+  // Query the master for a list of frameworks.
+  Future<process::http::Response> response =
+    process::http::get(master.get(), "frameworks");
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  // Check the returned values.
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("frameworks");
+  ASSERT_SOME(array);
+
+  EXPECT_EQ(2u, array.get().values.size());
+
+  foreach (const JSON::Value &value, array.get().values) {
+    JSON::Object framework = value.as<JSON::Object>();
+
+    Result<JSON::String> id = framework.find<JSON::String>("id");
+    ASSERT_SOME(id);
+
+    FrameworkID frameworkId;
+    frameworkId.set_value(id.get().value);
+
+    // Not an specific order is required.
+    if (frameworkId == frameworkId1.get()) {
+      EXPECT_SOME_EQ(
+          frameworkInfo1.name(), framework.find<JSON::String>("name"));
+
+      Result<JSON::Array> tasks = framework.find<JSON::Array>("tasks");
+      EXPECT_SOME(tasks);
+      EXPECT_EQ(2u, tasks.get().values.size());
+
+      foreach (const JSON::Value &_value, tasks.get().values) {
+        JSON::Object task = _value.as<JSON::Object>();
+
+        EXPECT_SOME_EQ("TASK_RUNNING", task.find<JSON::String>("state"));
+        EXPECT_SOME_EQ("default", task.find<JSON::String>("executor_id"));
+        EXPECT_SOME_EQ(1u, task.find<JSON::Number>("resources.cpus"));
+        EXPECT_SOME_EQ(512u, task.find<JSON::Number>("resources.mem"));
+        EXPECT_SOME_EQ(0, task.find<JSON::Number>("resources.disk"));
+
+        Result<JSON::String> _taskId = task.find<JSON::String>("id");
+        ASSERT_SOME(_taskId);
+
+        TaskID taskId;
+        taskId.set_value(_taskId.get().value);
+
+        if (taskId == taskInfo1.task_id()) {
+          EXPECT_SOME_EQ(taskInfo1.name(), task.find<JSON::String>("name"));
+        } else if (taskId == taskInfo2.task_id()) {
+          EXPECT_SOME_EQ(taskInfo2.name(), task.find<JSON::String>("name"));
+        } else {
+          // Not known task Id, not expected.
+          EXPECT_TRUE(false);
+        }
+      }
+    } else if (frameworkId == frameworkId2.get()) {
+      EXPECT_SOME_EQ(
+          frameworkInfo2.name(), framework.find<JSON::String>("name"));
+
+      Try<JSON::Value> expected = JSON::parse("[]");
+      ASSERT_SOME(expected);
+
+      Result<JSON::Value> array = framework.find<JSON::Value>("tasks");
+      EXPECT_SOME_EQ(expected.get(), array);
+    } else {
+      // The given ID is unknown and thus the test needs to fail.
+      EXPECT_TRUE(false);
+    }
+  }
+
+  // Shut down the whole cluster.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver2.stop();
+  driver1.join();
+  driver2.join();
+
+  Shutdown();
+}
+
+
+// This tests ensures that the frameworks/{frameworkId} endpoint
+// returns the right values when there are frameworks registered, with
+// and without tasks asigned to them.
+TEST_F(MasterTest, Frameworks_FrameworkIDEndpoint)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start up two slaves, so no black magic on the offers need to be
+  // done.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  StartSlave(&containerizer, flags);
+
+  // Start up first framework.
+  MockScheduler sched1;
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId1;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  // Start up second framework.
+  MockScheduler sched2;
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId2;
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId2))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver2.start();
+
+  // Wait for framework1 to be ready.
+  AWAIT_READY(frameworkId1);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Add a couple of tasks to the framework1.
+  const Resources taskResources = Resources::parse("cpus:1;mem:512").get();
+
+  TaskInfo taskInfo1;
+  taskInfo1.set_name("dummy_task1");
+  taskInfo1.mutable_task_id()->set_value("1");
+  taskInfo1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo1.mutable_resources()->MergeFrom(taskResources);
+  taskInfo1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  TaskInfo taskInfo2;
+  taskInfo2.set_name("dummy_task2");
+  taskInfo2.mutable_task_id()->set_value("2");
+  taskInfo2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo2.mutable_resources()->MergeFrom(taskResources);
+  taskInfo2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks;
+  tasks.push_back(taskInfo1);
+  tasks.push_back(taskInfo2);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver1.launchTasks(offers.get()[0].id(), tasks);
+
+  // Wait until the tasks are running.
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // For framework2 only knowing it is registered is enough.
+  AWAIT_READY(frameworkId2);
+
+  // Query the master about the first framework.
+  Future<process::http::Response> response =
+    process::http::get(
+        master.get(), join("frameworks", frameworkId1.get().value()));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("frameworks");
+  ASSERT_SOME(array);
+
+  EXPECT_EQ(1u, array.get().values.size());
+
+  Result<JSON::Object> object = parse.get().find<JSON::Object>("frameworks[0]");
+  ASSERT_SOME(object);
+
+  JSON::Object framework = object.get();
+
+  Result<JSON::String> id = framework.find<JSON::String>("id");
+  ASSERT_SOME(id);
+
+  FrameworkID frameworkId;
+  frameworkId.set_value(id.get().value);
+
+  EXPECT_EQ(frameworkId, frameworkId1.get());
+  EXPECT_SOME_EQ(frameworkInfo1.name(), framework.find<JSON::String>("name"));
+
+  array = framework.find<JSON::Array>("tasks");
+  EXPECT_SOME(array);
+  EXPECT_EQ(2u, array.get().values.size());
+
+  foreach (const JSON::Value &value, array.get().values) {
+    JSON::Object task = value.as<JSON::Object>();
+
+    EXPECT_SOME_EQ("TASK_RUNNING", task.find<JSON::String>("state"));
+    EXPECT_SOME_EQ("default", task.find<JSON::String>("executor_id"));
+    EXPECT_SOME_EQ(1u, task.find<JSON::Number>("resources.cpus"));
+    EXPECT_SOME_EQ(512u, task.find<JSON::Number>("resources.mem"));
+    EXPECT_SOME_EQ(0, task.find<JSON::Number>("resources.disk"));
+
+    Result<JSON::String> _taskId = task.find<JSON::String>("id");
+    ASSERT_SOME(_taskId);
+
+    TaskID taskId;
+    taskId.set_value(_taskId.get().value);
+
+    if (taskId == taskInfo1.task_id()) {
+      EXPECT_SOME_EQ(taskInfo1.name(), task.find<JSON::String>("name"));
+    } else if (taskId == taskInfo2.task_id()) {
+      EXPECT_SOME_EQ(taskInfo2.name(), task.find<JSON::String>("name"));
+    } else {
+      // Not known task Id, not expected.
+      EXPECT_TRUE(false);
+    }
+  }
+
+  // Query the master about the second framework.
+  response =
+    process::http::get(
+        master.get(), join("frameworks", frameworkId2.get().value()));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  array = parse.get().find<JSON::Array>("frameworks");
+  ASSERT_SOME(array);
+
+  EXPECT_EQ(1u, array.get().values.size());
+
+  object = parse.get().find<JSON::Object>("frameworks[0]");
+  ASSERT_SOME(object);
+
+  framework = object.get();
+
+  id = framework.find<JSON::String>("id");
+  ASSERT_SOME(id);
+
+  frameworkId.set_value(id.get().value);
+
+  EXPECT_EQ(frameworkId, frameworkId2.get());
+  EXPECT_SOME_EQ(frameworkInfo2.name(), framework.find<JSON::String>("name"));
+
+  Try<JSON::Value> expected = JSON::parse("[]");
+  ASSERT_SOME(expected);
+
+  Result<JSON::Value> _tasks = framework.find<JSON::Value>("tasks");
+  EXPECT_SOME_EQ(expected.get(), _tasks);
+
+  // Shut down the whole cluster.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver2.stop();
+  driver1.join();
+  driver2.join();
+
+  Shutdown();
+}
+
+
+// This tests ensures that the frameworks/{frameworkId}/tasks endpoint
+// returns the right values when there are frameworks registered, with
+// and without tasks asigned to them.
+TEST_F(MasterTest, Frameworks_FrameworkID_TasksEndpoint)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start up two slaves, so no black magic on the offers need to be
+  // done.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  StartSlave(&containerizer, flags);
+
+  // Start up first framework.
+  MockScheduler sched1;
+  FrameworkInfo frameworkInfo1;
+  frameworkInfo1.set_name("framework1");
+  frameworkInfo1.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo1, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId1;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  // Start up second framework.
+  MockScheduler sched2;
+  FrameworkInfo frameworkInfo2;
+  frameworkInfo2.set_name("framework2");
+  frameworkInfo2.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo2, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId2;
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId2))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillRepeatedly(Return()); // Ignore offers.
+
+  driver2.start();
+
+  // Wait for framework1 to be ready.
+  AWAIT_READY(frameworkId1);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Add a couple of tasks to the framework1.
+  const Resources taskResources = Resources::parse("cpus:1;mem:512").get();
+
+  TaskInfo taskInfo1;
+  taskInfo1.set_name("dummy_task1");
+  taskInfo1.mutable_task_id()->set_value("1");
+  taskInfo1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo1.mutable_resources()->MergeFrom(taskResources);
+  taskInfo1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  TaskInfo taskInfo2;
+  taskInfo2.set_name("dummy_task2");
+  taskInfo2.mutable_task_id()->set_value("2");
+  taskInfo2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo2.mutable_resources()->MergeFrom(taskResources);
+  taskInfo2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks_;
+  tasks_.push_back(taskInfo1);
+  tasks_.push_back(taskInfo2);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched1, statusUpdate(&driver1, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver1.launchTasks(offers.get()[0].id(), tasks_);
+
+  // Wait until the tasks are running.
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // For framework2 only knowing it is registered is enough.
+  AWAIT_READY(frameworkId2);
+
+  // Query the master about the first framework.
+  Future<process::http::Response> response =
+    process::http::get(
+        master.get(),
+        join("frameworks", frameworkId1.get().value(), "tasks"));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> tasks = parse.get().find<JSON::Array>("tasks");
+  EXPECT_SOME(tasks);
+  EXPECT_EQ(2u, tasks.get().values.size());
+
+  foreach (const JSON::Value &value, tasks.get().values) {
+    JSON::Object task = value.as<JSON::Object>();
+
+    EXPECT_SOME_EQ(
+        frameworkId1.get().value(), task.find<JSON::String>("framework_id"));
+
+    EXPECT_SOME_EQ("TASK_RUNNING", task.find<JSON::String>("state"));
+    EXPECT_SOME_EQ("default", task.find<JSON::String>("executor_id"));
+    EXPECT_SOME_EQ(1u, task.find<JSON::Number>("resources.cpus"));
+    EXPECT_SOME_EQ(512u, task.find<JSON::Number>("resources.mem"));
+    EXPECT_SOME_EQ(0, task.find<JSON::Number>("resources.disk"));
+
+    Result<JSON::String> _taskId = task.find<JSON::String>("id");
+    ASSERT_SOME(_taskId);
+
+    TaskID taskId;
+    taskId.set_value(_taskId.get().value);
+
+    if (taskId == taskInfo1.task_id()) {
+      EXPECT_SOME_EQ(taskInfo1.name(), task.find<JSON::String>("name"));
+    } else if (taskId == taskInfo2.task_id()) {
+      EXPECT_SOME_EQ(taskInfo2.name(), task.find<JSON::String>("name"));
+    } else {
+      // Not known task Id, not expected.
+      EXPECT_TRUE(false);
+    }
+  }
+
+  // Query the master about the second framework.
+  response =
+    process::http::get(
+        master.get(), join("frameworks", frameworkId2.get().value(), "tasks"));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Try<JSON::Object> expected = JSON::parse<JSON::Object>(
+    "{"
+    "  \"tasks\" : []"
+    "}");
+  ASSERT_SOME(expected);
+
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+  // Shut down the whole cluster.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver1.stop();
+  driver2.stop();
+  driver1.join();
+  driver2.join();
+
+  Shutdown();
+}
+
+
+// This tests ensures that the frameworks/{frameworkId}/tasks/{taslId}
+// endpoint returns the right values when there are frameworks
+// registered, with and without tasks asigned to them.
+TEST_F(MasterTest, Frameworks_FrameworkID_Tasks_TaskIdEndpoint)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start up two slaves, so no black magic on the offers need to be
+  // done.
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  const Resources fullSlave = Resources::parse("cpus:2;mem:1024").get();
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = Option<string>(stringify(fullSlave));
+
+  StartSlave(&containerizer, flags);
+
+  // Start up first framework.
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_name("framework");
+  frameworkInfo.set_principal(DEFAULT_CREDENTIAL.principal());
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get(), DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId))
+    .WillRepeatedly(Return()); // Ignore subsequent events.
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Wait for framework1 to be ready.
+  AWAIT_READY(frameworkId);
+  AWAIT_READY(offers);
+  EXPECT_NE(0u, offers.get().size());
+
+  // Add a couple of tasks to the framework1.
+  const Resources taskResources = Resources::parse("cpus:1;mem:512").get();
+
+  TaskInfo taskInfo1;
+  taskInfo1.set_name("dummy_task1");
+  taskInfo1.mutable_task_id()->set_value("1");
+  taskInfo1.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo1.mutable_resources()->MergeFrom(taskResources);
+  taskInfo1.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  TaskInfo taskInfo2;
+  taskInfo2.set_name("dummy_task2");
+  taskInfo2.mutable_task_id()->set_value("2");
+  taskInfo2.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  taskInfo2.mutable_resources()->MergeFrom(taskResources);
+  taskInfo2.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+
+  vector<TaskInfo> tasks_;
+  tasks_.push_back(taskInfo1);
+  tasks_.push_back(taskInfo2);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(1);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillRepeatedly(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.launchTasks(offers.get()[0].id(), tasks_);
+
+  // Wait until the tasks are running.
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1.get().state());
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_RUNNING, status2.get().state());
+
+  // Query the master about the first task in the framework.
+  string path = join("frameworks", frameworkId.get().value(), "tasks");
+  Future<process::http::Response> response =
+    process::http::get(master.get(), join(path, "1"));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Result<JSON::Array> tasks = parse.get().find<JSON::Array>("tasks");
+  EXPECT_SOME(tasks);
+  EXPECT_EQ(1u, tasks.get().values.size());
+
+  JSON::Object task = tasks.get().values[0].as<JSON::Object>();
+
+  EXPECT_SOME_EQ(
+      frameworkId.get().value(), task.find<JSON::String>("framework_id"));
+
+  EXPECT_SOME_EQ(taskInfo1.name(), task.find<JSON::String>("name"));
+  EXPECT_SOME_EQ("TASK_RUNNING", task.find<JSON::String>("state"));
+  EXPECT_SOME_EQ("default", task.find<JSON::String>("executor_id"));
+  EXPECT_SOME_EQ(1u, task.find<JSON::Number>("resources.cpus"));
+  EXPECT_SOME_EQ(512u, task.find<JSON::Number>("resources.mem"));
+  EXPECT_SOME_EQ(0, task.find<JSON::Number>("resources.disk"));
+
+  Result<JSON::String> _taskId = task.find<JSON::String>("id");
+  ASSERT_SOME(_taskId);
+
+  TaskID taskId;
+  taskId.set_value(_taskId.get().value);
+  EXPECT_EQ(taskInfo1.task_id(), taskId);
+
+  // Query the master about a non existing task.
+  response = process::http::get(master.get(), join(path, "3"));
+
+  AWAIT_READY(response);
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  parse = JSON::parse<JSON::Object>(response.get().body);
+  ASSERT_SOME(parse);
+
+  Try<JSON::Object> expected = JSON::parse<JSON::Object>(
+    "{"
+    "  \"tasks\" : []"
+    "}");
+  ASSERT_SOME(expected);
+
+  EXPECT_SOME_EQ(expected.get(), parse);
+
+
+  // Shut down the whole cluster.
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
 
   Shutdown();
 }
