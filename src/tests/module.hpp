@@ -55,7 +55,7 @@ template <typename T, ModuleID N>
 class Module
 {
 public:
-  // Create is used by the type_param'ed tests.  T here denotes the
+  // Create is used by the type_param'ed tests. T here denotes the
   // module type, whereas N denotes the module name.
   static Try<T*> create()
   {
