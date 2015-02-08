@@ -77,7 +77,7 @@ template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
 protected:
-  virtual void SetUp()
+  MasterAllocatorTest()
   {
     Try<Allocator*> instance = T::create();
     CHECK_SOME(instance);
@@ -85,11 +85,24 @@ protected:
     allocator = new TestAllocator(real);
   }
 
-  virtual void TearDown()
+  virtual ~MasterAllocatorTest()
   {
     delete allocator;
     delete real;
   }
+
+//  virtual void SetUp()
+//  {
+//    Try<Allocator*> instance = T::create();
+//    CHECK_SOME(instance);
+//    allocator = new TestAllocator(instance.get());
+//  }
+
+//  virtual void TearDown()
+//  {
+//    delete allocator;
+//    delete instance.get();
+//  }
 
   Allocator* real;
   TestAllocator* allocator;
@@ -98,8 +111,8 @@ protected:
 
 //typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
 typedef ::testing::Types<
-    AllocatorFactory<HierarchicalDRFAllocator>/*,
-    tests::Module<Allocator, TestDRFAllocator>*/> AllocatorTypes;
+    AllocatorFactory<HierarchicalDRFAllocator>,
+    tests::Module<Allocator, TestDRFAllocator>> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
