@@ -92,34 +92,13 @@ protected:
     testAllocator.reset(new TestAllocator(realAllocator.get()));
   }
 
-  virtual ~MasterAllocatorTest()
-  {
-//    delete testAllocator;
-//    delete real;
-  }
-
-//  virtual void SetUp()
-//  {
-//    MesosTest::SetUp();
-
-//    Try<Allocator*> instance = T::create();
-//    CHECK_SOME(instance);
-//    realAllocator.reset(instance.get());
-//    testAllocator.reset(new TestAllocator(realAllocator.get()));
-//  }
-
-//  virtual void TearDown()
-//  {
-//    delete allocator;
-////    delete instance.get();
-//  }
+  virtual ~MasterAllocatorTest() {}
 
   process::Owned<Allocator> realAllocator;
   process::Owned<TestAllocator> testAllocator;
 };
 
 
-//typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
 typedef ::testing::Types<
     AllocatorFactory<HierarchicalDRFAllocator>,
     tests::Module<Allocator, TestDRFAllocator>> AllocatorTypes;
