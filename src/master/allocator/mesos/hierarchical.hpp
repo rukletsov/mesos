@@ -34,7 +34,7 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
-#include "master/master.hpp"
+#include "common/type_utils.hpp"
 
 #include "master/allocator/allocator.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
