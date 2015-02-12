@@ -18,7 +18,7 @@
 
 #ifndef __TESTS_MESOS_HPP__
 #define __TESTS_MESOS_HPP__
-
+#include <iostream>
 #include <map>
 #include <set>
 #include <string>
@@ -682,79 +682,79 @@ public:
 
 ACTION_P(InvokeInitialize, allocator)
 {
-  allocator->real.initialize(arg0, arg1, arg2);
+  allocator->real->initialize(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real.addFramework(arg0, arg1, arg2);
+  allocator->real->addFramework(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRemoveFramework, allocator)
 {
-  allocator->real.removeFramework(arg0);
+  allocator->real->removeFramework(arg0);
 }
 
 
 ACTION_P(InvokeActivateFramework, allocator)
 {
-  allocator->real.activateFramework(arg0);
+  allocator->real->activateFramework(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateFramework, allocator)
 {
-  allocator->real.deactivateFramework(arg0);
+  allocator->real->deactivateFramework(arg0);
 }
 
 
 ACTION_P(InvokeAddSlave, allocator)
 {
-  allocator->real.addSlave(arg0, arg1, arg2, arg3);
+  allocator->real->addSlave(arg0, arg1, arg2, arg3);
 }
 
 
 ACTION_P(InvokeRemoveSlave, allocator)
 {
-  allocator->real.removeSlave(arg0);
+  allocator->real->removeSlave(arg0);
 }
 
 
 ACTION_P(InvokeActivateSlave, allocator)
 {
-  allocator->real.activateSlave(arg0);
+  allocator->real->activateSlave(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateSlave, allocator)
 {
-  allocator->real.deactivateSlave(arg0);
+  allocator->real->deactivateSlave(arg0);
 }
 
 
 ACTION_P(InvokeUpdateWhitelist, allocator)
 {
-  allocator->real.updateWhitelist(arg0);
+  allocator->real->updateWhitelist(arg0);
 }
 
 
 ACTION_P(InvokeRequestResources, allocator)
 {
-  allocator->real.requestResources(arg0, arg1);
+  allocator->real->requestResources(arg0, arg1);
 }
 
 
 ACTION_P(InvokeUpdateAllocation, allocator)
 {
-  allocator->real.updateAllocation(arg0, arg1, arg2);
+  allocator->real->updateAllocation(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRecoverResources, allocator)
 {
-  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
+  allocator->real->recoverResources(arg0, arg1, arg2, arg3);
 }
 
 
@@ -763,21 +763,21 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
   Filters filters;
   filters.set_refuse_seconds(timeout);
 
-  allocator->real.recoverResources(arg0, arg1, arg2, filters);
+  allocator->real->recoverResources(arg0, arg1, arg2, filters);
 }
 
 
 ACTION_P(InvokeReviveOffers, allocator)
 {
-  allocator->real.reviveOffers(arg0);
+  allocator->real->reviveOffers(arg0);
 }
 
 
-template <typename T = master::allocation::HierarchicalDRFAllocator>
 class TestAllocator : public master::allocation::Allocator
 {
 public:
-  TestAllocator()
+  TestAllocator(master::allocation::Allocator* realAllocator)
+    : real(realAllocator)
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the
     // default actions (call in to the real allocator). This allows
@@ -859,7 +859,10 @@ public:
       .WillRepeatedly(DoDefault());
   }
 
-  ~TestAllocator() {}
+  ~TestAllocator()
+  {
+    std::cout << " ! ~TestAllocator " << this << std::endl;
+  }
 
   MOCK_METHOD3(initialize, void(
       const master::Flags&,
@@ -917,7 +920,7 @@ public:
 
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
 
-  T real;
+  master::allocation::Allocator* real;
 };
 
 
