@@ -767,79 +767,79 @@ public:
 
 ACTION_P(InvokeInitialize, allocator)
 {
-  allocator->real.initialize(arg0, arg1, arg2);
+  allocator->real->initialize(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real.addFramework(arg0, arg1, arg2);
+  allocator->real->addFramework(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRemoveFramework, allocator)
 {
-  allocator->real.removeFramework(arg0);
+  allocator->real->removeFramework(arg0);
 }
 
 
 ACTION_P(InvokeActivateFramework, allocator)
 {
-  allocator->real.activateFramework(arg0);
+  allocator->real->activateFramework(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateFramework, allocator)
 {
-  allocator->real.deactivateFramework(arg0);
+  allocator->real->deactivateFramework(arg0);
 }
 
 
 ACTION_P(InvokeAddSlave, allocator)
 {
-  allocator->real.addSlave(arg0, arg1, arg2, arg3);
+  allocator->real->addSlave(arg0, arg1, arg2, arg3);
 }
 
 
 ACTION_P(InvokeRemoveSlave, allocator)
 {
-  allocator->real.removeSlave(arg0);
+  allocator->real->removeSlave(arg0);
 }
 
 
 ACTION_P(InvokeActivateSlave, allocator)
 {
-  allocator->real.activateSlave(arg0);
+  allocator->real->activateSlave(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateSlave, allocator)
 {
-  allocator->real.deactivateSlave(arg0);
+  allocator->real->deactivateSlave(arg0);
 }
 
 
 ACTION_P(InvokeUpdateWhitelist, allocator)
 {
-  allocator->real.updateWhitelist(arg0);
+  allocator->real->updateWhitelist(arg0);
 }
 
 
 ACTION_P(InvokeRequestResources, allocator)
 {
-  allocator->real.requestResources(arg0, arg1);
+  allocator->real->requestResources(arg0, arg1);
 }
 
 
 ACTION_P(InvokeUpdateAllocation, allocator)
 {
-  allocator->real.updateAllocation(arg0, arg1, arg2);
+  allocator->real->updateAllocation(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRecoverResources, allocator)
 {
-  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
+  allocator->real->recoverResources(arg0, arg1, arg2, arg3);
 }
 
 
@@ -848,21 +848,94 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
   Filters filters;
   filters.set_refuse_seconds(timeout);
 
-  allocator->real.recoverResources(arg0, arg1, arg2, filters);
+  allocator->real->recoverResources(arg0, arg1, arg2, filters);
 }
 
 
 ACTION_P(InvokeReviveOffers, allocator)
 {
-  allocator->real.reviveOffers(arg0);
+  allocator->real->reviveOffers(arg0);
 }
 
 
-template <typename T = mesos::master::allocator::Allocator>
 class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
+  // Real allocator will be a built-in defaut one.
   TestAllocator()
+    : real(new master::allocator::HierarchicalDRFAllocator)
+  {
+    setDefaultActions();
+  }
+
+  // Takes ownership of the provided real allocator.
+  TestAllocator(
+      process::Owned<mesos::master::allocator::Allocator> realAllocator)
+    : real(realAllocator)
+  {
+    setDefaultActions();
+  }
+
+  MOCK_METHOD3(initialize, void(
+      const Duration&,
+      const lambda::function<
+          void(const FrameworkID&,
+               const hashmap<SlaveID, Resources>&)>&,
+      const hashmap<std::string, RoleInfo>&));
+
+  MOCK_METHOD3(addFramework, void(
+      const FrameworkID&,
+      const FrameworkInfo&,
+      const Resources&));
+
+  MOCK_METHOD1(removeFramework, void(
+      const FrameworkID&));
+
+  MOCK_METHOD1(activateFramework, void(
+      const FrameworkID&));
+
+  MOCK_METHOD1(deactivateFramework, void(
+      const FrameworkID&));
+
+  MOCK_METHOD4(addSlave, void(
+      const SlaveID&,
+      const SlaveInfo&,
+      const Resources&,
+      const hashmap<FrameworkID, Resources>&));
+
+  MOCK_METHOD1(removeSlave, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(activateSlave, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(deactivateSlave, void(
+      const SlaveID&));
+
+  MOCK_METHOD1(updateWhitelist, void(
+      const Option<hashset<std::string> >&));
+
+  MOCK_METHOD2(requestResources, void(
+      const FrameworkID&,
+      const std::vector<Request>&));
+
+  MOCK_METHOD3(updateAllocation, void(
+      const FrameworkID&,
+      const SlaveID&,
+      const std::vector<Offer::Operation>&));
+
+  MOCK_METHOD4(recoverResources, void(
+      const FrameworkID&,
+      const SlaveID&,
+      const Resources&,
+      const Option<Filters>& filters));
+
+  MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
+
+  process::Owned<mesos::master::allocator::Allocator> real;
+
+protected:
+  virtual void setDefaultActions()
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the
     // default actions (call in to the real allocator). This allows
@@ -943,66 +1016,6 @@ public:
     EXPECT_CALL(*this, reviveOffers(_))
       .WillRepeatedly(DoDefault());
   }
-
-  ~TestAllocator() {}
-
-  MOCK_METHOD3(initialize, void(
-      const Duration&,
-      const lambda::function<
-          void(const FrameworkID&,
-               const hashmap<SlaveID, Resources>&)>&,
-      const hashmap<std::string, RoleInfo>&));
-
-  MOCK_METHOD3(addFramework, void(
-      const FrameworkID&,
-      const FrameworkInfo&,
-      const Resources&));
-
-  MOCK_METHOD1(removeFramework, void(
-      const FrameworkID&));
-
-  MOCK_METHOD1(activateFramework, void(
-      const FrameworkID&));
-
-  MOCK_METHOD1(deactivateFramework, void(
-      const FrameworkID&));
-
-  MOCK_METHOD4(addSlave, void(
-      const SlaveID&,
-      const SlaveInfo&,
-      const Resources&,
-      const hashmap<FrameworkID, Resources>&));
-
-  MOCK_METHOD1(removeSlave, void(
-      const SlaveID&));
-
-  MOCK_METHOD1(activateSlave, void(
-      const SlaveID&));
-
-  MOCK_METHOD1(deactivateSlave, void(
-      const SlaveID&));
-
-  MOCK_METHOD1(updateWhitelist, void(
-      const Option<hashset<std::string> >&));
-
-  MOCK_METHOD2(requestResources, void(
-      const FrameworkID&,
-      const std::vector<Request>&));
-
-  MOCK_METHOD3(updateAllocation, void(
-      const FrameworkID&,
-      const SlaveID&,
-      const std::vector<Offer::Operation>&));
-
-  MOCK_METHOD4(recoverResources, void(
-      const FrameworkID&,
-      const SlaveID&,
-      const Resources&,
-      const Option<Filters>& filters));
-
-  MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
-
-  T real;
 };
 
 
