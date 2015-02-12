@@ -1323,7 +1323,9 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
 TEST_F(ResourceOffersTest, Request)
 {
-  TestAllocator<master::allocation::HierarchicalDRFAllocator> allocator;
+  process::Owned<master::allocation::Allocator> realAllocator(
+      new master::allocation::HierarchicalDRFAllocator);
+  TestAllocator allocator(realAllocator.get());
 
   EXPECT_CALL(allocator, initialize(_, _, _))
     .Times(1);
