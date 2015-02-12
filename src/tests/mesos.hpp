@@ -53,6 +53,8 @@
 #include "master/detector.hpp"
 #include "master/master.hpp"
 
+#include "master/allocator/mesos/hierarchical.hpp"
+
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/containerizer.hpp"
@@ -765,79 +767,79 @@ public:
 
 ACTION_P(InvokeInitialize, allocator)
 {
-  allocator->real.initialize(arg0, arg1, arg2);
+  allocator->real->initialize(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeAddFramework, allocator)
 {
-  allocator->real.addFramework(arg0, arg1, arg2);
+  allocator->real->addFramework(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRemoveFramework, allocator)
 {
-  allocator->real.removeFramework(arg0);
+  allocator->real->removeFramework(arg0);
 }
 
 
 ACTION_P(InvokeActivateFramework, allocator)
 {
-  allocator->real.activateFramework(arg0);
+  allocator->real->activateFramework(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateFramework, allocator)
 {
-  allocator->real.deactivateFramework(arg0);
+  allocator->real->deactivateFramework(arg0);
 }
 
 
 ACTION_P(InvokeAddSlave, allocator)
 {
-  allocator->real.addSlave(arg0, arg1, arg2, arg3);
+  allocator->real->addSlave(arg0, arg1, arg2, arg3);
 }
 
 
 ACTION_P(InvokeRemoveSlave, allocator)
 {
-  allocator->real.removeSlave(arg0);
+  allocator->real->removeSlave(arg0);
 }
 
 
 ACTION_P(InvokeActivateSlave, allocator)
 {
-  allocator->real.activateSlave(arg0);
+  allocator->real->activateSlave(arg0);
 }
 
 
 ACTION_P(InvokeDeactivateSlave, allocator)
 {
-  allocator->real.deactivateSlave(arg0);
+  allocator->real->deactivateSlave(arg0);
 }
 
 
 ACTION_P(InvokeUpdateWhitelist, allocator)
 {
-  allocator->real.updateWhitelist(arg0);
+  allocator->real->updateWhitelist(arg0);
 }
 
 
 ACTION_P(InvokeRequestResources, allocator)
 {
-  allocator->real.requestResources(arg0, arg1);
+  allocator->real->requestResources(arg0, arg1);
 }
 
 
 ACTION_P(InvokeUpdateAllocation, allocator)
 {
-  allocator->real.updateAllocation(arg0, arg1, arg2);
+  allocator->real->updateAllocation(arg0, arg1, arg2);
 }
 
 
 ACTION_P(InvokeRecoverResources, allocator)
 {
-  allocator->real.recoverResources(arg0, arg1, arg2, arg3);
+  allocator->real->recoverResources(arg0, arg1, arg2, arg3);
 }
 
 
@@ -846,21 +848,26 @@ ACTION_P2(InvokeRecoverResourcesWithFilters, allocator, timeout)
   Filters filters;
   filters.set_refuse_seconds(timeout);
 
-  allocator->real.recoverResources(arg0, arg1, arg2, filters);
+  allocator->real->recoverResources(arg0, arg1, arg2, filters);
 }
 
 
 ACTION_P(InvokeReviveOffers, allocator)
 {
-  allocator->real.reviveOffers(arg0);
+  allocator->real->reviveOffers(arg0);
 }
 
 
-template <typename T = mesos::master::allocator::Allocator>
 class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
-  TestAllocator()
+  // Takes ownership of the provided real allocator or creates a
+  // built-in default one.
+  TestAllocator(
+    process::Owned<mesos::master::allocator::Allocator> realAllocator =
+      process::Owned<mesos::master::allocator::Allocator>(
+          new mesos::internal::master::allocator::HierarchicalDRFAllocator()))
+    : real(realAllocator)
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the
     // default actions (call in to the real allocator). This allows
@@ -942,7 +949,7 @@ public:
       .WillRepeatedly(DoDefault());
   }
 
-  ~TestAllocator() {}
+  virtual ~TestAllocator() {}
 
   MOCK_METHOD3(initialize, void(
       const Duration&,
@@ -1000,7 +1007,7 @@ public:
 
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
 
-  T real;
+  process::Owned<mesos::master::allocator::Allocator> real;
 };
 
 
