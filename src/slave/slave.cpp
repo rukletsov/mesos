@@ -173,6 +173,8 @@ void Slave::initialize()
 {
   LOG(INFO) << "Slave started on " << string(self()).substr(6);
 
+  LOG(INFO) << "Flags at startup: {" << flags << "}";
+
   if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Slave bound to loopback interface!"

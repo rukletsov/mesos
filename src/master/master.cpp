@@ -346,6 +346,8 @@ void Master::initialize()
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
 
+  LOG(INFO) << "Flags at startup: {" << flags << "}";
+
   if (stringify(net::IP(ntohl(self().address.ip))) == "127.0.0.1") {
     LOG(WARNING) << "\n**************************************************\n"
                  << "Master bound to loopback interface!"

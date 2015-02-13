@@ -25,6 +25,8 @@
 
 #include <mesos/module/module.hpp>
 
+#include "logging/flags.hpp"
+
 #include <stout/uuid.hpp>
 
 // This file includes definitions for operators on public protobuf
@@ -364,6 +366,12 @@ inline std::ostream& operator << (
     const Modules& modules)
 {
   return stream << modules.DebugString();
+}
+
+namespace logging {
+std::ostream& operator << (
+    std::ostream& stream,
+    const Flags& flags);
 }
 
 } // namespace mesos {

@@ -16,13 +16,19 @@
  * limitations under the License.
  */
 
+#include <string>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
 #include "common/attributes.hpp"
 
+#include "logging/flags.hpp"
+
 #include "messages/messages.hpp"
+
+using std::string;
 
 namespace mesos {
 
@@ -188,5 +194,24 @@ std::ostream& operator << (
   return stream
     << " of framework " << update.framework_id();
 }
+
+namespace logging {
+std::ostream& operator << (
+    std::ostream& stream,
+    const logging::Flags& flags)
+{
+  string separator = "";
+
+  foreachpair (const string& name, const flags::Flag& flag, flags) {
+  const Option<string>& value = flag.stringify(flags);
+    if (value.isSome()) {
+      stream << separator <<"\"" << name << "\":\"" << value.get() <<"\"";
+      separator = ",";
+    }
+  }
+
+  return stream;
+}
+} // namespace logging {
 
 } // namespace mesos {
