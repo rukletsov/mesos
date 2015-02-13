@@ -18,6 +18,7 @@
 
 #include <stdint.h>
 
+#include <initializer_list>
 #include <vector>
 
 #include <glog/logging.h>
@@ -26,8 +27,10 @@
 #include <mesos/values.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/strings.hpp>
 
+using std::initializer_list;
 using std::ostream;
 using std::string;
 using std::vector;
@@ -497,34 +500,6 @@ hashmap<string, Resources> Resources::reserved() const
 }
 
 
-Resources Resources::reserved(const string& role) const
-{
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (reserved(resource, role)) {
-      result += resource;
-    }
-  }
-
-  return result;
-}
-
-
-Resources Resources::unreserved() const
-{
-  Resources result;
-
-  foreach (const Resource& resource, resources) {
-    if (unreserved(resource)) {
-      result += resource;
-    }
-  }
-
-  return result;
-}
-
-
 Resources Resources::flatten(const string& role) const
 {
   Resources flattened;
@@ -544,15 +519,21 @@ Option<Resources> Resources::find(const Resource& target) const
   Resources total = *this;
   Resources remaining = Resources(target).flatten();
 
-  // First look in the target role, then "*", then any remaining role.
-  vector<RoleFilter> filters = {
-    RoleFilter(target.role()),
-    RoleFilter("*"),
-    RoleFilter::any()
+  // We search for resources in the following priority:
+  // 1. reserved for the same role
+  // 2. unreserved
+  // 3. any remaining.
+  //
+  // NOTE: You may notice that the filters are not mutually exclusive.
+  //       This is ok because we remove the found resource from the
+  //       total resources available. The list of filters show the
+  //       progression of contraints being relaxed.
+  initializer_list<Filter> filters = {
+    Filter::reserved(target.role()), Filter::unreserved(), Filter::any()
   };
 
-  foreach (const RoleFilter& filter, filters) {
-    foreach (const Resource& resource, filter.apply(total)) {
+  foreach (const Filter& filter, filters) {
+    foreach (const Resource& resource, filter(total)) {
       // Need to flatten to ignore the roles in contains().
       Resources flattened = Resources(resource).flatten();
 
@@ -811,6 +792,110 @@ bool Resources::_contains(const Resource& that) const
   }
 
   return false;
+}
+
+
+/////////////////////////////////////////////////
+// Resources::Filter.
+/////////////////////////////////////////////////
+
+
+Resources::Filter Resources::Filter::any()
+{
+  struct Any
+  {
+    bool operator()(const Resource&) const { return true; }
+  };
+  return Filter(Any());
+}
+
+
+Resources::Filter Resources::Filter::persistentVolume()
+{
+  return Filter(Resources::persistentVolume);
+}
+
+
+Resources::Filter Resources::Filter::reserved()
+{
+  bool (*predicate)(const Resource&) = Resources::reserved;
+  return Filter(predicate);
+}
+
+
+Resources::Filter Resources::Filter::reserved(const std::string& role)
+{
+  bool (*predicate)(const Resource&, const std::string&) = Resources::reserved;
+  return Filter(lambda::bind(predicate, lambda::_1, role));
+}
+
+
+Resources::Filter Resources::Filter::unreserved() {
+  return Filter(Resources::unreserved);
+}
+
+
+Resources::Filter::Filter(const Predicate& _predicate)
+    : predicate(_predicate) {}
+
+
+Resources::Filter Resources::Filter::operator!() const
+{
+  return Filter(std::unary_negate<Predicate>(predicate));
+}
+
+
+Resources Resources::Filter::operator () (const Resources& resources) const
+{
+  Resources result;
+  foreach (const Resource& resource, resources) {
+    if (predicate(resource)) {
+      result += resource;
+    }
+  }
+  return result;
+}
+
+
+Resources::Filter operator && (
+    const Resources::Filter& lhs, const Resources::Filter& rhs)
+{
+  struct And
+  {
+    explicit And(const Resources::Filter::Predicate& _lhs,
+                 const Resources::Filter::Predicate& _rhs)
+        : lhs(_lhs), rhs(_rhs) {}
+
+    bool operator () (const Resource& resource) const
+    {
+      return lhs(resource) && rhs(resource);
+    }
+
+  private:
+    Resources::Filter::Predicate lhs, rhs;
+  };
+  return Resources::Filter(And(lhs.predicate, rhs.predicate));
+}
+
+
+Resources::Filter operator || (
+    const Resources::Filter& lhs, const Resources::Filter& rhs)
+{
+  struct Or
+  {
+    explicit Or(const Resources::Filter::Predicate& _lhs,
+                const Resources::Filter::Predicate& _rhs)
+        : lhs(_lhs), rhs(_rhs) {}
+
+    bool operator () (const Resource& resource) const
+    {
+      return lhs(resource) || rhs(resource);
+    }
+
+  private:
+    Resources::Filter::Predicate lhs, rhs;
+  };
+  return Resources::Filter(Or(lhs.predicate, rhs.predicate));
 }
 
 

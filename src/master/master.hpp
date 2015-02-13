@@ -922,7 +922,11 @@ struct Slave
     CHECK_SOME(resources);
 
     totalResources = resources.get();
-    checkpointedResources = Resources::CheckpointFilter().apply(totalResources);
+
+    // TODO(mpark): Consider framework reservations.
+    Resources::Filter checkpointFilter = Resources::Filter::persistentVolume();
+
+    checkpointedResources = checkpointFilter(totalResources);
   }
 
   const SlaveID id;

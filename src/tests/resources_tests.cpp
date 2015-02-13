@@ -763,13 +763,13 @@ TEST(ResourcesTest, Reservations)
   EXPECT_EQ(role1, reserved["role1"]);
   EXPECT_EQ(role2, reserved["role2"]);
 
-  EXPECT_EQ(role1, resources.reserved("role1"));
-  EXPECT_EQ(role2, resources.reserved("role2"));
+  EXPECT_EQ(role1, Resources::Filter::reserved("role1")(resources));
+  EXPECT_EQ(role2, Resources::Filter::reserved("role2")(resources));
 
   // Resources with role "*" are not considered reserved.
-  EXPECT_EQ(Resources(), resources.reserved("*"));
+  EXPECT_EQ(Resources(), Resources::Filter::reserved("*")(resources));
 
-  EXPECT_EQ(unreserved, resources.unreserved());
+  EXPECT_EQ(unreserved, Resources::Filter::unreserved()(resources));
 }
 
 
@@ -949,7 +949,7 @@ TEST(DiskResourcesTest, FilterPersistentVolumes)
   resources += r1;
   resources += r2;
 
-  EXPECT_EQ(r1, Resources::PersistentVolumeFilter().apply(resources));
+  EXPECT_EQ(r1, Resources::Filter::persistentVolume()(resources));
 }
 
 

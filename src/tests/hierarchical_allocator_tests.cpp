@@ -520,8 +520,9 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
   EXPECT_EQ(2u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave1.id()));
   EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
-  EXPECT_EQ(slave1.resources() + Resources(slave2.resources()).unreserved(),
-            sum(allocation.get().resources.values()));
+  EXPECT_EQ(
+      slave1.resources() + Resources::Filter::unreserved()(slave2.resources()),
+      sum(allocation.get().resources.values()));
 
   // framework2 should get all of its reserved resources on slave2.
   FrameworkInfo framework2 = createFrameworkInfo("role2");
@@ -532,8 +533,9 @@ TEST_F(HierarchicalAllocatorTest, Reservations)
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave2.id()));
-  EXPECT_EQ(Resources(slave2.resources()).reserved("role2"),
-            sum(allocation.get().resources.values()));
+  EXPECT_EQ(
+      Resources::Filter::reserved("role2")(slave2.resources()),
+      sum(allocation.get().resources.values()));
 }
 
 
@@ -563,7 +565,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
   EXPECT_EQ(slave.resources(), sum(allocation.get().resources.values()));
 
   // Recover the reserved resources, expect them to be re-offered.
-  Resources reserved = Resources(slave.resources()).reserved("role1");
+  Resources reserved = Resources::Filter::reserved("role1")(slave.resources());
 
   allocator->recoverResources(
       allocation.get().frameworkId,
@@ -581,7 +583,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
   EXPECT_EQ(reserved, sum(allocation.get().resources.values()));
 
   // Recover the unreserved resources, expect them to be re-offered.
-  Resources unreserved = Resources(slave.resources()).unreserved();
+  Resources unreserved = Resources::Filter::unreserved()(slave.resources());
 
   allocator->recoverResources(
       allocation.get().frameworkId,

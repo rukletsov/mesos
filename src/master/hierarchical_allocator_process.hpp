@@ -307,7 +307,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
   // framework's role.
 
   // Update the allocation to this framework.
-  roleSorter->allocated(role, used.unreserved());
+  roleSorter->allocated(role, Resources::Filter::unreserved()(used));
   frameworkSorters[role]->add(used);
   frameworkSorters[role]->allocated(frameworkId.value(), used);
 
@@ -337,7 +337,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeFramework(
     Resources allocation =
       frameworkSorters[role]->allocation(frameworkId.value());
 
-    roleSorter->unallocated(role, allocation.unreserved());
+    roleSorter->unallocated(role, Resources::Filter::unreserved()(allocation));
     frameworkSorters[role]->remove(allocation);
     frameworkSorters[role]->remove(frameworkId.value());
   }
@@ -423,7 +423,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
   CHECK(initialized);
   CHECK(!slaves.contains(slaveId));
 
-  roleSorter->add(total.unreserved());
+  roleSorter->add(Resources::Filter::unreserved()(total));
 
   foreachpair (const FrameworkID& frameworkId,
                const Resources& allocated,
@@ -434,7 +434,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addSlave(
       // TODO(bmahler): Validate that the reserved resources have the
       // framework's role.
 
-      roleSorter->allocated(role, allocated.unreserved());
+      roleSorter->allocated(role, Resources::Filter::unreserved()(allocated));
       frameworkSorters[role]->add(allocated);
       frameworkSorters[role]->allocated(frameworkId.value(), allocated);
     }
@@ -469,7 +469,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeSlave(
   // all the resources. Fixing this would require more information
   // than what we currently track in the allocator.
 
-  roleSorter->remove(slaves[slaveId].total.unreserved());
+  roleSorter->remove(Resources::Filter::unreserved()(slaves[slaveId].total));
 
   slaves.erase(slaveId);
 
@@ -579,8 +579,8 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateAllocation(
 
   roleSorter->update(
       frameworks[frameworkId].role,
-      allocation.unreserved(),
-      updatedAllocation.get().unreserved());
+      Resources::Filter::unreserved()(allocation),
+      Resources::Filter::unreserved()(updatedAllocation.get()));
 
   // Update the total resources.
   Try<Resources> updatedTotal = slaves[slaveId].total.apply(operations);
@@ -629,7 +629,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::recoverResources(
     if (frameworkSorters[role]->contains(frameworkId.value())) {
       frameworkSorters[role]->unallocated(frameworkId.value(), resources);
       frameworkSorters[role]->remove(resources);
-      roleSorter->unallocated(role, resources.unreserved());
+      roleSorter->unallocated(role, Resources::Filter::unreserved()(resources));
     }
   }
 
@@ -789,11 +789,10 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        Resources unreserved = slaves[slaveId].available.unreserved();
-        Resources resources = unreserved;
-        if (role != "*") {
-          resources += slaves[slaveId].available.reserved(role);
-        }
+        Resources::Filter offerableFilter =
+          Resources::Filter::unreserved() || Resources::Filter::reserved(role);
+
+        Resources resources = offerableFilter(slaves[slaveId].available);
 
         // If the resources are not allocatable, ignore.
         if (!allocatable(resources)) {
@@ -819,7 +818,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::allocate(
         // roles.
         frameworkSorters[role]->add(resources);
         frameworkSorters[role]->allocated(frameworkId_, resources);
-        roleSorter->allocated(role, unreserved);
+        roleSorter->allocated(role, Resources::Filter::unreserved()(resources));
       }
     }
   }
