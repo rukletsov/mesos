@@ -88,6 +88,18 @@ public:
   // Tests if the given Resource object is empty.
   static bool empty(const Resource& resource);
 
+  // Tests if the given Resource object is a persistent volume.
+  static bool persistentVolume(const Resource& resource);
+
+  // Tests if the given Resource object is reserved.
+  static bool reserved(const Resource& resource);
+
+  // Tests if the given Resource object is reserved for the given role.
+  static bool reserved(const Resource& resource, const std::string& role);
+
+  // Tests if the given Resource object is unreserved.
+  static bool unreserved(const Resource& resource);
+
   Resources() {}
 
   // TODO(jieyu): Consider using C++11 initializer list.
@@ -268,7 +280,7 @@ public:
     {
       Resources result;
       foreach (const Resource& resource, resources) {
-        if (resource.has_disk() && resource.disk().has_persistence()) {
+        if (persistentVolume(resource)) {
           result += resource;
         }
       }
@@ -289,7 +301,7 @@ public:
       Resources result;
       foreach (const Resource& resource, resources) {
         // TODO(jieyu): Consider dynamic reservation as well.
-        if (resource.has_disk() && resource.disk().has_persistence()) {
+        if (persistentVolume(resource)) {
           result += resource;
         }
       }

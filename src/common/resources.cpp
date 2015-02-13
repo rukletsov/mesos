@@ -400,6 +400,30 @@ bool Resources::empty(const Resource& resource)
 }
 
 
+bool Resources::persistentVolume(const Resource& resource)
+{
+  return resource.has_disk() && resource.disk().has_persistence();
+}
+
+
+bool Resources::reserved(const Resource& resource)
+{
+  return !unreserved(resource);
+}
+
+
+bool Resources::reserved(const Resource& resource, const std::string& role)
+{
+  return reserved(resource) && resource.role() == role;
+}
+
+
+bool Resources::unreserved(const Resource& resource)
+{
+  return resource.role() == "*";
+}
+
+
 /////////////////////////////////////////////////
 // Public member functions.
 /////////////////////////////////////////////////
@@ -464,7 +488,7 @@ hashmap<string, Resources> Resources::reserved() const
   hashmap<string, Resources> result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() != "*") {
+    if (reserved(resource)) {
       result[resource.role()] += resource;
     }
   }
@@ -478,8 +502,7 @@ Resources Resources::reserved(const string& role) const
   Resources result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() != "*" &&
-        resource.role() == role) {
+    if (reserved(resource, role)) {
       result += resource;
     }
   }
@@ -493,7 +516,7 @@ Resources Resources::unreserved() const
   Resources result;
 
   foreach (const Resource& resource, resources) {
-    if (resource.role() == "*") {
+    if (unreserved(resource)) {
       result += resource;
     }
   }

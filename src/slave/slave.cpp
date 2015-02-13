@@ -1329,7 +1329,7 @@ void Slave::_runTask(
   // about them (e.g., CheckpointResourcesMessage was dropped or came
   // out of order), we simply fail the slave to be safe.
   foreach (const Resource& resource, task.resources()) {
-    if (resource.has_disk() && resource.disk().has_persistence()) {
+    if (Resources::persistentVolume(resource)) {
       CHECK(checkpointedResources.contains(resource))
         << "Unknown persistent volume " << resource
         << " for task " << task.task_id()
@@ -1339,7 +1339,7 @@ void Slave::_runTask(
 
   if (task.has_executor()) {
     foreach (const Resource& resource, task.executor().resources()) {
-      if (resource.has_disk() && resource.disk().has_persistence()) {
+      if (Resources::persistentVolume(resource)) {
         CHECK(checkpointedResources.contains(resource))
           << "Unknown persistent volume " << resource
           << " for executor " << task.executor().executor_id()
