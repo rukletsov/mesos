@@ -77,6 +77,8 @@ class MasterAllocatorTest : public MesosTest
 public:
   virtual void SetUp()
   {
+    MesosTest::SetUp();
+
     realAllocator = new T;
     std::cout << " ! Created real allocator @" << realAllocator << std::endl;
 
@@ -91,6 +93,8 @@ public:
 
     std::cout << " ! Deleting real allocator @" << realAllocator << std::endl;
     delete realAllocator;
+
+    MesosTest::TearDown();
   }
 
 protected:
