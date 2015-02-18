@@ -1342,6 +1342,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   driver.join();
 
   this->Shutdown();
+
+  delete realAllocator2;
 }
 
 
@@ -1455,4 +1457,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   driver.join();
 
   this->Shutdown();
+
+  delete realAllocator2;
 }
