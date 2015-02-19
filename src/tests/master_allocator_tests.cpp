@@ -70,6 +70,15 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// This factory creates allocator instances of the given type in a
+// way similar to allocator modules. It allows us to use same typed
+// tests for built-in and modularized allocators.
+template <typename T>
+struct AllocatorFactory
+{
+  static Allocator* create() { return new T; }
+};
+
 
 template <typename T>
 class MasterAllocatorTest : public MesosTest
@@ -90,7 +99,11 @@ protected:
   {
     MesosTest::SetUp();
 
-    testAllocator = new TestAllocator(process::Owned<Allocator>(new T));
+    // T represents the test type, which is an allocator factory
+    // class. It can be a wrapper around default built-in allocator,
+    // or a factory provided by an allocator module.
+    testAllocator = new TestAllocator(process::Owned<Allocator>(
+        AllocatorFactory<T>::create()));
   }
 
   virtual void TearDown()
@@ -1312,7 +1325,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(process::Owned<Allocator>(new TypeParam));
+  TestAllocator allocator2((process::Owned<Allocator>(
+      AllocatorFactory<TypeParam>::create())));
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1424,7 +1438,8 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(process::Owned<Allocator>(new TypeParam));
+  TestAllocator allocator2((process::Owned<Allocator>(
+      AllocatorFactory<TypeParam>::create())));
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
