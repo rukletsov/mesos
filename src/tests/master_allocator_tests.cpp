@@ -70,6 +70,21 @@ using testing::Eq;
 using testing::SaveArg;
 
 
+// This factory creates allocator instances of the given type in a
+// way identical to allocator modules. It allows us to use same typed
+// tests for built-in and modularized allocators.
+template <typename T>
+class AllocatorFactory
+{
+public:
+  static Try<master::allocator::Allocator*> create()
+  {
+    master::allocator::Allocator* allocator = new T;
+    return allocator;
+  }
+};
+
+
 template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
@@ -84,7 +99,14 @@ protected:
   {
     MesosTest::SetUp();
 
-    testAllocator.reset(new TestAllocator(new T));
+    // T represents the test type, which is an allocator factory
+    // class. It can be a wrapper around default built-in allocator,
+    // or a factory provided by an allocator module.
+    Try<Allocator*> instance = T::create();
+    CHECK_SOME(instance);
+    CHECK_NOTNULL(instance.get());
+
+    testAllocator.reset(new TestAllocator(instance.get()));
   }
 
   virtual void TearDown()
@@ -101,7 +123,8 @@ protected:
 };
 
 
-typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
+typedef ::testing::Types<
+  AllocatorFactory<HierarchicalDRFAllocator>> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
@@ -1304,7 +1327,9 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(new TypeParam);
+  Try<Allocator*> allocatorInstance2 = TypeParam::create();
+  CHECK_SOME(allocatorInstance2);
+  TestAllocator allocator2(CHECK_NOTNULL(allocatorInstance2.get()));
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1416,7 +1441,9 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(new TypeParam);
+  Try<Allocator*> allocatorInstance2 = TypeParam::create();
+  CHECK_SOME(allocatorInstance2);
+  TestAllocator allocator2(CHECK_NOTNULL(allocatorInstance2.get()));
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
