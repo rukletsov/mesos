@@ -1297,8 +1297,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   this->ShutdownMasters();
 
-  Allocator* realAllocator2 = new HierarchicalDRFAllocator;
-  TestAllocator allocator2(realAllocator2);
+  process::Owned<Allocator> realAllocator2(new HierarchicalDRFAllocator);
+  TestAllocator allocator2(realAllocator2.get());
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1342,8 +1342,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
   driver.join();
 
   this->Shutdown();
-
-  delete realAllocator2;
 }
 
 
@@ -1412,8 +1410,8 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->ShutdownMasters();
 
-  Allocator* realAllocator2 = new HierarchicalDRFAllocator;
-  TestAllocator allocator2(realAllocator2);
+  process::Owned<Allocator> realAllocator2(new HierarchicalDRFAllocator);
+  TestAllocator allocator2(realAllocator2.get());
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1457,6 +1455,4 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   driver.join();
 
   this->Shutdown();
-
-  delete realAllocator2;
 }
