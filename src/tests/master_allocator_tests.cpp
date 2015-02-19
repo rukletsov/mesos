@@ -18,7 +18,6 @@
 
 #include <gmock/gmock.h>
 
-#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
@@ -76,30 +75,33 @@ template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
 public:
+  TestAllocator* allocator() const
+  {
+    return CHECK_NOTNULL(testAllocator.get());
+  }
+
+protected:
   virtual void SetUp()
   {
     MesosTest::SetUp();
 
     realAllocator.reset(new T);
-    allocator_.reset(new TestAllocator(realAllocator.get()));
-  }
-
-  TestAllocator* allocator() const
-  {
-    return CHECK_NOTNULL(allocator_.get());
+    testAllocator.reset(new TestAllocator(realAllocator.get()));
   }
 
   virtual void TearDown()
   {
-    allocator_.reset();
+    // Explicitly destroy allocator instance to avoid subsequent
+    // (not expected!) calls into recoverResources and therefore
+    // flaky tests.
+    testAllocator.reset();
     realAllocator.reset();
 
     MesosTest::TearDown();
   }
 
-protected:
   process::Owned<Allocator> realAllocator;
-  process::Owned<TestAllocator> allocator_;
+  process::Owned<TestAllocator> testAllocator;
 };
 
 
