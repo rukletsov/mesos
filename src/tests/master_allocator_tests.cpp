@@ -85,7 +85,14 @@ protected:
   {
     MesosTest::SetUp();
 
-    realAllocator.reset(new T);
+    // T represents the test type, which is an allocator factory
+    // class. It can be a wrapper around default built-in allocator,
+    // or a factory provided by an allocator module.
+    Try<Allocator*> instance = T::create();
+    CHECK_SOME(instance);
+    CHECK_NOTNULL(instance.get());
+
+    realAllocator.reset(instance.get());
     testAllocator.reset(new TestAllocator(realAllocator.get()));
   }
 
@@ -105,7 +112,8 @@ protected:
 };
 
 
-typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
+typedef ::testing::Types<
+  AllocatorFactory<HierarchicalDRFAllocator>> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for

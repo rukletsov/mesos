@@ -773,6 +773,25 @@ ACTION_P(InvokeReviveOffers, allocator)
 }
 
 
+// This factory creates allocator instances of the given type in a
+// way identical to allocator modules. It allows us to use same typed
+// tests for built-in and modularized allocators.
+template <typename T>
+class AllocatorFactory
+{
+public:
+  static Try<master::allocation::Allocator*> create()
+  {
+    master::allocation::Allocator* allocator = new T;
+    return allocator;
+  }
+};
+
+
+// Helper function for tests that need the built-in allocator.
+master::allocation::Allocator* createDefaultAllocator();
+
+
 class TestAllocator : public master::allocation::Allocator
 {
 public:
