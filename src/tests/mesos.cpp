@@ -584,6 +584,17 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 }
 #endif // __linux__
 
+
+master::allocation::Allocator* createDefaultAllocator()
+{
+  Try<master::allocation::Allocator*> instance =
+    AllocatorFactory<master::allocation::HierarchicalDRFAllocator>::create();
+  CHECK_SOME(instance);
+  CHECK_NOTNULL(instance.get());
+
+  return instance.get();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

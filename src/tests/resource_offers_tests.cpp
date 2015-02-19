@@ -43,6 +43,7 @@ using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::vector;
@@ -1323,8 +1324,7 @@ TEST_F(ResourceOffersTest, ResourcesGetReofferedAfterTaskInfoError)
 
 TEST_F(ResourceOffersTest, Request)
 {
-  process::Owned<master::allocation::Allocator> realAllocator(
-      new master::allocation::HierarchicalDRFAllocator);
+  Owned<master::allocation::Allocator> realAllocator(createDefaultAllocator());
   TestAllocator allocator(realAllocator.get());
 
   EXPECT_CALL(allocator, initialize(_, _, _))
