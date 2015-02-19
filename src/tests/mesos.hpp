@@ -859,10 +859,7 @@ public:
       .WillRepeatedly(DoDefault());
   }
 
-  ~TestAllocator()
-  {
-    std::cout << " ! ~TestAllocator " << this << std::endl;
-  }
+  ~TestAllocator() {}
 
   MOCK_METHOD3(initialize, void(
       const master::Flags&,
