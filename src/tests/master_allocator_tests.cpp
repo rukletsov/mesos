@@ -41,8 +41,11 @@
 #include "master/allocator/allocator.hpp"
 #include "master/allocator/mesos/hierarchical.hpp"
 
+#include "module/allocator.hpp"
+
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 
 using namespace mesos;
 using namespace mesos::tests;
@@ -124,7 +127,8 @@ protected:
 
 
 typedef ::testing::Types<
-  AllocatorFactory<HierarchicalDRFAllocator>> AllocatorTypes;
+  AllocatorFactory<HierarchicalDRFAllocator>,
+  tests::Module<Allocator, TestDRFAllocator>> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
