@@ -56,6 +56,7 @@ using mesos::slave::Slave;
 
 using process::Clock;
 using process::Future;
+using process::Owned;
 using process::PID;
 
 using std::map;
@@ -91,7 +92,13 @@ class MasterAllocatorTest : public MesosTest
 public:
   TestAllocator* allocator() const
   {
-    return CHECK_NOTNULL(testAllocator.get());
+    // Default allocator is the first one, created in SetUp().
+    return CHECK_NOTNULL(testAllocators.front().get());
+  }
+
+  TestAllocator* newAllocator()
+  {
+    return createNewAllocator();
   }
 
 protected:
@@ -99,6 +106,22 @@ protected:
   {
     MesosTest::SetUp();
 
+    // Create a default allocator.
+    createNewAllocator();
+  }
+
+  virtual void TearDown()
+  {
+    // Explicitly destroy allocator instances to avoid subsequent
+    // (not expected!) calls into recoverResources and therefore
+    // flaky tests.
+    testAllocators.clear();
+
+    MesosTest::TearDown();
+  }
+
+  TestAllocator* createNewAllocator()
+  {
     // T represents the test type, which is an allocator factory
     // class. It can be a wrapper around default built-in allocator,
     // or a factory provided by an allocator module.
@@ -106,20 +129,14 @@ protected:
     CHECK_SOME(instance);
     CHECK_NOTNULL(instance.get());
 
-    testAllocator.reset(new TestAllocator(instance.get()));
+    // Create a TestAllocator and cache it for future cleanup.
+    testAllocators.push_back(Owned<TestAllocator>(
+        new TestAllocator(instance.get())));
+
+    return CHECK_NOTNULL(testAllocators.back().get());
   }
 
-  virtual void TearDown()
-  {
-    // Explicitly destroy allocator instance to avoid subsequent
-    // (not expected!) calls into recoverResources and therefore
-    // flaky tests.
-    testAllocator.reset();
-
-    MesosTest::TearDown();
-  }
-
-  process::Owned<TestAllocator> testAllocator;
+  vector<Owned<TestAllocator>> testAllocators;
 };
 
 
@@ -1327,20 +1344,18 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   this->ShutdownMasters();
 
-  Try<Allocator*> allocatorInstance2 = TypeParam::create();
-  CHECK_SOME(allocatorInstance2);
-  TestAllocator allocator2(CHECK_NOTNULL(allocatorInstance2.get()));
+  TestAllocator* allocator2 = this->newAllocator();
 
-  EXPECT_CALL(allocator2, initialize(_, _, _));
+  EXPECT_CALL(*allocator2, initialize(_, _, _));
 
   Future<Nothing> addFramework;
-  EXPECT_CALL(allocator2, addFramework(_, _, _))
-    .WillOnce(DoAll(InvokeAddFramework(&allocator2),
+  EXPECT_CALL(*allocator2, addFramework(_, _, _))
+    .WillOnce(DoAll(InvokeAddFramework(allocator2),
                     FutureSatisfy(&addFramework)));
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  Try<PID<Master> > master2 = this->StartMaster(allocator2);
   ASSERT_SOME(master2);
 
   EXPECT_CALL(sched, disconnected(_));
@@ -1350,7 +1365,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   AWAIT_READY(addFramework);
 
-  EXPECT_CALL(allocator2, addSlave(_, _, _, _));
+  EXPECT_CALL(*allocator2, addSlave(_, _, _, _));
 
   Future<vector<Offer> > resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1441,18 +1456,16 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->ShutdownMasters();
 
-  Try<Allocator*> allocatorInstance2 = TypeParam::create();
-  CHECK_SOME(allocatorInstance2);
-  TestAllocator allocator2(CHECK_NOTNULL(allocatorInstance2.get()));
+  TestAllocator* allocator2 = this->newAllocator();
 
-  EXPECT_CALL(allocator2, initialize(_, _, _));
+  EXPECT_CALL(*allocator2, initialize(_, _, _));
 
   Future<Nothing> addSlave;
-  EXPECT_CALL(allocator2, addSlave(_, _, _, _))
-    .WillOnce(DoAll(InvokeAddSlave(&allocator2),
+  EXPECT_CALL(*allocator2, addSlave(_, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(allocator2),
                     FutureSatisfy(&addSlave)));
 
-  Try<PID<Master> > master2 = this->StartMaster(&allocator2);
+  Try<PID<Master> > master2 = this->StartMaster(allocator2);
   ASSERT_SOME(master2);
 
   // Inform the slave about the new master.
@@ -1464,7 +1477,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  EXPECT_CALL(allocator2, addFramework(_, _, _));
+  EXPECT_CALL(*allocator2, addFramework(_, _, _));
 
   Future<vector<Offer> > resourceOffers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
