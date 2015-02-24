@@ -2066,6 +2066,10 @@ void Slave::registerExecutor(
       message.mutable_slave_id()->MergeFrom(info.id());
       message.mutable_slave_info()->MergeFrom(info);
 
+      std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+      outs << " !! Slave sends ExecutorRegisteredMessage to "
+           << executor->pid << std::endl;
+
       send(executor->pid, message);
 
       // TODO(vinod): Use foreachvalue instead once LinkedHashmap
