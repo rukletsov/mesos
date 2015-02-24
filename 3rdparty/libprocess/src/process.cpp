@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fstream>
 
 #include <arpa/inet.h>
 
@@ -2094,6 +2095,13 @@ bool ProcessManager::deliver(
     Clock::update(receiver, Clock::now(sender != NULL ? sender : __process__));
   }
 
+  if (event->is<MessageEvent>()) {
+    std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+    outs << " !! Delivered message "
+         << event->as<MessageEvent>().message->name << std::endl;
+  }
+
+
   receiver->enqueue(event);
 
   return true;
@@ -2195,6 +2203,12 @@ void ProcessManager::resume(ProcessBase* process)
 
             virtual void visit(const MessageEvent& event)
             {
+              std::ofstream outs("/Users/alex/shutdown-test.txt",
+                                 std::fstream::app);
+              outs << " >> Visitor: name[" << event.message->name
+                   << "], from[" << event.message->from
+                   << "], to[" << event.message->to << std::endl;
+
               *filter = filterer->filter(event);
             }
 
@@ -2731,6 +2745,11 @@ void ProcessBase::send(
 {
   if (!to) {
     return;
+  }
+
+  if (name.find("ExecutorRegisteredMessage") != string::npos) {
+    std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+    outs << " !! Transporting message: " << name << std::endl;
   }
 
   // Encode and transport outgoing message.

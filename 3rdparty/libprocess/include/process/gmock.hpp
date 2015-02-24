@@ -2,6 +2,7 @@
 #define __PROCESS_GMOCK_HPP__
 
 #include <pthread.h>
+#include <fstream>
 
 #include <gmock/gmock.h>
 
@@ -332,6 +333,12 @@ private:
 MATCHER_P3(MessageMatcher, name, from, to, "")
 {
   const MessageEvent& event = ::std::tr1::get<0>(arg);
+
+  std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
+  outs << " >> Matcher: name[" << event.message->name
+       << "], from[" << event.message->from
+       << "], to[" << event.message->to << std::endl;
+
   return (testing::Matcher<std::string>(name).Matches(event.message->name) &&
           testing::Matcher<UPID>(from).Matches(event.message->from) &&
           testing::Matcher<UPID>(to).Matches(event.message->to));
