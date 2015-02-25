@@ -2747,11 +2747,6 @@ void ProcessBase::send(
     return;
   }
 
-  if (name.find("ExecutorRegisteredMessage") != string::npos) {
-    std::ofstream outs("/Users/alex/shutdown-test.txt", std::fstream::app);
-    outs << " !! Transporting message: " << name << std::endl;
-  }
-
   // Encode and transport outgoing message.
   transport(encode(pid, to, name, string(data, length)), this);
 }
