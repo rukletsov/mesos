@@ -123,14 +123,18 @@ JSON::Object model(const Task& task)
   object.values["state"] = TaskState_Name(task.state());
   object.values["resources"] = model(task.resources());
 
-  JSON::Array array;
+  JSON::Array statuses;
+  statuses.values.reserve(task.statuses().size()); // MESOS-2353
+
   foreach (const TaskStatus& status, task.statuses()) {
-    array.values.push_back(model(status));
+    statuses.values.push_back(model(status));
   }
-  object.values["statuses"] = array;
+  object.values["statuses"] = statuses;
 
   JSON::Array labels;
   if (task.has_labels()) {
+    labels.values.reserve(task.labels().labels().size()); // MESOS-2353
+
     foreach (const Label& label, task.labels().labels()) {
       labels.values.push_back(JSON::Protobuf(label));
     }
@@ -168,6 +172,8 @@ JSON::Object model(
   object.values["resources"] = model(task.resources());
 
   JSON::Array array;
+  array.values.reserve(statuses.size()); // MESOS-2353
+
   foreach (const TaskStatus& status, statuses) {
     array.values.push_back(model(status));
   }
