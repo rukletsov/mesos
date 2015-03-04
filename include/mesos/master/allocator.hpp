@@ -16,12 +16,13 @@
  * limitations under the License.
  */
 
-#ifndef __MASTER_ALLOCATOR_ALLOCATOR_HPP__
-#define __MASTER_ALLOCATOR_ALLOCATOR_HPP__
+#ifndef __MESOS_MASTER_ALLOCATOR_HPP__
+#define __MESOS_MASTER_ALLOCATOR_HPP__
 
 #include <string>
 #include <vector>
 
+#include <mesos/master/allocator.pb.h> // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/resources.hpp>
 
 #include <stout/duration.hpp>
@@ -31,7 +32,6 @@
 #include <stout/option.hpp>
 
 namespace mesos {
-namespace internal {
 namespace master {
 namespace allocator {
 
@@ -57,7 +57,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
-      const hashmap<std::string, RoleInfo>& roles) = 0;
+      const hashmap<std::string, internal::RoleInfo>& roles) = 0;
 
   virtual void addFramework(
       const FrameworkID& frameworkId,
@@ -123,7 +123,6 @@ public:
 
 } // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
-#endif // __MASTER_ALLOCATOR_ALLOCATOR_HPP__
+#endif // __MESOS_MASTER_ALLOCATOR_HPP__
