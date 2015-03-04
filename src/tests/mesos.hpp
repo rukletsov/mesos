@@ -848,7 +848,7 @@ public:
   ~TestAllocator() {}
 
   MOCK_METHOD3(initialize, void(
-      const master::Flags&,
+      const Duration&,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>&,
