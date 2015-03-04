@@ -521,7 +521,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/allocator/sorter/drf/sorter.hpp				\
 	master/allocator/sorter/sorter.hpp				\
 	messages/messages.hpp						\
-	module/allocator.hpp						\
 	module/manager.hpp						\
 	sched/constants.hpp						\
 	sched/flags.hpp							\
