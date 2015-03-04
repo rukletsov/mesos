@@ -43,8 +43,9 @@ public:
 
   ~MesosAllocator();
 
+  // TODO(alexr): extract allocator parameters into AllocatorTraits.
   void initialize(
-      const Flags& flags,
+      const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -121,7 +122,7 @@ public:
   using process::ProcessBase::initialize;
 
   virtual void initialize(
-      const Flags& flags,
+      const Duration& allocationInterval,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -198,7 +199,7 @@ MesosAllocator<AllocatorProcess>::~MesosAllocator()
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::initialize(
-    const Flags& flags,
+    const Duration& allocationInterval,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, Resources>&)>& offerCallback,
@@ -207,7 +208,7 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
   process::dispatch(
       process,
       &MesosAllocatorProcess::initialize,
-      flags,
+      allocationInterval,
       offerCallback,
       roles);
 }
