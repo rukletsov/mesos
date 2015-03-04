@@ -22,6 +22,8 @@
 #include <queue>
 #include <vector>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
@@ -36,7 +38,6 @@
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 
-#include "master/allocator/allocator.hpp"
 #include "master/allocator/mesos/hierarchical.hpp"
 
 using mesos::internal::master::MIN_CPUS;

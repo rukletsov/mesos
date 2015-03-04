@@ -26,6 +26,8 @@
 #include <mesos/executor.hpp>
 #include <mesos/scheduler.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -47,8 +49,6 @@
 
 #include "master/detector.hpp"
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "slave/slave.hpp"
 

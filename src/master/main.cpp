@@ -24,6 +24,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <mesos/module/anonymous.hpp>
 
 #include <process/limiter.hpp>
@@ -59,7 +61,6 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
-#include "master/allocator/allocator.hpp"
 #include "master/allocator/mesos/hierarchical.hpp"
 
 #include "module/manager.hpp"

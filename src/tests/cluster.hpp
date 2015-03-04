@@ -25,6 +25,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -64,7 +66,6 @@
 #include "master/registrar.hpp"
 #include "master/repairer.hpp"
 
-#include "master/allocator/allocator.hpp"
 #include "master/allocator/mesos/hierarchical.hpp"
 
 #include "slave/flags.hpp"

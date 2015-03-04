@@ -415,7 +415,11 @@ scheduler_HEADERS =							\
 
 nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 
+masterdir = $(pkgincludedir)/master
 slavedir = $(pkgincludedir)/slave
+
+master_HEADERS =							\
+  $(top_srcdir)/include/mesos/master/allocator.hpp
 
 slave_HEADERS =								\
   $(top_srcdir)/include/mesos/slave/isolator.hpp
@@ -511,7 +515,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/validation.hpp						\
-	master/allocator/allocator.hpp					\
 	master/allocator/mesos/allocator.hpp				\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\

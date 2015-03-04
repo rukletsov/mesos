@@ -29,6 +29,8 @@
 
 #include <mesos/authentication/authenticator.hpp>
 
+#include <mesos/master/allocator.hpp>
+
 #include <mesos/module/authenticator.hpp>
 
 #include <process/check.hpp>
@@ -76,8 +78,6 @@
 
 #include "master/flags.hpp"
 #include "master/master.hpp"
-
-#include "master/allocator/allocator.hpp"
 
 #include "module/manager.hpp"
 

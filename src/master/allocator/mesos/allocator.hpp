@@ -19,10 +19,10 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
 #define __MASTER_ALLOCATOR_MESOS_ALLOCATOR_HPP__
 
+#include <mesos/master/allocator.hpp>
+
 #include <process/dispatch.hpp>
 #include <process/process.hpp>
-
-#include "master/allocator/allocator.hpp"
 
 namespace mesos {
 namespace internal {
