@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#ifndef __MASTER_ALLOCATOR_ALLOCATOR_HPP__
-#define __MASTER_ALLOCATOR_ALLOCATOR_HPP__
+#ifndef __MESOS_MASTER_ALLOCATOR_HPP__
+#define __MESOS_MASTER_ALLOCATOR_HPP__
 
 #include <string>
 #include <vector>
@@ -32,9 +32,7 @@
 #include "master/flags.hpp"
 
 namespace mesos {
-namespace internal {
 namespace master {
-
 namespace allocator {
 
 // Basic model of an allocator: resources are allocated to a framework
@@ -125,7 +123,6 @@ public:
 
 } // namespace allocator {
 } // namespace master {
-} // namespace internal {
 } // namespace mesos {
 
-#endif // __MASTER_ALLOCATOR_ALLOCATOR_HPP__
+#endif // __MESOS_MASTER_ALLOCATOR_HPP__

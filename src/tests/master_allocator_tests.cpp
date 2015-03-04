@@ -44,7 +44,7 @@
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
 
-using mesos::internal::master::allocator::Allocator;
+using mesos::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 
 using mesos::internal::master::Master;
