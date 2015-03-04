@@ -16,36 +16,16 @@
  * limitations under the License.
  */
 
-#ifndef __MESOS_LOCAL_HPP__
-#define __MESOS_LOCAL_HPP__
+// RoleInfo message used to live in mesos.internal package previously
+// and we cannot move it into a new package without breaking
+// backwards compatibility. New messages however may (and should) go
+// into a non-internal package.
+package mesos.internal;
 
-#include <mesos/master/allocator.hpp>
-
-#include <process/process.hpp>
-
-#include "local/flags.hpp"
-
-// Forward declarations.
-namespace mesos {
-namespace internal {
-
-namespace master {
-class Master;
-} // namespace master {
-
-class Configuration;
-
-namespace local {
-
-// Launch a local cluster with the given flags.
-process::PID<master::Master> launch(
-    const Flags& flags,
-    mesos::master::allocator::Allocator* _allocator = NULL);
-
-void shutdown();
-
-} // namespace local {
-} // namespace internal {
-} // namespace mesos {
-
-#endif // __MESOS_LOCAL_HPP__
+// Describes a role, which are used to group frameworks for allocation
+// decisions, depending on the allocation policy being used.
+// The weight field can be used to indicate forms of priority.
+message RoleInfo {
+  required string name = 1;
+  optional double weight = 2 [default = 1];
+}
