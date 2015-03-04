@@ -131,6 +131,9 @@ endif
 
 MESOS_PROTO = $(top_srcdir)/include/mesos/mesos.proto
 
+ALLOCATOR_PROTO =							\
+  $(top_srcdir)/include/mesos/master/allocator.proto
+
 AUTHENTICATION_PROTO =							\
   $(top_srcdir)/include/mesos/authentication/authentication.proto
 
@@ -149,6 +152,8 @@ SCHEDULER_PROTO =							\
 CXX_PROTOS =								\
   mesos.pb.cc								\
   ../include/mesos/mesos.pb.h						\
+  master/allocator.pb.cc						\
+  ../include/mesos/master/allocator.pb.h				\
   authentication/authentication.pb.cc					\
   ../include/mesos/authentication/authentication.pb.h			\
   containerizer/containerizer.pb.cc					\
@@ -198,6 +203,12 @@ CLEANFILES += $(REGISTRY_PROTOS)
 	$(MKDIR_P) $(@D)
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
 	mv ../include/mesos/*.pb.cc .
+
+master/%.pb.cc ../include/mesos/master/%.pb.h: $(ALLOCATOR_PROTO)
+	$(MKDIR_P) $(@D)
+	$(MKDIR_P) ../include/mesos/master
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include $^
+	mv ../include/mesos/master/*.pb.cc $(@D)
 
 authentication/%.pb.cc ../include/mesos/authentication/%.pb.h: $(AUTHENTICATION_PROTO)
 	$(MKDIR_P) $(@D)
@@ -415,6 +426,14 @@ scheduler_HEADERS =							\
 
 nodist_scheduler_HEADERS = ../include/mesos/scheduler/scheduler.pb.h
 
+masterdir = $(pkgincludedir)/master
+
+master_HEADERS =							\
+  $(top_srcdir)/include/mesos/master/allocator.hpp			\
+  $(top_srcdir)/include/mesos/master/allocator.proto
+
+nodist_master_HEADERS = ../include/mesos/master/allocator.pb.h
+
 slavedir = $(pkgincludedir)/slave
 
 slave_HEADERS =								\
@@ -511,7 +530,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/validation.hpp						\
-	master/allocator/allocator.hpp					\
 	master/allocator/mesos/allocator.hpp				\
 	master/allocator/mesos/hierarchical.hpp				\
 	master/allocator/sorter/drf/sorter.hpp				\
@@ -677,6 +695,7 @@ lib_LTLIBRARIES += libmesos.la
 
 # Include as part of the distribution.
 libmesos_la_SOURCES = 							\
+  $(ALLOCATOR_PROTO)							\
   $(CONTAINERIZER_PROTO)						\
   $(FETCHER_PROTO)							\
   $(MESOS_PROTO)							\
