@@ -27,6 +27,8 @@
 
 #include <mesos/master/allocator.hpp>
 
+#include <mesos/module/allocator.hpp>
+
 #include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -43,6 +45,7 @@
 
 #include "tests/containerizer.hpp"
 #include "tests/mesos.hpp"
+#include "tests/module.hpp"
 
 using mesos::master::allocator::Allocator;
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
@@ -70,13 +73,23 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// This factory creates allocator instances of the given type in a
-// way similar to allocator modules. It allows us to use same typed
-// tests for built-in and modularized allocators.
+// This factory creates built-in allocator instances in a way
+// similar to allocator modules.
 template <typename T>
 struct AllocatorFactory
 {
   static Allocator* create() { return new T; }
+};
+
+// This factory creates allocator instances from modules.
+template <ModuleID N>
+struct AllocatorFactory<tests::Module<Allocator, N>>
+{
+  static Allocator* create() {
+    Try<Allocator*> allocator = tests::Module<Allocator, N>::create();
+    CHECK_SOME(allocator);
+    return CHECK_NOTNULL(allocator.get());
+  }
 };
 
 
@@ -94,9 +107,9 @@ protected:
   {
     MesosTest::SetUp();
 
-    // T represents the test type, which is an allocator factory
-    // class. It can be a wrapper around default built-in allocator,
-    // or a factory provided by an allocator module.
+    // T represents the allocator type. The allocator factory can
+    // be a wrapper around default built-in allocator, or a factory
+    // provided by an allocator module.
     testAllocator = new TestAllocator(process::Owned<Allocator>(
         AllocatorFactory<T>::create()));
   }
@@ -115,7 +128,9 @@ protected:
 };
 
 
-typedef ::testing::Types<HierarchicalDRFAllocator> AllocatorTypes;
+typedef ::testing::Types<
+  HierarchicalDRFAllocator,
+  tests::Module<Allocator, TestDRFAllocator>> AllocatorTypes;
 
 
 // Causes all TYPED_TEST(MasterAllocatorTest, ...) to be run for
