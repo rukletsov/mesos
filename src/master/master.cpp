@@ -4080,7 +4080,7 @@ void Master::addFramework(Framework* framework)
   allocator->addFramework(
       framework->id,
       framework->info,
-      Resources::sum(framework->usedResources.values()));
+      framework->usedResources);
 
   // Export framework metrics.
 

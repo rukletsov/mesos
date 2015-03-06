@@ -81,7 +81,7 @@ public:
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,
-      const Resources& used);
+      const hashmap<SlaveID, Resources>& used);
 
   void removeFramework(
       const FrameworkID& frameworkId);
@@ -295,7 +295,7 @@ void
 HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
     const FrameworkID& frameworkId,
     const FrameworkInfo& frameworkInfo,
-    const Resources& used)
+    const hashmap<SlaveID, Resources>& used_)
 {
   CHECK(initialized);
 
@@ -310,6 +310,7 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addFramework(
   // framework's role.
 
   // Update the allocation to this framework.
+  Resources used = Resources::sum(used_.values());
   roleSorter->allocated(role, used.unreserved());
   frameworkSorters[role]->add(used);
   frameworkSorters[role]->allocated(frameworkId.value(), used);
