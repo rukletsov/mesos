@@ -318,6 +318,16 @@ inline bool operator == (
   return Resources(left) == right;
 }
 
+
+hashmap<SlaveID, Resources>& operator += (
+    hashmap<SlaveID, Resources>& left,
+    const hashmap<SlaveID, Resources>& right);
+
+
+hashmap<SlaveID, Resources> operator + (
+    hashmap<SlaveID, Resources> left,
+    const hashmap<SlaveID, Resources>& right);
+
 } // namespace mesos {
 
 #endif // __RESOURCES_HPP__

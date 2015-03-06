@@ -23,6 +23,7 @@
 #include <glog/logging.h>
 
 #include <mesos/resources.hpp>
+#include <mesos/type_utils.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/foreach.hpp>
@@ -975,5 +976,25 @@ ostream& operator << (ostream& stream, const Resources& resources)
 
   return stream;
 }
+
+
+hashmap<SlaveID, Resources>& operator += (
+    hashmap<SlaveID, Resources>& left,
+    const hashmap<SlaveID, Resources>& right)
+{
+  foreachpair (const SlaveID& slaveId, const Resources& resources, right) {
+    left[slaveId] += resources;
+  }
+  return left;
+}
+
+
+hashmap<SlaveID, Resources> operator + (
+    hashmap<SlaveID, Resources> left,
+    const hashmap<SlaveID, Resources>& right)
+{
+  return left += right;
+}
+
 
 } // namespace mesos {
