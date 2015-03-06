@@ -118,14 +118,22 @@ JSON::Object model(const Framework& framework)
   object.values["unregistered_time"] = framework.unregisteredTime.secs();
   object.values["active"] = framework.active;
 
+  // TODO(mpark): Non-scalar resources can be lost by summing up the
+  //              resources across slaves. (MESOS-2373).
   // TODO(bmahler): Consider deprecating this in favor of the split
   // used and offered resources below.
-  object.values["resources"] =
-    model(framework.usedResources + framework.offeredResources);
+  hashmap<SlaveID, Resources> resources =
+    framework.usedResources + framework.offeredResources;
 
-  // TODO(bmahler): Use these in the webui.
-  object.values["used_resources"] = model(framework.usedResources);
-  object.values["offered_resources"] = model(framework.offeredResources);
+  object.values["resources"] = model(Resources::sum(resources.values()));
+
+  object.values["used_resources"] =
+    model(Resources::sum(framework.usedResources.values()));
+  object.values["offered_resources"] =
+    model(Resources::sum(framework.offeredResources.values()));
+
+  // TODO(mpark): Expose 'resources', 'framework.usedResources', and
+  //              'framework.offeredResources' via other keys.
 
   object.values["hostname"] = framework.info.hostname();
   object.values["webui_url"] = framework.info.webui_url();
@@ -201,7 +209,11 @@ JSON::Object model(const Role& role)
   JSON::Object object;
   object.values["name"] = role.info.name();
   object.values["weight"] = role.info.weight();
-  object.values["resources"] = model(role.resources());
+  // TODO(mpark): Non-scalar resources can be lost by summing up the
+  //              resources across slaves. (MESOS-2373).
+  object.values["resources"] = model(Resources::sum(role.resources().values()));
+
+  // TODO(mpark): Expose 'role.resources()' via another key.
 
   {
     JSON::Array array;

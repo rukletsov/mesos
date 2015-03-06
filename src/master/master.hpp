@@ -1010,7 +1010,7 @@ struct Framework
     tasks[task->task_id()] = task;
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources += task->resources();
+      usedResources[task->slave_id()] += task->resources();
     }
   }
 
@@ -1025,7 +1025,7 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    usedResources -= task->resources();
+    usedResources[task->slave_id()] -= task->resources();
   }
 
   void addCompletedTask(const Task& task)
@@ -1041,7 +1041,7 @@ struct Framework
       << " of framework " << task->framework_id();
 
     if (!protobuf::isTerminalState(task->state())) {
-      usedResources -= task->resources();
+      usedResources[task->slave_id()] -= task->resources();
     }
 
     addCompletedTask(*task);
@@ -1053,7 +1053,7 @@ struct Framework
   {
     CHECK(!offers.contains(offer)) << "Duplicate offer " << offer->id();
     offers.insert(offer);
-    offeredResources += offer->resources();
+    offeredResources[offer->slave_id()] += offer->resources();
   }
 
   void removeOffer(Offer* offer)
@@ -1061,7 +1061,7 @@ struct Framework
     CHECK(offers.find(offer) != offers.end())
       << "Unknown offer " << offer->id();
 
-    offeredResources -= offer->resources();
+    offeredResources[offer->slave_id()] -= offer->resources();
     offers.erase(offer);
   }
 
@@ -1080,7 +1080,7 @@ struct Framework
       << " on slave " << slaveId;
 
     executors[slaveId][executorInfo.executor_id()] = executorInfo;
-    usedResources += executorInfo.resources();
+    usedResources[slaveId] += executorInfo.resources();
   }
 
   void removeExecutor(const SlaveID& slaveId,
@@ -1091,7 +1091,7 @@ struct Framework
       << " of framework " << id
       << " of slave " << slaveId;
 
-    usedResources -= executors[slaveId][executorId].resources();
+    usedResources[slaveId] -= executors[slaveId][executorId].resources();
     executors[slaveId].erase(executorId);
     if (executors[slaveId].empty()) {
       executors.erase(slaveId);
@@ -1131,10 +1131,11 @@ struct Framework
 
   hashmap<SlaveID, hashmap<ExecutorID, ExecutorInfo>> executors;
 
-  // TODO(bmahler): Summing set and ranges resources across slaves
-  // does not yield meaningful totals.
-  Resources usedResources;    // Active task / executor resources.
-  Resources offeredResources; // Offered resources.
+  // Active task / executor resources.
+  hashmap<SlaveID, Resources> usedResources;
+
+  // Offered resources.
+  hashmap<SlaveID, Resources> offeredResources;
 
 private:
   Framework(const Framework&);              // No copying.
@@ -1169,15 +1170,16 @@ struct Role
     frameworks.erase(framework->id);
   }
 
-  Resources resources() const
+  hashmap<SlaveID, Resources> resources() const
   {
-    Resources resources;
-    foreachvalue (Framework* framework, frameworks) {
-      resources += framework->usedResources;
-      resources += framework->offeredResources;
+    hashmap<SlaveID, Resources> result;
+
+    foreachvalue (const Framework* framework, frameworks) {
+      result += framework->usedResources;
+      result += framework->offeredResources;
     }
 
-    return resources;
+    return result;
   }
 
   RoleInfo info;

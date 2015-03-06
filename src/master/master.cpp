@@ -4075,12 +4075,12 @@ void Master::addFramework(Framework* framework)
   roles[framework->info.role()]->addFramework(framework);
 
   // There should be no offered resources yet!
-  CHECK_EQ(Resources(), framework->offeredResources);
+  CHECK(framework->offeredResources.empty());
 
   allocator->addFramework(
       framework->id,
       framework->info,
-      framework->usedResources);
+      Resources::sum(framework->usedResources.values()));
 
   // Export framework metrics.
 
