@@ -862,15 +862,17 @@ class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
   // Real allocator will be a built-in defaut one.
-  TestAllocator()
-    : real(new master::allocator::HierarchicalDRFAllocator)
-  {
-    setDefaultActions();
-  }
+//  TestAllocator()
+//    : real(new master::allocator::HierarchicalDRFAllocator)
+//  {
+//    setDefaultActions();
+//  }
 
   // Takes ownership of the provided real allocator.
   TestAllocator(
-      process::Owned<mesos::master::allocator::Allocator> realAllocator)
+      process::Owned<mesos::master::allocator::Allocator> realAllocator =
+        process::Owned<master::allocator::HierarchicalDRFAllocator>(
+          new master::allocator::HierarchicalDRFAllocator))
     : real(realAllocator)
   {
     setDefaultActions();
