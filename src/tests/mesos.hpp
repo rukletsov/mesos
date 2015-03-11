@@ -871,7 +871,7 @@ public:
   // Takes ownership of the provided real allocator.
   TestAllocator(
       process::Owned<mesos::master::allocator::Allocator> realAllocator =
-        process::Owned<master::allocator::HierarchicalDRFAllocator>(
+        process::Owned<mesos::master::allocator::Allocator>(
           new master::allocator::HierarchicalDRFAllocator))
     : real(realAllocator)
   {
