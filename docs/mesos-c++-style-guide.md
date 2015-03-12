@@ -25,7 +25,7 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 * Strings used in log and error messages should end without a period.
 
 ## Comments
-* End each sentence with a period.
+* End each sentence (including trailing comment) with a punctuation mark, prefer period though.
 * At most 70 characters per line in comments.
 * For trailing comments, leave one space.
 
