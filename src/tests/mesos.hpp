@@ -863,10 +863,15 @@ class TestAllocator : public mesos::master::allocator::Allocator
 public:
   // Takes ownership of the provided real allocator or creates a
   // built-in default one.
+  // NOTE: We opt for a single c-tor with a default parameter for
+  // simplicity even though this does not allow us to check whether
+  // an allocator instance was successfully created; an abort is
+  // therefore possible, which is fine in this case.
   TestAllocator(
     process::Owned<mesos::master::allocator::Allocator> realAllocator =
       process::Owned<mesos::master::allocator::Allocator>(
-          new mesos::internal::master::allocator::HierarchicalDRFAllocator()))
+          mesos::internal::master::allocator::HierarchicalDRFAllocator::create()
+            .get()))
     : real(realAllocator)
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the

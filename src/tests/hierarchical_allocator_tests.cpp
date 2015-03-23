@@ -71,9 +71,14 @@ class HierarchicalAllocatorTest : public ::testing::Test
 {
 protected:
   HierarchicalAllocatorTest()
-    : allocator(new HierarchicalDRFAllocator),
-      nextSlaveId(1),
-      nextFrameworkId(1) {}
+    : nextSlaveId(1),
+      nextFrameworkId(1)
+  {
+    Try<Allocator*> allocator_ = HierarchicalDRFAllocator::create();
+    EXPECT_SOME(allocator_);
+
+    allocator = allocator_.get();
+  }
 
   ~HierarchicalAllocatorTest()
   {
