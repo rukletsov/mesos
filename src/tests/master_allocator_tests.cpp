@@ -90,7 +90,17 @@ protected:
   {
     MesosTest::SetUp();
 
-    testAllocator = new TestAllocator(process::Owned<Allocator>(new T));
+    testAllocator = new TestAllocator(createAllocatorInstance());
+  }
+
+  // Creates an allocator of the type provided by TYPED_TEST.
+  virtual process::Owned<Allocator> createAllocatorInstance()
+  {
+    // T represents the allocator type. It can be a default built-in
+    // allocator, or one provided by an allocator module.
+    Try<Allocator*> instance = T::create();
+    CHECK_SOME(instance);
+    return process::Owned<Allocator>(CHECK_NOTNULL(instance.get()));
   }
 
   virtual void TearDown()
@@ -1312,7 +1322,7 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(process::Owned<Allocator>(new TypeParam));
+  TestAllocator allocator2(this->createAllocatorInstance());
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
@@ -1424,7 +1434,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
   this->ShutdownMasters();
 
-  TestAllocator allocator2(process::Owned<Allocator>(new TypeParam));
+  TestAllocator allocator2(this->createAllocatorInstance());
 
   EXPECT_CALL(allocator2, initialize(_, _, _));
 
