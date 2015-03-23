@@ -35,6 +35,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include "master/constants.hpp"
+
 #include "master/allocator/mesos/allocator.hpp"
 #include "master/allocator/sorter/drf/sorter.hpp"
 

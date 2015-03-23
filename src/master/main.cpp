@@ -82,6 +82,8 @@ using memory::shared_ptr;
 
 using mesos::MasterInfo;
 
+using mesos::master::allocator::Allocator;
+
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
@@ -200,8 +202,15 @@ int main(int argc, char** argv)
     LOG(INFO) << "Git SHA: " << build::GIT_SHA.get();
   }
 
-  mesos::master::allocator::Allocator* allocator =
-      new allocator::HierarchicalDRFAllocator();
+  std::string allocatorName = "";
+  Try<Allocator*> allocatorInstance = Allocator::create(allocatorName);
+  if (allocatorInstance.isError()) {
+    EXIT(1) << "Could not create allocator '"
+            << allocatorName << "': " << allocatorInstance.error();
+  }
+
+  Allocator* allocator = CHECK_NOTNULL(allocatorInstance.get());
+  LOG(INFO) << "Using '" << allocatorName << "' allocator";
 
   state::Storage* storage = NULL;
   Log* log = NULL;

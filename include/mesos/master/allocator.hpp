@@ -32,6 +32,7 @@
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace master {
@@ -50,6 +51,11 @@ namespace allocator {
 class Allocator
 {
 public:
+  // Attempts to create an allocator using the given name. Leave the
+  // name empty for a built-in DRF allocator or specify it to load
+  // allocator instance from a module.
+  static Try<Allocator*> create(const std::string& name = "");
+
   Allocator() {}
 
   virtual ~Allocator() {}
