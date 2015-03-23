@@ -133,8 +133,16 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   }
 
   if (_allocator == NULL) {
-    // Create default allocator, save it for deleting later.
-    _allocator = allocator = new HierarchicalDRFAllocator();
+    // Create default allocator.
+    Try<Allocator*> allocator_ = HierarchicalDRFAllocator::create();
+    if (allocator_.isError()) {
+      LOG(ERROR) << "Failed to create an instance of HierarchicalDRFAllocator: "
+                 << allocator_.error();
+      _allocator = allocator = NULL;
+    }
+
+    // Save the instance for deleting later.
+    _allocator = allocator = allocator_.get();
   } else {
     // TODO(benh): Figure out the behavior of allocator pointer and remove the
     // else block.

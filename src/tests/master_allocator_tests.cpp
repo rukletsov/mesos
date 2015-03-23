@@ -75,12 +75,13 @@ template <typename T>
 class MasterAllocatorTest : public MesosTest
 {
 protected:
-  // Return by value in order to ensure allocator instance is
+  // Creates an allocator of the type provided by TYPED_TEST.
+  // Returns by value in order to ensure allocator instance is
   // destroyed on scope exit. Otherwise subsequent (not expected)
   // calls into recoverResources and therefore flaky tests are
   // possible.
   virtual TestAllocator CreateAllocator() const {
-    return TestAllocator(process::Owned<Allocator>(new T));
+    return TestAllocator(process::Owned<Allocator>(createAllocator<T>()));
   }
 };
 

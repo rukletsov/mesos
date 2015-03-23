@@ -858,6 +858,19 @@ ACTION_P(InvokeReviveOffers, allocator)
 }
 
 
+// Creates an allocator of type T using its factory.
+template <
+  typename T = mesos::internal::master::allocator::HierarchicalDRFAllocator>
+mesos::master::allocator::Allocator* createAllocator()
+{
+  // T represents the allocator type. It can be a default built-in
+  // allocator, or one provided by an allocator module.
+  Try<mesos::master::allocator::Allocator*> instance = T::create();
+  CHECK_SOME(instance);
+  return CHECK_NOTNULL(instance.get());
+}
+
+
 class TestAllocator : public mesos::master::allocator::Allocator
 {
 public:
@@ -866,7 +879,7 @@ public:
   TestAllocator(
       process::Owned<mesos::master::allocator::Allocator> realAllocator =
         process::Owned<mesos::master::allocator::Allocator>(
-            new mesos::internal::master::allocator::HierarchicalDRFAllocator()))
+            createAllocator<>()))
     : real(realAllocator)
   {
     // We use 'ON_CALL' and 'WillByDefault' here to specify the
