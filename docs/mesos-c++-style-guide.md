@@ -10,6 +10,34 @@ The Mesos codebase follows the [Google C++ Style Guide](http://google-styleguide
 
 ### Variable Names
 * We use [lowerCamelCase](http://en.wikipedia.org/wiki/CamelCase#Variations_and_synonyms) for variable names (Google uses snake_case, and their class member variables have trailing underscores).
+* We prepend function arguments with a leading underscore to avoid ambiguity and / or shadowing:
+
+<pre>
+Try(State _state, T* _t = NULL, const std::string& _message = "")
+  : state(_state), t(_t), message(_message) {}
+</pre>
+
+* We use trailing underscores to distinguish between object copies in the same scope (think prime symbols).
+
+<pre>
+// Create and add the slave id.
+SlaveInfo slaveInfo_ = slaveInfo;
+slaveInfo_.mutable_id()->CopyFrom(newSlaveId());
+</pre>
+
+* If you find yourself creating a copy of an argument passed by const reference, consider passing it by value.
+
+<pre>
+// You can pass-by-value in ProtobufProcess::install() handlers.
+void Slave::statusUpdate(StatusUpdate update, const UPID& pid)
+{
+  ...
+  update.mutable_status()->set_source(
+      pid == UPID() ? TaskStatus::SOURCE_SLAVE : TaskStatus::SOURCE_EXECUTOR);
+  ...
+}
+</pre>
+
 
 ### Constant Names
 * We use [SCREAMING_SNAKE_CASE](http://en.wikipedia.org/wiki/Letter_case#Special_case_styles) for constant names (Google uses a `k` followed by mixed case, e.g. `kDaysInAWeek`).
