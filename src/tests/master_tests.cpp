@@ -2736,8 +2736,7 @@ TEST_F(MasterTest, ReleaseResourcesForTerminalTaskWithPendingUpdates)
 }
 
 
-// This test ensure that the miscellaneous keys in state.json
-// are present.
+// This test ensures miscellaneous keys in state.json are present.
 TEST_F(MasterTest, StateEndpoint)
 {
   master::Flags flags = CreateMasterFlags();
@@ -2821,9 +2820,7 @@ TEST_F(MasterTest, StateEndpoint)
   EXPECT_LT(0u, state.values["flags"].as<JSON::Object>().values.size());
 
   ASSERT_TRUE(state.values["slaves"].is<JSON::Array>());
-  EXPECT_EQ(
-      0u,
-      state.values["slaves"].as<JSON::Array>().values.size());
+  EXPECT_TRUE(state.values["slaves"].as<JSON::Array>().values.empty());
 
   ASSERT_TRUE(state.values["frameworks"].is<JSON::Array>());
   EXPECT_EQ(
