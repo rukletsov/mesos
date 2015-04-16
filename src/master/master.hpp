@@ -1150,7 +1150,7 @@ inline std::ostream& operator << (
 // Information about an active role.
 struct Role
 {
-  explicit Role(const RoleInfo& _info)
+  explicit Role(const mesos::master::RoleInfo& _info)
     : info(_info) {}
 
   void addFramework(Framework* framework)
@@ -1174,7 +1174,7 @@ struct Role
     return resources;
   }
 
-  RoleInfo info;
+  mesos::master::RoleInfo info;
 
   hashmap<FrameworkID, Framework*> frameworks;
 };
