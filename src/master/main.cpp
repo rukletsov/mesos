@@ -80,6 +80,8 @@ using namespace zookeeper;
 
 using mesos::MasterInfo;
 
+using mesos::master::allocator::Allocator;
+
 using mesos::modules::Anonymous;
 using mesos::modules::ModuleManager;
 
@@ -200,15 +202,20 @@ int main(int argc, char** argv)
   }
 
   // Create an instance of allocator.
-  Try<mesos::master::allocator::Allocator*> allocator_ =
-    allocator::HierarchicalDRFAllocator::create();
+  const std::string allocatorName = DEFAULT_ALLOCATOR;
+  Try<Allocator*> allocatorInstance = Allocator::create(allocatorName);
 
-  if (allocator_.isError()) {
-    EXIT(1) << "Failed to create an instance of HierarchicalDRFAllocator: "
-            << allocator_.error();
+  if (allocatorInstance.isError()) {
+    EXIT(1) << "Failed to create '" << allocatorName << "' allocator: "
+            << allocatorInstance.error();
   }
 
-  mesos::master::allocator::Allocator* allocator = allocator_.get();
+  if (allocatorInstance.get() == NULL) {
+    EXIT(1) << "Failed to create '" << allocatorName << "' allocator";
+  }
+
+  Allocator* allocator = allocatorInstance.get();
+  LOG(INFO) << "Using '" << allocatorName << "' allocator";
 
   state::Storage* storage = NULL;
   Log* log = NULL;
