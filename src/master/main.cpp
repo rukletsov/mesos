@@ -203,7 +203,7 @@ int main(int argc, char** argv)
   }
 
   // Create an instance of allocator.
-  std::string allocatorName = mesos::internal::master::DEFAULT_ALLOCATOR;
+  std::string allocatorName = flags.allocator;
   Try<Allocator*> allocatorInstance = Allocator::create(allocatorName);
   if (allocatorInstance.isError()) {
     EXIT(1) << "Failed to create '" << allocatorName<< "' allocator: "

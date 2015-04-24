@@ -348,6 +348,15 @@ mesos::internal::master::Flags::Flags()
         "load an alternate authenticator module using --modules.",
       DEFAULT_AUTHENTICATOR);
 
+  add(&Flags::allocator,
+      "allocator",
+      "Allocator to use for resource allocation to frameworks.\n"
+      "Use the default '" +
+        DEFAULT_ALLOCATOR +
+        "', or\n"
+        "load an alternate allocator module using --modules.",
+      DEFAULT_ALLOCATOR);
+
   add(&Flags::hooks,
       "hooks",
       "A comma separated list of hook modules to be\n"
