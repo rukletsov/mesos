@@ -37,9 +37,9 @@ public:
 
   Option() : state(NONE) {}
 
-  Option(const T& _t) : state(SOME), t(_t) {}
-
   Option(T&& _t) : state(SOME), t(std::move(_t)) {}
+
+  Option(const T& _t) : state(SOME), t(_t) {}
 
   template <typename U>
   Option(const U& u) : state(SOME), t(u) {}
