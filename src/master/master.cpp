@@ -813,6 +813,12 @@ void Master::initialize()
           Http::log(request);
           return http.tasks(request);
         });
+  route("/accounting",
+        None(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.accounting(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the

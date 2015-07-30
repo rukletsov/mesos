@@ -1207,6 +1207,14 @@ Result<Credential> Master::Http::authenticate(const Request& request) const
 }
 
 
+Future<Response> Master::Http::accounting(const Request& request) const
+{
+  JSON::Object object;
+
+  return OK(object, request.query.get("jsonp"));
+}
+
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
