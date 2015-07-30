@@ -841,6 +841,22 @@ private:
     Master* master;
   };
 
+  // Records all events necessary for accounting / billing.
+  struct Accounting {
+
+    void record(Task* task);
+
+    using Events = std::vector<AccountingEvent>;
+
+    Events events;
+    Master* master;
+
+  private:
+    void record(const FrameworkID& frameworkId,
+           const std::string what,
+           const Resource& resource);
+  } accounting;
+
   Master(const Master&);              // No copying.
   Master& operator = (const Master&); // No assigning.
 

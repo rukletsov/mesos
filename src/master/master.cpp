@@ -5767,6 +5767,36 @@ double Master::_resources_revocable_percent(const string& name)
   return _resources_revocable_used(name) / total;
 }
 
+void Master::Accounting::record(Task* task)
+{
+  std::string what;
+
+  if (!protobuf::isTerminalState(task->state())) {
+    // Record start of new task.
+    what = "TASK_STARTED";
+  } else {
+    // TODO(alexr): If we haven't recorded the start of the task,
+    // we shouldn't record the end as well.
+
+    what = "TASK_TERMINATED";
+  }
+
+  // Record resource consumption per task.
+  foreach (const Resource& resource, task->resources()) {
+    record(task->framework_id(), what, resource);
+  }
+}
+
+void Master::Accounting::record(const FrameworkID& frameworkId,
+                                const std::string what,
+                                const Resource& resource)
+{
+  auto timestamp = Clock::now();
+  auto id = UUID::random().toString();
+
+  events.push_back({id, frameworkId, resource, what, timestamp});
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
