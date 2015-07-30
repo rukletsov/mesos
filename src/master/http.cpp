@@ -291,6 +291,18 @@ JSON::Object model(const Role& role)
 }
 
 
+JSON::Object model(const Master::AccountingEvent& event)
+{
+  JSON::Object object;
+  object.values["id"] = event.id;
+  object.values["framework_id"] = event.frameworkId.value();
+  object.values["resource"] = model({event.resource});
+  object.values["what"] = event.what;
+  object.values["timestamp"] = event.timestamp.secs();
+  return object;
+}
+
+
 void Master::Http::log(const Request& request)
 {
   Option<string> userAgent = request.headers.get("User-Agent");

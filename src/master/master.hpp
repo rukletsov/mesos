@@ -504,6 +504,15 @@ public:
     return info_;
   }
 
+
+  struct AccountingEvent {
+    std::string id;
+    FrameworkID frameworkId;
+    Resource resource;
+    std::string what; // reservation, allocation, usage
+    process::Time timestamp;
+  };
+
 protected:
   virtual void initialize();
   virtual void finalize();
