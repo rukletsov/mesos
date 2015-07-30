@@ -1221,7 +1221,19 @@ Result<Credential> Master::Http::authenticate(const Request& request) const
 
 Future<Response> Master::Http::accounting(const Request& request) const
 {
+  LOG(INFO) << "HTTP request for '" << request.path << "'";
   JSON::Object object;
+
+  {
+    JSON::Array eventsArray;
+    eventsArray.values.reserve(master->accounting.events.size());
+
+    foreach (const auto& event, master->accounting.events) {
+      eventsArray.values.push_back(model(event));
+    }
+
+    object.values["accounting"] = std::move(eventsArray);
+  }
 
   return OK(object, request.query.get("jsonp"));
 }
