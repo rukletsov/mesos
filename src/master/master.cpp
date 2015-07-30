@@ -3857,6 +3857,8 @@ void Master::statusUpdate(const StatusUpdate& update, const UPID& pid)
   }
 
   metrics->valid_status_updates++;
+
+  accounting.record(task);
 }
 
 
