@@ -1221,14 +1221,24 @@ Result<Credential> Master::Http::authenticate(const Request& request) const
 
 Future<Response> Master::Http::accounting(const Request& request) const
 {
+  // TODO(alexr): Currently we accumulate events in the buffer between
+  // calls to /accounting and flush the buffer once the endpoint
+  // handler finishes. This is more than hacky: supports just one
+  // consumer, OOM-vulnerable. We should leverage brand new streaming
+  // API to register consumers in this endpoint and push events to
+  // all registered consumers on a regular basis, keeping events
+  // buffer size in predictable range.
+
   LOG(INFO) << "HTTP request for '" << request.path << "'";
   JSON::Object object;
 
   {
-    JSON::Array eventsArray;
-    eventsArray.values.reserve(master->accounting.events.size());
+    auto events = master->accounting.pull();
 
-    foreach (const auto& event, master->accounting.events) {
+    JSON::Array eventsArray;
+    eventsArray.values.reserve(events.size());
+
+    foreach (const auto& event, events) {
       eventsArray.values.push_back(model(event));
     }
 

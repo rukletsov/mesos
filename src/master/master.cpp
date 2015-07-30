@@ -5789,6 +5789,14 @@ void Master::Accounting::record(Task* task)
   }
 }
 
+Master::Accounting::Events Master::Accounting::pull()
+{
+  auto copy = events;
+
+  events.clear();
+  return copy;
+}
+
 void Master::Accounting::record(const FrameworkID& frameworkId,
                                 const std::string what,
                                 const Resource& resource)

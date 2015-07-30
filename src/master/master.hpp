@@ -843,10 +843,10 @@ private:
 
   // Records all events necessary for accounting / billing.
   struct Accounting {
+    using Events = std::vector<AccountingEvent>;
 
     void record(Task* task);
-
-    using Events = std::vector<AccountingEvent>;
+    Events pull();
 
     Events events;
     Master* master;
