@@ -610,6 +610,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 	master/flags.hpp						\
 	master/master.hpp						\
 	master/metrics.hpp						\
+	master/quota_handler.hpp					\
 	master/repairer.hpp						\
 	master/registrar.hpp						\
 	master/validation.hpp						\

@@ -52,6 +52,7 @@
 #include "logging/logging.hpp"
 
 #include "master/master.hpp"
+#include "master/quota_handler.hpp"
 
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
@@ -507,6 +508,21 @@ Future<Response> Master::Http::slaves(const Request& request) const
 
 
   return OK(object, request.query.get("jsonp"));
+}
+
+
+Future<Response> Master::Http::quota(const Request& request) const
+{
+  // Dispatch based on HTTP method.
+  if (request.method == "POST") {
+    return master->quotaHandler.request(request);
+  } else if (request.method == "DELETE") {
+    return master->quotaHandler.release(request);
+  } else if (request.method == "GET") {
+    return master->quotaHandler.status(request);
+  } else {
+   return BadRequest("Unsupported HTTP method request for /quota.");
+  }
 }
 
 

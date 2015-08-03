@@ -65,6 +65,7 @@
 #include "master/detector.hpp"
 #include "master/flags.hpp"
 #include "master/metrics.hpp"
+#include "master/quota_handler.hpp"
 #include "master/registrar.hpp"
 #include "master/validation.hpp"
 
@@ -811,6 +812,10 @@ private:
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 
+    // /master/quota
+    process::Future<process::http::Response> quota(
+        const process::http::Request& request) const;
+
     const static std::string CALL_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -821,6 +826,7 @@ private:
     const static std::string STATE_HELP;
     const static std::string STATESUMMARY_HELP;
     const static std::string TASKS_HELP;
+    const static std::string QUOTA_HELP;
 
   private:
     // Helper for doing authentication, returns the credential used if
@@ -867,6 +873,8 @@ private:
   const Option<Authorizer*> authorizer;
 
   MasterInfo info_;
+
+  QuotaHandler quotaHandler;
 
   // Indicates when recovery is complete. Recovery begins once the
   // master is elected as a leader.
