@@ -510,6 +510,23 @@ Future<Response> Master::Http::slaves(const Request& request) const
 }
 
 
+Future<Response> Master::Http::quota(const Request& request) const
+{
+  // Dispatch based on HTTP method.
+  if (request.method == "GET") {
+    return quotaHandler.status(request);
+  } else if (request.method == "POST") {
+    return quotaHandler.request(request);
+  } else if (request.method == "PUT") {
+    return quotaHandler.update(request);
+  } else if (request.method == "DELETE") {
+    return quotaHandler.release(request);
+  } else {
+   return BadRequest("Unsupported HTTP method request for /quota.");
+  }
+}
+
+
 const string Master::Http::STATE_HELP = HELP(
     TLDR(
         "Information about state of master."),

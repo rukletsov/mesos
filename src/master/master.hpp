@@ -760,6 +760,46 @@ private:
     return leader.isSome() && leader.get() == info_;
   }
 
+  // Inner class used to namespace the handling of quota http requests
+  // (see master/quota_handler.cpp for implementations).
+  // It is responsible for validating and persisting quota requests,
+  // and exposing quota status.
+  class QuotaHandler
+  {
+  public:
+    // TODO(joerg84): For now this is just a stub. It will be filled as
+    // part of MESOS-1791.
+
+    process::Future<process::http::Response> status(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> request(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> update(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> release(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+  private:
+    // TODO(joerg84): The following commits as part of MESOS-1791
+    // require access to the master data-structures.
+    // Master* master;
+  };
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
@@ -811,6 +851,10 @@ private:
     process::Future<process::http::Response> tasks(
         const process::http::Request& request) const;
 
+    // /master/quota
+    process::Future<process::http::Response> quota(
+        const process::http::Request& request) const;
+
     const static std::string CALL_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
@@ -835,6 +879,7 @@ private:
         bool authorized = true) const;
 
     Master* master;
+    QuotaHandler quotaHandler;
   };
 
   Master(const Master&);              // No copying.
