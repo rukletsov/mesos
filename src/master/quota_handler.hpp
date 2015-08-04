@@ -24,6 +24,7 @@
 
 namespace mesos {
 namespace internal {
+namespace master {
 
 // Handles quota inside the master actor and hence is responsible for
 // validating and persisting quota requests; and exposing quota status.
@@ -34,10 +35,7 @@ public:
   // as part of MESOS-1791.
 
   process::Future<process::http::Response> request(
-      const process::http::Request& request)
-  {
-    return process::http::Accepted();
-  }
+      const process::http::Request& request);
 
   process::Future<process::http::Response> release(
       const process::http::Request& request)
@@ -50,8 +48,17 @@ public:
   {
     return process::http::Accepted();
   }
+
+protected:
+  //
+  process::Future<process::http::Response> requestCheckSatisfiability(
+      const process::http::Request& request);
+
+private:
+  Master* master;
 };
 
+} // namespace master {
 } // namespace internal {
 } // namespace mesos {
 

@@ -16,15 +16,71 @@
 * limitations under the License
 */
 
+#include <mesos/resources.hpp>
+
+#include <process/defer.hpp>
+#include <process/dispatch.hpp>
+#include <process/future.hpp>
+#include <process/http.hpp>
+
 #include "master/quota_handler.hpp"
+
+using namespace process;
+
+using process::http::Conflict;
+using process::http::Request;
+using process::http::Response;
 
 
 namespace mesos {
 namespace internal {
+namespace master {
 
-// TODO(joerg84): As of right now this is a stub to enable cooperation.
-// It will be filled as part of MESOS-1791.
+// TODO(alexr): Add tests for satisfiablity.
+// TODO(alexr): Add description for the method based on offline
+// discussions and the design doc.
+Future<Response> QuotaHandler::request(
+    const process::http::Request& request)
+{
+  return requestValidate(request)
+    .then(defer(master->self(), [this](const Request& request) {
+      return this->requestCheckSatisfiability(request);
+    }));
+}
+
+Future<Response> QuotaHandler::requestCheckSatisfiability(
+    const Request& request)
+{
+  //
 
 
+  // Calculate current resource allocation per role.
+  Resources roleTotal = master->roles["role"]->resources();
+
+  // Create an operation based on resources from quota request.
+  // Currently allocated resources account towards quota.
+  Resources requestResources;
+  Resources missingResources = requestResources - roleTotal;
+
+  // Estimate total resources available in the cluster.
+  Resources clusterUnused;
+  foreachvalue (Slave* slave, master->slaves.registered.ids) {
+    Resources unusedOnSlave =
+      slave->totalResources - Resources::sum(slave->usedResources);
+    clusterUnused += unusedOnSlave;
+  }
+
+  // If there are not enough resources in the cluster, reject
+  // the request.
+  if (!clusterUnused.contains(missingResources)) {
+    return process::http::Conflict(apply.error());
+  }
+
+  return OK();
+}
+
+
+
+} // namespace master {
 } // namespace internal {
 } // namespace mesos {
