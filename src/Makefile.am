@@ -376,6 +376,7 @@ libmesos_no_3rdparty_la_SOURCES =					\
 	master/http.cpp							\
 	master/master.cpp						\
 	master/metrics.cpp						\
+	master/quota_handler.cpp					\
 	master/registry.hpp						\
 	master/registry.proto						\
 	master/registrar.cpp						\
