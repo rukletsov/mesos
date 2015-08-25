@@ -794,7 +794,7 @@ private:
     }
 
   protected:
-   Option<Error> validateRequest(const process::http::Request& request) const;
+    Option<Error> validateRequest(const process::http::Request& request) const;
 
     // TODO(alexr): Add description for the method based on offline
     // discussions and the design doc.

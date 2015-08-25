@@ -47,7 +47,6 @@ using process::http::Request;
 // * Same as previous, but with the quota set
 
 
-// TODO(alexr): Describe the pipelining for request processing.
 Future<Response> Master::QuotaHandler::request(const Request& request) const
 {
   // In an endpoint handler there are three possible outcomes:
@@ -67,6 +66,7 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // functions. Since we cannot wrap arbitrary objects into Error, we should
   // delegate creating Response objects to the caller, therefore there should
   // be one response type per check function.
+
   Option<Error> validate = validateRequest(request);
   if (validate.isSome()) {
     return BadRequest(validate.get().message);
@@ -77,7 +77,7 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
     return Conflict(satisfiability.get().message);
   }
 
-  // 3. Update registry.
+  // 3. Update registry, MESOS-3165.
 
   // 4. Grant the request.
   return grantRequest(request);
@@ -87,12 +87,17 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
 Option<Error> Master::QuotaHandler::validateRequest(
     const Request& request) const
 {
+  // MESOS-3199.
+
+  // We shouldn't check whether the provided role exists, because an operator
+  // may set quota for a role that is about to be introduced (hope we'll be able
+  // to dynamically add roles soon).
+
   // Indicates validation is OK, hence no response is generated here.
   return None();
 }
 
 
-// TODO(alexr): Add tests for satisfiablity.
 Option<Error> Master::QuotaHandler::checkSatisfiability(
     const Request& request) const
 {
