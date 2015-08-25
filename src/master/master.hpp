@@ -794,15 +794,16 @@ private:
     }
 
   protected:
-    Option<Error> validateRequest(const process::http::Request& request) const;
+    Option<Error> validateRequest(
+        const hashmap<std::string, std::string>& request) const;
 
     // TODO(alexr): Add description for the method based on offline
     // discussions and the design doc.
     Option<Error> checkSatisfiability(
-        const process::http::Request& request) const;
+        const hashmap<std::string, std::string>& request) const;
 
     process::Future<process::http::Response> grantRequest(
-        const process::http::Request& request) const;
+        const hashmap<std::string, std::string>& request) const;
 
   private:
     // TODO(joerg84): The following commits as part of MESOS-1791

@@ -31,6 +31,8 @@ using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::OK;
 
+using std::string;
+
 
 namespace mesos {
 namespace internal {
@@ -49,6 +51,19 @@ using process::http::Request;
 
 Future<Response> Master::QuotaHandler::request(const Request& request) const
 {
+  // Decode the request once.
+  if (request.method != "POST") {
+    return BadRequest("Expecting POST");
+  }
+
+  // Parse the query string in the request body.
+  Try<hashmap<string, string>> decode =
+    process::http::query::decode(request.body);
+
+  if (decode.isError()) {
+    return BadRequest("Unable to decode query string: " + decode.error());
+  }
+
   // In an endpoint handler there are three possible outcomes:
   //   1) A bug in handler => future is not ready => HttpProxy sends 503.
   //   2) The request cannot be fulfilled => Future is ready, but the
@@ -67,12 +82,12 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // delegate creating Response objects to the caller, therefore there should
   // be one response type per check function.
 
-  Option<Error> validate = validateRequest(request);
+  Option<Error> validate = validateRequest(decode.get());
   if (validate.isSome()) {
     return BadRequest(validate.get().message);
   }
 
-  Option<Error> satisfiability = checkSatisfiability(request);
+  Option<Error> satisfiability = checkSatisfiability(decode.get());
   if (satisfiability.isSome()) {
     return Conflict(satisfiability.get().message);
   }
@@ -80,12 +95,12 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // 3. Update registry, MESOS-3165.
 
   // 4. Grant the request.
-  return grantRequest(request);
+  return grantRequest(decode.get());
 }
 
 
 Option<Error> Master::QuotaHandler::validateRequest(
-    const Request& request) const
+    const hashmap<string, string>& request) const
 {
   // MESOS-3199.
 
@@ -99,7 +114,7 @@ Option<Error> Master::QuotaHandler::validateRequest(
 
 
 Option<Error> Master::QuotaHandler::checkSatisfiability(
-    const Request& request) const
+    const hashmap<string, string>& request) const
 {
   // Calculate current resource allocation per role.
   Resources roleTotal = master->roles["role"]->resources();
@@ -128,7 +143,7 @@ Option<Error> Master::QuotaHandler::checkSatisfiability(
 
 
 Future<Response> Master::QuotaHandler::grantRequest(
-    const Request& request) const
+    const hashmap<string, string>& request) const
 {
   // 1. Update master bookkeeping.
 
