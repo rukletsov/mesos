@@ -104,6 +104,9 @@ Option<Error> Master::QuotaHandler::validateRequest(
 {
   // MESOS-3199.
 
+  // Check all required (or optional, but logically required) fields are
+  // present, including: role, resources, etc.
+
   // We shouldn't check whether the provided role exists, because an operator
   // may set quota for a role that is about to be introduced (hope we'll be able
   // to dynamically add roles soon).
@@ -116,26 +119,35 @@ Option<Error> Master::QuotaHandler::validateRequest(
 Option<Error> Master::QuotaHandler::checkSatisfiability(
     const hashmap<string, string>& request) const
 {
-  // Calculate current resource allocation per role.
-  Resources roleTotal = master->roles["role"]->resources();
+  // Cache No need to check whether a key exsists, we have done that during
+  // validation.
+  const string& role = request.get("role").get();
 
-  // Create an operation based on resources from quota request.
-  // Currently allocated resources account towards quota.
+  // TODO(alexr): Convert resources JSON to resources, or, actually, re-use
+  // conversion done during previous steps.
+  // const auto& resources = request.get("resources").get();
   Resources requestResources;
+
+  // Calculate current resource allocation per role.
+  Resources roleTotal = master->roles[role]->resources();
+
+  // Currently allocated resources account towards quota.
+  // TODO(alexr): Depending on what we account towards role quota, update this
+  // math.
   Resources missingResources = requestResources - roleTotal;
 
   // Estimate total resources available in the cluster.
-  Resources clusterUnused;
+  Resources unusedInCluster;
   foreachvalue (Slave* slave, master->slaves.registered) {
-    Resources unusedOnSlave =
+    Resources unusedOnAgent =
       slave->totalResources - Resources::sum(slave->usedResources);
-    clusterUnused += unusedOnSlave;
+    unusedInCluster += unusedOnAgent;
   }
 
   // If there are not enough resources in the cluster, reject
   // the request.
-  if (!clusterUnused.contains(missingResources)) {
-    return Error("Not enough resources");
+  if (!unusedInCluster.contains(missingResources)) {
+    return Error("Not enough resources to satisfy quota request");
   }
 
   return None();
