@@ -26,6 +26,8 @@
 
 using namespace process;
 
+using process::http::Accepted;
+using process::http::BadRequest;
 using process::http::Conflict;
 using process::http::OK;
 
@@ -36,6 +38,13 @@ namespace master {
 
 using process::http::Response;
 using process::http::Request;
+
+
+// Quota tests.
+// * Satisfiability tests
+// * Two roles, two frameworks, one rejects the first offer, the other is
+//   greedy and hijacks the cluster; no quota
+// * Same as previous, but with the quota set
 
 
 // TODO(alexr): Describe the pipelining for request processing.
@@ -54,35 +63,28 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // now), hence we should dispatch on failure message and generate when
   // generating the final response.
   //
-  // The approach I suggest here is to return Option<Response> from stage
-  // processing functions, where None() indicates success and triggers
-  // next stage, while a Response means we should not continue and just
-  // propogate to the end of the pipeline.
-  return requestValidate(request)
-    .then(
-       defer(master->self(),
-             [=](const Option<Response>& response) -> Future<Option<Response>> {
-         if (response.isSome()) {
-           // If a response was generated, something went wrong and we just
-           // propagate that respond to the client.
-           return response;
-         }
-         return requestCheckSatisfiability(request);
-       }))
-    .then(
-      defer(master->self(),
-            [=](const Option<Response>& response) -> Future<Response> {
-        if (response.isSome()) {
-          // If a response was generated, something went wrong and we just
-          // propagate that respond to the client.
-          return response.get();
-        }
-        return requestGrant(request);
-      }));
+  // The approach we take is perform logically related checks in separate
+  // functions. Since we cannot wrap arbitrary objects into Error, we should
+  // delegate creating Response objects to the caller, therefore there should
+  // be one response type per check function.
+  Option<Error> validate = validateRequest(request);
+  if (validate.isSome()) {
+    return BadRequest(validate.get().message);
+  }
+
+  Option<Error> satisfiability = checkSatisfiability(request);
+  if (satisfiability.isSome()) {
+    return Conflict(satisfiability.get().message);
+  }
+
+  // 3. Update registry.
+
+  // 4. Grant the request.
+  return grantRequest(request);
 }
 
 
-Future<Option<Response>> Master::QuotaHandler::requestValidate(
+Option<Error> Master::QuotaHandler::validateRequest(
     const Request& request) const
 {
   // Indicates validation is OK, hence no response is generated here.
@@ -91,7 +93,7 @@ Future<Option<Response>> Master::QuotaHandler::requestValidate(
 
 
 // TODO(alexr): Add tests for satisfiablity.
-Future<Option<Response>> Master::QuotaHandler::requestCheckSatisfiability(
+Option<Error> Master::QuotaHandler::checkSatisfiability(
     const Request& request) const
 {
   // Calculate current resource allocation per role.
@@ -113,17 +115,24 @@ Future<Option<Response>> Master::QuotaHandler::requestCheckSatisfiability(
   // If there are not enough resources in the cluster, reject
   // the request.
   if (!clusterUnused.contains(missingResources)) {
-    return process::http::Conflict("Not enough resources");
+    return Error("Not enough resources");
   }
 
   return None();
 }
 
 
-Future<Response> Master::QuotaHandler::requestGrant(const Request& request) const
+Future<Response> Master::QuotaHandler::grantRequest(
+    const Request& request) const
 {
-  return process::http::Accepted();
+  // 1. Update master bookkeeping.
+
+  // 2. Notfify allocator.
+
+
+  return Accepted();
 }
+
 
 } // namespace master {
 } // namespace internal {

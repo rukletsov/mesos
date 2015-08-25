@@ -47,6 +47,7 @@
 #include <process/metrics/counter.hpp>
 
 #include <stout/cache.hpp>
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -793,15 +794,14 @@ private:
     }
 
   protected:
-   process::Future<Option<process::http::Response>> requestValidate(
-        const process::http::Request& request) const;
+   Option<Error> validateRequest(const process::http::Request& request) const;
 
     // TODO(alexr): Add description for the method based on offline
     // discussions and the design doc.
-    process::Future<Option<process::http::Response>> requestCheckSatisfiability(
+    Option<Error> checkSatisfiability(
         const process::http::Request& request) const;
 
-    process::Future<process::http::Response> requestGrant(
+    process::Future<process::http::Response> grantRequest(
         const process::http::Request& request) const;
 
   private:
