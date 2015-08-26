@@ -41,6 +41,10 @@ namespace master {
 using process::http::Response;
 using process::http::Request;
 
+// Dummy class QuotaInfo, shall be replaced by protobuf message after proper
+// rebasing.
+class QuotaInfo
+{};
 
 // Quota tests.
 // * Satisfiability tests
@@ -49,9 +53,13 @@ using process::http::Request;
 // * Same as previous, but with the quota set
 
 
-Future<Response> Master::QuotaHandler::request(const Request& request) const
+// Utility functions. In order to keep dependencies local to this .cpp file, we
+// do not put them into QuotaHandler.
+Try<QuotaInfo> validateQuotaRequest(const Request& request)
 {
-  // Decode the request once.
+  // MESOS-3199.
+
+  // Decode the request.
   if (request.method != "POST") {
     return BadRequest("Expecting POST");
   }
@@ -63,6 +71,29 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   if (decode.isError()) {
     return BadRequest("Unable to decode query string: " + decode.error());
   }
+
+  // TODO(alexr): Extract role and resources.
+
+  // TODO(alexr): Convert JSON -> Resources. Separate ticket will follow.
+
+  // Check all required (or optional, but logically required) fields are
+  // present, including: role, resources, etc.
+
+  // We shouldn't check whether the provided role exists, because an operator
+  // may set quota for a role that is about to be introduced (hope we'll be able
+  // to dynamically add roles soon).
+
+  // Indicates validation is OK.
+  return QuotaInfo;
+}
+
+
+Future<Response> Master::QuotaHandler::request(const Request& request) const
+{
+  // TODO(alexr): First of all, authenticate request. Check
+  // Master::Http::authenticate() for an example.
+
+
 
   // In an endpoint handler there are three possible outcomes:
   //   1) A bug in handler => future is not ready => HttpProxy sends 503.
@@ -82,8 +113,8 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // delegate creating Response objects to the caller, therefore there should
   // be one response type per check function.
 
-  Option<Error> validate = validateRequest(decode.get());
-  if (validate.isSome()) {
+  Try<QuotaInfo> validate = validateQuotaRequest(request);
+  if (!validate.isSome()) {
     return BadRequest(validate.get().message);
   }
 
@@ -99,25 +130,8 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
 }
 
 
-Option<Error> Master::QuotaHandler::validateRequest(
-    const hashmap<string, string>& request) const
-{
-  // MESOS-3199.
-
-  // Check all required (or optional, but logically required) fields are
-  // present, including: role, resources, etc.
-
-  // We shouldn't check whether the provided role exists, because an operator
-  // may set quota for a role that is about to be introduced (hope we'll be able
-  // to dynamically add roles soon).
-
-  // Indicates validation is OK, hence no response is generated here.
-  return None();
-}
-
-
 Option<Error> Master::QuotaHandler::checkSatisfiability(
-    const hashmap<string, string>& request) const
+    const QuotaInfo& request) const
 {
   // Cache No need to check whether a key exsists, we have done that during
   // validation.

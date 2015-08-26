@@ -794,13 +794,10 @@ private:
     }
 
   protected:
-    Option<Error> validateRequest(
-        const hashmap<std::string, std::string>& request) const;
-
     // TODO(alexr): Add description for the method based on offline
     // discussions and the design doc.
     Option<Error> checkSatisfiability(
-        const hashmap<std::string, std::string>& request) const;
+      const mesos::internal::master::QuotaInfo& request) const;
 
     process::Future<process::http::Response> grantRequest(
         const hashmap<std::string, std::string>& request) const;
