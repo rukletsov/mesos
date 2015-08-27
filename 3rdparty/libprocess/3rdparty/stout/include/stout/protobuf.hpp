@@ -574,6 +574,29 @@ Try<T> parse(const JSON::Value& value)
   return message;
 }
 
+
+// This introduces JSON::Array -> repeated protobuf transformation, to
+// facilitate conversions like JSON::Array -> Resources.
+template <typename T>
+Try<google::protobuf::RepeatedPtrField<T>> parse(const JSON::Array& array)
+{
+  google::protobuf::RepeatedPtrField<T> collection;
+  collection.Reserve(static_cast<int>(array.values.size()));
+
+  // Parse messages one by one and proagate an error if it happens.
+  foreach (const JSON::Value& value, array.values) {
+    Try<T> message = parse<T>(value);
+
+    if (message.isError()) {
+      return Error(message.error());
+    }
+
+    collection.Add()->CopyFrom(message.get());
+  }
+
+  return collection;
+}
+
 } // namespace protobuf {
 
 namespace JSON {
