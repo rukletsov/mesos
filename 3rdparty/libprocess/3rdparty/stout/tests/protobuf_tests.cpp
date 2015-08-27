@@ -29,6 +29,28 @@
 
 using std::string;
 
+namespace tests {
+
+// A trivial equality operator to enable gtest macros.
+inline bool operator==(const SimpleMessage& left, const SimpleMessage& right)
+{
+  if (left.id() != right.id() ||
+      left.numbers().size() != right.numbers().size()) {
+    return false;
+  }
+
+  for (int idx = 0; idx < left.numbers().size(); ++idx) {
+    if (left.numbers().Get(idx) != right.numbers().Get(idx)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+} // namespace tests {
+
+
 TEST(ProtobufTest, JSON)
 {
   tests::Message message;
@@ -134,4 +156,35 @@ TEST(ProtobufTest, JSON)
 
   // Now convert JSON to string and parse it back as JSON.
   ASSERT_SOME_EQ(object, JSON::parse(stringify(object)));
+}
+
+
+TEST(ProtobufTest, ParseJSONArray)
+{
+  tests::SimpleMessage message1;
+  message1.set_id("message1");
+  message1.add_numbers(1);
+  message1.add_numbers(2);
+
+  // Convert protobuf message to a JSON object.
+  JSON::Object object1 = JSON::Protobuf(message1);
+
+  // Populate JSON array with JSON objects, conversion JSON::Object ->
+  // JSON::Value is implicit.
+  JSON::Array array;
+  array.values.push_back(object1);
+  array.values.push_back(object1);
+
+  // Parse JSON array into a collection of protobuf messages.
+  auto parse = protobuf::parse<tests::SimpleMessage>(array);
+  ASSERT_SOME(parse);
+  auto repeated = parse.get();
+
+  // We expect both custom protobuf message equality operator and backwards
+  // JSON conversion to succeed.
+  EXPECT_EQ(message1, repeated.Get(0));
+  EXPECT_EQ(message1, repeated.Get(1));
+
+  EXPECT_EQ(object1, JSON::Protobuf(repeated.Get(0)));
+  EXPECT_EQ(object1, JSON::Protobuf(repeated.Get(1)));
 }
