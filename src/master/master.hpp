@@ -794,10 +794,7 @@ private:
     }
 
   protected:
-    // TODO(alexr): Add description for the method based on offline
-    // discussions and the design doc.
-    Option<Error> checkSatisfiability(
-      const mesos::internal::master::QuotaInfo& request) const;
+
 
     process::Future<process::http::Response> grantRequest(
         const hashmap<std::string, std::string>& request) const;

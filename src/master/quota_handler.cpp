@@ -43,8 +43,11 @@ using process::http::Request;
 
 // Dummy class QuotaInfo, shall be replaced by protobuf message after proper
 // rebasing.
-class QuotaInfo
-{};
+struct QuotaInfo
+{
+  std::string role;
+  Resources guarantee;
+};
 
 // Quota tests.
 // * Satisfiability tests
@@ -75,6 +78,7 @@ Try<QuotaInfo> validateQuotaRequest(const Request& request)
   // TODO(alexr): Extract role and resources.
 
   // TODO(alexr): Convert JSON -> Resources. Separate ticket will follow.
+  // Resources resources(::protobuf::parse(request.get("resources").get()));
 
   // Check all required (or optional, but logically required) fields are
   // present, including: role, resources, etc.
@@ -88,67 +92,22 @@ Try<QuotaInfo> validateQuotaRequest(const Request& request)
 }
 
 
-Future<Response> Master::QuotaHandler::request(const Request& request) const
+// TODO(alexr): Add description for the method based on offline
+// discussions and the design doc (optimistic check).
+Option<Error> checkSatisfiability(
+    const QuotaInfo& request,
+    const Master* const master)
 {
-  // TODO(alexr): First of all, authenticate request. Check
-  // Master::Http::authenticate() for an example.
-
-
-
-  // In an endpoint handler there are three possible outcomes:
-  //   1) A bug in handler => future is not ready => HttpProxy sends 503.
-  //   2) The request cannot be fulfilled => Future is ready, but the
-  //     the response returned by the handler is 4** or 5**.
-  //   3) Everything is fine => handler returns 2**.
-  // If we want to split request processing into several stages (and
-  // functions), we have several options how to handle case 2. The nicest
-  // and most natural would be to fail a corresponding future if a stage
-  // cannot be processed successfully. The problem with this approach is
-  // that we cannot fail futures and assign an arbitrary object (at least
-  // now), hence we should dispatch on failure message and generate when
-  // generating the final response.
-  //
-  // The approach we take is perform logically related checks in separate
-  // functions. Since we cannot wrap arbitrary objects into Error, we should
-  // delegate creating Response objects to the caller, therefore there should
-  // be one response type per check function.
-
-  Try<QuotaInfo> validate = validateQuotaRequest(request);
-  if (!validate.isSome()) {
-    return BadRequest(validate.get().message);
-  }
-
-  Option<Error> satisfiability = checkSatisfiability(decode.get());
-  if (satisfiability.isSome()) {
-    return Conflict(satisfiability.get().message);
-  }
-
-  // 3. Update registry, MESOS-3165.
-
-  // 4. Grant the request.
-  return grantRequest(decode.get());
-}
-
-
-Option<Error> Master::QuotaHandler::checkSatisfiability(
-    const QuotaInfo& request) const
-{
-  // Cache No need to check whether a key exsists, we have done that during
-  // validation.
-  const string& role = request.get("role").get();
-
-  // TODO(alexr): Convert resources JSON to resources, or, actually, re-use
-  // conversion done during previous steps.
-  // const auto& resources = request.get("resources").get();
-  Resources requestResources;
-
-  // Calculate current resource allocation per role.
+  // Calculate current resource allocation per role (including used resources,
+  // outstanding offers, but not static reservations).
   Resources roleTotal = master->roles[role]->resources();
+
+  // Count dynamic reservations in.
 
   // Currently allocated resources account towards quota.
   // TODO(alexr): Depending on what we account towards role quota, update this
   // math.
-  Resources missingResources = requestResources - roleTotal;
+  Resources missingResources = request.guarantee - roleTotal;
 
   // Estimate total resources available in the cluster.
   Resources unusedInCluster;
@@ -166,6 +125,33 @@ Option<Error> Master::QuotaHandler::checkSatisfiability(
 
   return None();
 }
+
+
+Future<Response> Master::QuotaHandler::request(const Request& request) const
+{
+  // TODO(alexr): First of all, authenticate request. Check
+  // Master::Http::authenticate() for an example.
+
+  // Next, validate and convert the request to internal protobuf Message.
+  Try<QuotaInfo> validate = validateQuotaRequest(request);
+  if (!validate.isSome()) {
+    return BadRequest(validate.get().message);
+  }
+
+  // Check whether a quota request can be satisfied.
+  Option<Error> satisfiability = checkSatisfiability(decode.get());
+  if (satisfiability.isSome()) {
+    return Conflict(satisfiability.get().message);
+  }
+
+  // 3. Update registry, MESOS-3165.
+
+  // 4. Grant the request.
+  return grantRequest(decode.get());
+}
+
+
+
 
 
 Future<Response> Master::QuotaHandler::grantRequest(
