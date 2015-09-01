@@ -29,6 +29,8 @@
 
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 namespace tests {
 
 // A trivial equality operator to enable gtest macros.
@@ -176,7 +178,8 @@ TEST(ProtobufTest, ParseJSONArray)
   array.values.push_back(object1);
 
   // Parse JSON array into a collection of protobuf messages.
-  auto parse = protobuf::parse<tests::SimpleMessage>(array);
+  auto parse =
+    protobuf::parse<RepeatedPtrField<tests::SimpleMessage>>(array);
   ASSERT_SOME(parse);
   auto repeated = parse.get();
 
