@@ -544,57 +544,86 @@ inline Try<Nothing> parse(
   return Nothing();
 }
 
-} // namespace internal {
 
-
+// Parses a single protobuf message of type T from a JSON::Object.
+// NOTE: This struct is used by the public parse<T>() function below. See
+// comments there for the reason why we opted for this design.
 template <typename T>
-Try<T> parse(const JSON::Value& value)
+struct Parse
 {
-  { google::protobuf::Message* message = (T*) NULL; (void) message; }
+  Try<T> operator()(const JSON::Value& value)
+  {
+    { google::protobuf::Message* message = (T*) NULL; (void) message; }
 
-  const JSON::Object* object = boost::get<JSON::Object>(&value);
+    const JSON::Object* object = boost::get<JSON::Object>(&value);
 
-  if (object == NULL) {
-    return Error("Expecting a JSON object");
-  }
-
-  T message;
-
-  Try<Nothing> parse = internal::parse(&message, *object);
-
-  if (parse.isError()) {
-    return Error(parse.error());
-  }
-
-  if (!message.IsInitialized()) {
-    return Error("Missing required fields: " +
-                 message.InitializationErrorString());
-  }
-
-  return message;
-}
-
-
-// This introduces JSON::Array -> repeated protobuf transformation, to
-// facilitate conversions like JSON::Array -> Resources.
-template <typename T>
-Try<google::protobuf::RepeatedPtrField<T>> parse(const JSON::Array& array)
-{
-  google::protobuf::RepeatedPtrField<T> collection;
-  collection.Reserve(static_cast<int>(array.values.size()));
-
-  // Parse messages one by one and proagate an error if it happens.
-  foreach (const JSON::Value& value, array.values) {
-    Try<T> message = parse<T>(value);
-
-    if (message.isError()) {
-      return Error(message.error());
+    if (object == NULL) {
+      return Error("Expecting a JSON object");
     }
 
-    collection.Add()->CopyFrom(message.get());
-  }
+    T message;
 
-  return collection;
+    Try<Nothing> parse = internal::parse(&message, *object);
+
+    if (parse.isError()) {
+      return Error(parse.error());
+    }
+
+    if (!message.IsInitialized()) {
+      return Error("Missing required fields: " +
+                   message.InitializationErrorString());
+    }
+
+    return message;
+  }
+};
+
+
+// Partial specialization for RepeatedPtrField<T> to parse a sequence of
+// protobuf messages from a JSON::Array by repeatedly invoking Parse<T> to
+// facilitate conversions like JSON::Array -> Resources.
+// NOTE: This struct is used by the public parse<T>() function below. See
+// comments there for the reason why we opted for this design.
+template <typename T>
+struct Parse<google::protobuf::RepeatedPtrField<T>>
+{
+  Try<google::protobuf::RepeatedPtrField<T>> operator()(
+      const JSON::Value& json)
+  {
+    const JSON::Array* array = boost::get<JSON::Array>(&json);
+    if (array == NULL) {
+      return Error("Expecting a JSON array");
+    }
+
+    google::protobuf::RepeatedPtrField<T> collection;
+    collection.Reserve(static_cast<int>(array->values.size()));
+
+    // Parse messages one by one and proagate an error if it happens.
+    foreach (const JSON::Value& value, array->values) {
+      Try<T> message = Parse<T>()(value);
+
+      if (message.isError()) {
+        return Error(message.error());
+      }
+
+      collection.Add()->CopyFrom(message.get());
+    }
+
+    return collection;
+  }
+};
+
+} // namespace internal {
+
+// A dispatch wrapper which parses protobuf messages(s) from a given JSON value.
+// We use partial specialization of
+//   - internal::Parse<T> for JSON::Object
+//   - internal::Parse<google::protobuf::RepeatedPtrField<T>> for JSON::Array
+// to determine whether T is a single message or a sequence of messages.
+template <typename T>
+Try<T> parse(const JSON::Value& json)
+{
+  return internal::Parse<T>()(json);
 }
 
 } // namespace protobuf {
