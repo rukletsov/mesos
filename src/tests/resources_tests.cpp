@@ -39,6 +39,8 @@ using std::pair;
 using std::set;
 using std::string;
 
+using google::protobuf::RepeatedPtrField;
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -159,7 +161,7 @@ TEST(ResourcesTest, ParsingFromJSON)
 
   // Parse JSON array into a collection of Resource messages and convert them
   // into Resources object.
-  auto parse = ::protobuf::parse<Resource>(array);
+  auto parse = ::protobuf::parse<RepeatedPtrField<Resource>>(array);
   ASSERT_SOME(parse);
 
   EXPECT_EQ(resources, Resources(parse.get()));
