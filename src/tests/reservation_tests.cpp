@@ -145,7 +145,7 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
 
   EXPECT_TRUE(Resources(offer.resources()).contains(dynamicallyReserved));
 
-  // Check that the Master counts the reservation as used resource.
+  // Check that the Master counts the reservation as a used resource.
   {
     Future<process::http::Response> response =
       process::http::get(master.get(), "state.json");
@@ -154,10 +154,10 @@ TEST_F(ReservationTest, ReserveThenUnreserve)
     Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
     ASSERT_SOME(parse);
 
-    Result<JSON::String> cpus =
-      parse.get().find<JSON::String>("slaves[0].used_resources.cpus");
+    Result<JSON::Number> cpus =
+      parse.get().find<JSON::Number>("slaves[0].used_resources.cpus");
 
-    ASSERT_SOME_EQ(JSON::String("1"), cpus);
+    ASSERT_SOME_EQ(JSON::Number(1), cpus);
   }
 
   // The expectation for the next offer.
