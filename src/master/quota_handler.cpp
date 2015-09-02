@@ -75,9 +75,8 @@ Try<QuotaInfo> validateQuotaRequest(const Request& request)
     return BadRequest("Unable to decode query string: " + decode.error());
   }
 
-  // TODO(alexr): Extract role and resources.
-
-  // TODO(alexr): Convert JSON -> Resources. Separate ticket will follow.
+  // TODO(alexr): Convert JSON -> Resources. Separate ticket will follow, see
+  // MESOS-3312.
   // Resources resources(::protobuf::parse(request.get("resources").get()));
 
   // Check all required (or optional, but logically required) fields are
@@ -103,10 +102,13 @@ Option<Error> checkSatisfiability(
   Resources roleTotal = master->roles[role]->resources();
 
   // Count dynamic reservations in.
+  // TODO(alexr): Dynamic reservations are not included in allocated or used
+  // resources, see MESOS-3338.
 
+  // Since we do an optimistick check and cannot know how an allocator actually
+  // satisfies the quota, we include everything, except static reservations.
   // Currently allocated resources account towards quota.
-  // TODO(alexr): Depending on what we account towards role quota, update this
-  // math.
+  // TODO(alexr): Update this math based on quota design decisions.
   Resources missingResources = request.guarantee - roleTotal;
 
   // Estimate total resources available in the cluster.
