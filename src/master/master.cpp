@@ -839,6 +839,13 @@ void Master::initialize()
           Http::log(request);
           return http.machineUp(request);
         });
+  route("/quota",
+        // TODO(joerg84): Add help message as part of ongoing quota work.
+        None(),
+        [http](const process::http::Request& request) {
+          Http::log(request);
+          return http.quota(request);
+        });
 
   // Provide HTTP assets from a "webui" directory. This is either
   // specified via flags (which is necessary for running out of the
