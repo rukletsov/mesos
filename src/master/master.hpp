@@ -35,6 +35,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/quota.hpp>
 
 #include <mesos/module/authenticator.hpp>
 
@@ -802,10 +803,7 @@ private:
     }
 
     process::Future<process::http::Response> request(
-        const process::http::Request& request) const
-    {
-      return process::http::Accepted();
-    }
+        const process::http::Request& request) const;
 
     process::Future<process::http::Response> update(
         const process::http::Request& request) const
@@ -818,6 +816,13 @@ private:
     {
       return process::http::Accepted();
     }
+
+  protected:
+    Option<Error> checkSatisfiability(
+        const mesos::master::QuotaInfo& request) const;
+
+    process::Future<process::http::Response> grantRequest(
+        const mesos::master::QuotaInfo& request) const;
 
   private:
     // To perform actions related to quota management, we require access to the
