@@ -793,6 +793,7 @@ private:
   public:
     // TODO(joerg84): For now this is just a stub. It will be filled as
     // part of MESOS-1791.
+    explicit QuotaHandler(Master* _master) : master(_master) {}
 
     process::Future<process::http::Response> status(
         const process::http::Request& request) const
@@ -819,9 +820,10 @@ private:
     }
 
   private:
-    // TODO(joerg84): The following commits as part of MESOS-1791
-    // require access to the master data-structures.
-    // Master* master;
+    // To perform actions related to quota management, we require access to the
+    // master data structures. No synchronization primitives are needed here
+    // since QuotaHandler's functions are invoked in Master's actor.
+    Master* master;
   };
 
   // Inner class used to namespace HTTP route handlers (see
@@ -829,7 +831,7 @@ private:
   class Http
   {
   public:
-    explicit Http(Master* _master) : master(_master) {}
+    explicit Http(Master* _master) : master(_master), quotaHandler(_master) {}
 
     // Logs the request, route handlers can compose this with the
     // desired request handler to get consistent request logging.
