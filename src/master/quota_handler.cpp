@@ -89,12 +89,38 @@ Try<QuotaInfo> validateQuotaRequest(const Request& request)
 }
 
 
-// TODO(alexr): Add description for the method based on offline
-// discussions and the design doc (optimistic check).
 Option<Error> Master::QuotaHandler::checkSatisfiability(
     const QuotaInfo& request) const
 {
-  return None();
+  // Calculate current resource allocation per role (including used resources,
+  // outstanding offers, but not static reservations).
+  Resources roleTotal = master->roles[request.role()]->resources();
+
+  // TODO(alexr): Count dynamic reservation in. Currently dynamic reservations
+  // are not included in allocated or used resources, see MESOS-3338.
+
+  // TODO(alexr): Evolve this math together with quota feature evolution.
+  Resources missingResources = request.guarantee() - roleTotal;
+
+  // Estimate total resources available in the cluster.
+  Resources unusedInCluster;
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    // TODO(alexr): Consider counting REVOCABLE resources. Right now we do not
+    // consider REVOCABLE resources for satisfying quota, but since it's up to
+    // an allocator implementation, maybe we should count them in?
+    Resources unusedOnAgent =
+      slave->totalResources - Resources::sum(slave->usedResources);
+    unusedInCluster += unusedOnAgent;
+
+    // If we have found enough resources there is no need to continue.
+    if (unusedInCluster.contains(missingResources)) {
+      return None();
+    }
+  }
+
+  // If we reached this point, there are not enough resources in the cluster,
+  // hence the request cannot be satisfied.
+  return Error("Not enough resources to satisfy quota request");
 }
 
 

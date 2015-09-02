@@ -818,6 +818,23 @@ private:
     }
 
   protected:
+    // Performs a check whether a quota request can be satisfied at the moment.
+    // We cannot give a precise answer here, it is a scientific guess, because:
+    //   - it is up to an allocator how to satisfy quota (for example, what
+    //     resources to count against quota, what resources to consider
+    //     allocatable for quota), hence the best we can do is an optimistic
+    //     check: are there enough free resources in the cluster to satisfy the
+    //     request;
+    //   - even if there are enough resources at the moment of this check, a
+    //     bunch of agent nodes may terminate right after, rendering the cluster
+    //     under quota.
+    // The moving parts here are:
+    //   - what we include in the role's allocation (currently we exclude static
+    //     and dynamic reservations);
+    //   - what we include in total resources (currently we exclude revokable
+    //     resources).
+    // As we evolve quota and related features (e.g. dynamic reservations), we
+    // may update the way check satisfiability in the master.
     Option<Error> checkSatisfiability(
         const mesos::master::QuotaInfo& request) const;
 
