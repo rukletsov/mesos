@@ -589,7 +589,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
 // to be sent to the new scheduler driver!
 TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Launch the first (i.e., failing) scheduler and wait until
@@ -617,6 +617,8 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
+  // As a side effect of driver instantiation, registration backoff will be set
+  // to a default: internal::scheduler::REGISTRATION_BACKOFF_FACTOR.
   MesosSchedulerDriver driver2(
       &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
@@ -646,7 +648,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 
   AWAIT_READY(reregistrationMessage);
 
-  // Trigger the re-registration retry.
+  // Trigger the re-registration retry instantly to avoid blocking the test.
   Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
@@ -666,12 +668,14 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
 
 TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Try<PID<Slave> > slave = StartSlave();
+  Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
+  // As a side effect of driver instantiation, registration backoff will be set
+  // to a default: internal::scheduler::REGISTRATION_BACKOFF_FACTOR.
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
@@ -700,6 +704,7 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   AWAIT_READY(frameworkRegisteredMessage);
 
+  // Trigger the registration retry instantly to avoid blocking the test.
   Clock::pause();
   Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
 
@@ -1532,14 +1537,20 @@ TEST_F(FaultToleranceTest, SchedulerExit)
 
 TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 {
-  Try<PID<Master> > master = StartMaster();
+  Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   // Drop the first slave registered message, allow subsequent messages.
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     DROP_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<PID<Slave> > slave = StartSlave();
+  // Ensure registration backoff is set to a known value instead of what
+  // parameterless `StartSlave()` would assign.
+  slave::Flags flags = this->CreateSlaveFlags();
+  flags.registration_backoff_factor =
+    internal::slave::REGISTRATION_BACKOFF_FACTOR;
+
+  Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
 
   MockScheduler sched;
@@ -1561,8 +1572,9 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   AWAIT_READY(slaveRegisteredMessage);
 
+  // Trigger the registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(Seconds(1)); // TODO(benh): Pull out constant from Slave.
+  Clock::advance(internal::slave::REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(resourceOffers);
 
