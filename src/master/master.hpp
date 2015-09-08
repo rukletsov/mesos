@@ -783,12 +783,57 @@ private:
     return leader.isSome() && leader.get() == info_;
   }
 
+  /**
+   * Inner class used to namespace the handling of quota requests.
+   *
+   * It operates inside the Master actor is responsible for validating
+   * and persisting quota requests, and exposing quota status.
+   * @see master/quota_handler.cpp for implementations.
+   */
+  class QuotaHandler
+  {
+  public:
+    // TODO(joerg84): For now this is just a stub. It will be filled as
+    // part of MESOS-1791.
+    explicit QuotaHandler(Master* _master) : master(_master) {}
+
+    process::Future<process::http::Response> status(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> request(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> update(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+    process::Future<process::http::Response> release(
+        const process::http::Request& request) const
+    {
+      return process::http::Accepted();
+    }
+
+  private:
+    // To perform actions related to quota management, we require access to the
+    // master data structures. No synchronization primitives are needed here
+    // since QuotaHandler's functions are invoked in Master's actor.
+    Master* master;
+  };
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
   {
   public:
-    explicit Http(Master* _master) : master(_master) {}
+    explicit Http(Master* _master) : master(_master), quotaHandler(_master) {}
 
     // Logs the request, route handlers can compose this with the
     // desired request handler to get consistent request logging.
@@ -850,7 +895,12 @@ private:
     process::Future<process::http::Response> machineUp(
         const process::http::Request& request) const;
 
+    // /master/quota
+    process::Future<process::http::Response> quota(
+        const process::http::Request& request) const;
+
     const static std::string SCHEDULER_HELP;
+    const static std::string CALL_HELP;
     const static std::string HEALTH_HELP;
     const static std::string OBSERVE_HELP;
     const static std::string REDIRECT_HELP;
@@ -878,6 +928,7 @@ private:
         bool authorized = true) const;
 
     Master* master;
+    QuotaHandler quotaHandler;
   };
 
   Master(const Master&);              // No copying.
