@@ -18,7 +18,7 @@
 
 import "mesos/mesos.proto";
 import "mesos/maintenance/maintenance.proto";
-import "mesos/master/quota.proto";
+import "mesos/quota/quota.proto";
 
 package mesos.internal;
 
@@ -52,7 +52,7 @@ message Registry {
   }
 
   message Quota {
-    required master.QuotaInfo info = 1;
+    required quota.QuotaInfo info = 1;
   }
 
   // Most recent leading master.
