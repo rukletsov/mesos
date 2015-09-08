@@ -1373,6 +1373,11 @@ Future<Nothing> Master::_recover(const Registry& registry)
     machineInfos[machine.info().id()] = machine.info();
   }
 
+  // Save granted quotas.
+  foreach (const Registry::Quota& quota, registry.quotas()) {
+    quotas[quota.info().role()] = quota.info();
+  }
+
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
