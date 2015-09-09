@@ -100,6 +100,46 @@ Try<QuotaInfo> validateQuotaRequest(const Request& request)
 }
 
 
+Option<Error> Master::QuotaHandler::validateSatisfiability(
+    const QuotaInfo& request) const
+{
+  // Calculate current resource allocation per role (including used resources,
+  // outstanding offers, but not static reservations).
+
+  // If quota is requested for a future role, current resource usage is 0;
+  Resources roleTotal = master->roles.contains(request.role())
+                          ? master->roles[request.role()]->resources()
+                          : Resources();
+
+  // TODO(alexr): Count dynamic reservation in. Currently dynamic reservations
+  // are not included in allocated or used resources, see MESOS-3338.
+
+  // Exclude role, because we satisfy quota from '*' resources.
+  Resources missingResources =
+    Resources(request.guarantee()).flatten() - roleTotal.flatten();
+
+  // Estimate total resources available in the cluster.
+  Resources unusedInCluster;
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    // TODO(alexr): Consider counting REVOCABLE resources. Right now we do not
+    // consider REVOCABLE resources for satisfying quota, but since it's up to
+    // an allocator implementation, maybe we should count them in?
+    Resources unusedOnAgent =
+      slave->totalResources - Resources::sum(slave->usedResources);
+    unusedInCluster += unusedOnAgent;
+
+    // If we have found enough resources there is no need to continue.
+    if (unusedInCluster.contains(missingResources)) {
+      return None();
+    }
+  }
+
+  // If we reached this point, there are not enough resources in the cluster,
+  // hence the request cannot be satisfied.
+  return Error("Not enough resources to satisfy quota request");
+}
+
+
 Future<Response> Master::QuotaHandler::request(const Request& request) const
 {
   // Authenticate & authorize the request.
@@ -116,7 +156,10 @@ Future<Response> Master::QuotaHandler::request(const Request& request) const
   // Check a quota is not set per role.
 
   // Validate whether a quota request can be satisfied.
-  // TODO(alexr): Implement as per MESOS-3073.
+  Option<Error> satisfiability = validateSatisfiability(quota);
+  if (satisfiability.isSome()) {
+    return Conflict(satisfiability.get().message);
+  }
 
   // Update registry with the new quota.
   // TODO(alexr): MESOS-3165.
