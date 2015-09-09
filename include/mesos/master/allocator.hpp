@@ -27,6 +27,8 @@
 
 #include <mesos/maintenance/maintenance.hpp>
 
+#include <mesos/quota/quota.hpp>
+
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
@@ -343,6 +345,34 @@ public:
    */
   virtual void suppressOffers(
       const FrameworkID& frameworkId) = 0;
+
+  /**
+   * Informs the allocator to set quota for the given role.
+   *
+   * It is up to the allocator implementation how to satisfy quota. An
+   * implementation may employ different strategies for roles with quota and
+   * without. Hence an empty (or zero) quota is not necessarily the same as
+   * an absence of quota. This method transitions the given role to the group
+   * of roles with quota set. An allocator implementation may assume quota for
+   * the given role is not set prior the call and react accordingly if this
+   * assumption is violated (i.e. fail).
+   */
+  virtual void setQuota(
+      const std::string& role,
+      const mesos::quota::QuotaInfo& quota) = 0;
+
+  /**
+   * Informs the allocator to remove quota for the given role.
+   *
+   * An allocator implementation may employ different strategies for roles with
+   * quota and without. Hence an empty (or zero) quota is not necessarily the
+   * same as an absence of quota. This method transitions the given role to the
+   * group of roles without quota set (absence of quota). An allocator
+   * implementation may assume quota for the given role is set prior the call
+   * and react accordingly if this assumption is violated (i.e. fail).
+   */
+  virtual void removeQuota(
+      const std::string& role) = 0;
 };
 
 } // namespace allocator {

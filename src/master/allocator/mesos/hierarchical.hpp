@@ -202,6 +202,13 @@ public:
   void reviveOffers(
       const FrameworkID& frameworkId);
 
+  void setQuota(
+      const std::string& role,
+      const mesos::quota::QuotaInfo& quota);
+
+  void removeQuota(
+      const std::string& role);
+
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
   typedef HierarchicalAllocatorProcess Self;
@@ -407,7 +414,6 @@ public:
     : internal::HierarchicalAllocatorProcess(
           new internal::SorterFactory<RoleSorter, FrameworkSorter>()) {}
 };
-
 
 } // namespace allocator {
 } // namespace master {

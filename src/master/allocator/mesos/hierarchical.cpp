@@ -834,6 +834,25 @@ void HierarchicalAllocatorProcess::reviveOffers(
 }
 
 
+void HierarchicalAllocatorProcess::setQuota(
+    const std::string& role,
+    const mesos::quota::QuotaInfo& quota)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Received add quota request for role " << role;
+}
+
+
+void HierarchicalAllocatorProcess::removeQuota(
+    const std::string& role)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Received remove quota request for role " << role;
+}
+
+
 void HierarchicalAllocatorProcess::batch()
 {
   allocate();
