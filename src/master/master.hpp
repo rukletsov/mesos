@@ -889,6 +889,28 @@ private:
     // - Request should only contain scalar resources.
     Try<Nothing> validateQuotaInfo(const quota::QuotaInfo& quotaInfo) const;
 
+  protected:
+    // Checks whether a quota request is sane and will be most likely satisfied
+    // by an allocator at the moment, i.e. the request does not ask for more
+    // resources than total unreserved resources available in the cluster. We
+    // cannot give a precise answer here because:
+    //   - It is up to an allocator how to satisfy quota (for example, what
+    //     resources to count against quota, what resources to consider
+    //     allocatable for quota), hence the best we can do is an optimistic
+    //     check: are there enough free resources in the cluster to satisfy the
+    //     request.
+    //   - Even if there are enough resources at the moment of this check, a
+    //     bunch of agent nodes may terminate right after, rendering the cluster
+    //     under quota.
+    // The moving parts here are:
+    //   - What we include in the role's allocation (currently we exclude static
+    //     and dynamic reservations).
+    //   - What we include in total resources (currently we exclude revocable
+    //     resources).
+    // As we evolve quota and related features (e.g. dynamic reservations), we
+    // may update the way we check sanity in the master.
+    Option<Error> checkSanity(const mesos::quota::QuotaInfo& request) const;
+
   private:
     // To perform actions related to quota management, we require access to the
     // master data structures. No synchronization primitives are needed here
