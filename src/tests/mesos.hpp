@@ -1398,6 +1398,24 @@ ACTION_P(InvokeReviveOffers, allocator)
 }
 
 
+ACTION_P(InvokeAddQuota, allocator)
+{
+  allocator->real->addQuota(arg0, arg1);
+}
+
+
+ACTION_P(InvokeUpdateQuota, allocator)
+{
+  allocator->real->updateQuota(arg0, arg1);
+}
+
+
+ACTION_P(InvokeRemoveQuota, allocator)
+{
+  allocator->real->removeQuota(arg0);
+}
+
+
 template <typename T = master::allocator::HierarchicalDRFAllocator>
 mesos::master::allocator::Allocator* createAllocator()
 {
@@ -1529,6 +1547,21 @@ public:
       .WillByDefault(InvokeSuppressOffers(this));
     EXPECT_CALL(*this, suppressOffers(_))
       .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, addQuota(_, _))
+      .WillByDefault(InvokeAddQuota(this));
+    EXPECT_CALL(*this, addQuota(_, _))
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, updateQuota(_, _))
+      .WillByDefault(InvokeUpdateQuota(this));
+    EXPECT_CALL(*this, updateQuota(_, _))
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, removeQuota(_))
+      .WillByDefault(InvokeRemoveQuota(this));
+    EXPECT_CALL(*this, removeQuota(_))
+      .WillRepeatedly(DoDefault());
   }
 
   virtual ~TestAllocator() {}
@@ -1622,6 +1655,17 @@ public:
   MOCK_METHOD1(reviveOffers, void(const FrameworkID&));
 
   MOCK_METHOD1(suppressOffers, void(const FrameworkID&));
+
+  MOCK_METHOD2(addQuota, void(
+      const std::string&,
+      const mesos::master::QuotaInfo&));
+
+  MOCK_METHOD2(updateQuota, void(
+      const std::string&,
+      const mesos::master::QuotaInfo&));
+
+  MOCK_METHOD1(removeQuota, void(
+      const std::string&));
 
   process::Owned<mesos::master::allocator::Allocator> real;
 };

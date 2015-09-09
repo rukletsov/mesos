@@ -177,6 +177,17 @@ public:
   void reviveOffers(
       const FrameworkID& frameworkId);
 
+  void addQuota(
+      const std::string& role,
+      const mesos::master::QuotaInfo& quota);
+
+  void updateQuota(
+      const std::string& role,
+      const mesos::master::QuotaInfo& quota);
+
+  void removeQuota(
+      const std::string& role);
+
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
   typedef HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter> Self;
@@ -1199,6 +1210,41 @@ HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::reviveOffers(
   LOG(INFO) << "Removed offer filters for framework " << frameworkId;
 
   allocate();
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::addQuota(
+    const std::string& role,
+    const mesos::master::QuotaInfo& quota)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Received add quota request for role " << role;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::updateQuota(
+    const std::string& role,
+    const mesos::master::QuotaInfo& quota)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Received update quota request for role " << role;
+}
+
+
+template <class RoleSorter, class FrameworkSorter>
+void
+HierarchicalAllocatorProcess<RoleSorter, FrameworkSorter>::removeQuota(
+    const std::string& role)
+{
+  CHECK(initialized);
+
+  LOG(INFO) << "Received remove quota request for role " << role;
 }
 
 
