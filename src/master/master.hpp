@@ -847,8 +847,6 @@ private:
   class QuotaHandler
   {
   public:
-    // TODO(joerg84): For now this is just a stub. It will be filled as
-    // part of MESOS-1791.
     explicit QuotaHandler(Master* _master) : master(_master)
     {
       CHECK_NOTNULL(master);
@@ -877,6 +875,28 @@ private:
     // Extracts a `QuotaInfo` protobuf from the quota request.
     Try<mesos::quota::QuotaInfo> extractQuotaInfo(
       const JSON::Array& request) const;
+
+    // Checks whether a quota request is sane and will be most likely
+    // satisfied by an allocator at the moment, i.e. the request does not
+    // ask for more resources than total unreserved resources available in
+    // the cluster. We cannot give a precise answer here because:
+    //   - It is up to an allocator how to satisfy quota (for example,
+    //     what resources to account towards quota, what resources to
+    //     consider allocatable for quota), hence the best we can do is
+    //     an optimistic check: are there enough free resources in the
+    //     cluster (from the master's perspective) to satisfy the request.
+    //   - Even if there are enough resources at the moment of this check,
+    //     a bunch of agent nodes may terminate right after, rendering the
+    //     cluster under quota.
+    //
+    // In order to perform this check, master calculates role's allocation
+    // and total resources. Currently, we do not account neither static nor
+    // dynamic reservations in role's allcoation, and we do not include
+    // revocable resources into total available resources in the cluster.
+    //
+    // As we evolve quota and related features (e.g. dynamic reservations),
+    // we may update the way we perform this check.
+    Option<Error> checkSanity(const mesos::quota::QuotaInfo& request) const;
 
   private:
     // To perform actions related to quota management, we require access to the
