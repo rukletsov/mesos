@@ -24,6 +24,7 @@
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/master/allocator.pb.h>
+#include <mesos/master/quota.hpp>
 
 #include <mesos/resources.hpp>
 
@@ -146,6 +147,22 @@ public:
   // offers for those resources the master invokes this callback.
   virtual void reviveOffers(
       const FrameworkID& frameworkId) = 0;
+
+  // Informs the allocator about a new role quota it has to satisfy. It is up to
+  // the allocator implementation how to satisfy quota.
+  virtual void addQuota(
+      const std::string& role,
+      const QuotaInfo& quota) = 0;
+
+  // Informs the allocator about a change in the role quota. It is up to the
+  // allocator implementation how to react to the change.
+  virtual void updateQuota(
+      const std::string& role,
+      const QuotaInfo& quota) = 0;
+
+  // Informs the allocator that it should not satisfy quota for the given role.
+  virtual void removeQuota(
+      const std::string& role) = 0;
 };
 
 } // namespace allocator {
