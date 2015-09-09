@@ -847,8 +847,6 @@ private:
   class QuotaHandler
   {
   public:
-    // TODO(joerg84): For now this is just a stub. It will be filled as
-    // part of MESOS-1791.
     explicit QuotaHandler(Master* _master) : master(_master)
     {
       CHECK_NOTNULL(master);
@@ -877,6 +875,21 @@ private:
     // Extracts a `QuotaInfo` protobuf from the quota request.
     Try<mesos::quota::QuotaInfo> extractQuotaInfo(
         const JSON::Array& request) const;
+
+    // Checks whether a quota request is sane and can be satisfied given
+    // the current cluster state, i.e. total quota including the request
+    // does not exceed the total amount of resources in the cluster.
+    // Please be advised that:
+    //   * It is up to an allocator how to satisfy quota (for example,
+    //     what resources to account towards quota, what resources to
+    //     consider allocatable for quota).
+    //   * Even if there are enough resources at the moment of this check,
+    //     a bunch of agent nodes may terminate right after, rendering the
+    //     cluster under quota.
+    //
+    // This method verifies the following inequality holds:
+    //   total - statically reserved >= total quota + quota request
+    Option<Error> checkSanity(const mesos::quota::QuotaInfo& request) const;
 
   private:
     // To perform actions related to quota management, we require access to the

@@ -90,6 +90,48 @@ Try<QuotaInfo> Master::QuotaHandler::extractQuotaInfo(
 }
 
 
+Option<Error> Master::QuotaHandler::checkSanity(const QuotaInfo& request) const
+{
+  VLOG(1) << "Checking sanity of a set quota request";
+
+  // This should have been validated earlier.
+  CHECK(master->roles.contains(request.role()));
+
+  // Calculate the total amount of resources requested by all quotas
+  // (including the request) in the cluster.
+  Resources totalQuota = request.guarantee();
+  foreachvalue (const Quota& quota, master->quotas) {
+    totalQuota += quota.info.guarantee();
+  }
+
+  // Remove roles via `flatten()` to facilitate resource math.
+  totalQuota = totalQuota.flatten();
+
+  Resources totalInCluster;
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    if (!slave->connected || !slave->active) {
+      continue;
+    }
+
+    // Resources on the agent excluding static reservations.
+    // NOTE: Dynamic reservations are not excluded here because they do
+    // not show up in `SlaveInfo` resources.
+    Resources totalOnAgent = Resources(slave->info.resources()).unreserved();
+
+    totalInCluster += totalOnAgent;
+
+    // If we have found enough resources there is no need to continue.
+    if (totalInCluster.contains(totalQuota)) {
+      return None();
+    }
+  }
+
+  // If we reached this point, there are not enough available resources
+  // in the cluster, hence the request cannot be satisfied.
+  return Error("Not enough available resources to satisfy quota request");
+}
+
+
 Future<http::Response> Master::QuotaHandler::set(
     const http::Request& request) const
 {
@@ -152,7 +194,11 @@ Future<http::Response> Master::QuotaHandler::set(
   const QuotaInfo& quotaInfo = extract.get();
 
   // Validate whether a quota request can be satisfied.
-  // TODO(alexr): Implement as per MESOS-3073.
+  Option<Error> error = checkSanity(quotaInfo);
+  if (error.isSome()) {
+    return Conflict("Sanity check for set quota request failed: " +
+                    error.get().message);
+  }
 
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to
