@@ -141,6 +141,58 @@ Try<QuotaInfo> Master::QuotaHandler::validateQuotaRequest(
 }
 
 
+Option<Error> Master::QuotaHandler::checkSanity(const QuotaInfo& request) const
+{
+  VLOG(1) << "Checking sanity of a set quota request";
+
+  CHECK(master->roles.contains(request.role()));
+
+  // Calculate current resource allocation per role (including used resources,
+  // outstanding offers, but not static reservations).
+  // TODO(alexr): Count dynamic reservation in. Currently dynamic reservations
+  // are not included in allocated or used resources (see MESOS-3338) and
+  // there is no way to get the total amout of dynamically reserved resources
+  // for a role without looping through all agents.
+  Resources roleTotal = master->roles[request.role()]->resources();
+
+  // Calculate the unsatisfied part of role quota. Quota is satisfied from '*'
+  // resources, hence we remove the role.
+  Resources missingResources =
+    Resources(request.guarantee()).flatten() - roleTotal.flatten();
+
+  // Estimate total resources available in the cluster.
+  Resources availableInCluster;
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    // TODO(alexr): Consider counting REVOCABLE resources. Right now we do not
+    // consider REVOCABLE resources for satisfying quota, but since it's up to
+    // an allocator implementation, maybe we should count them in?
+
+    Resources availableOnAgent =
+      slave->totalResources -
+      Resources::sum(slave->usedResources);
+
+    // We do not use statically reserved resources to satisy quota.
+    Resources availableForRole =
+      availableOnAgent.unreserved() +
+      availableOnAgent.reserved(
+          request.role()).filter(Resources::isDynamicallyReserved);
+
+    // We flatten resources because we are not interested in reservation
+    // details.
+    availableInCluster += availableForRole.flatten();
+
+    // If we have found enough resources there is no need to continue.
+    if (availableInCluster.contains(missingResources)) {
+      return None();
+    }
+  }
+
+  // If we reached this point, there are not enough resources in the cluster,
+  // hence the request cannot be satisfied.
+  return Error("Not enough available resources to satisfy quota request");
+}
+
+
 Future<Response> Master::QuotaHandler::set(const Request& request) const
 {
   // Authenticate & authorize the request.
@@ -166,10 +218,15 @@ Future<Response> Master::QuotaHandler::set(const Request& request) const
         "Quota cannot be set for a role that already has quota");
   }
 
-  // Check a quota is not set per role.
-
   // Validate whether a quota request can be satisfied.
-  // TODO(alexr): Implement as per MESOS-3073.
+  Option<Error> sanityError = checkSanity(quotaInfo);
+  if (sanityError.isSome()) {
+    VLOG(1) << "Sanity check for set quota request failed: "
+            << sanityError.get().message;
+
+    return Conflict("Sanity check for set quota request failed: " +
+                    sanityError.get().message);
+  }
 
   // Populated master's quota-related local state. We do it before updating the
   // registry in order to make sure that we are not already trying to satisfy a
