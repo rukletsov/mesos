@@ -35,6 +35,7 @@
 #include <mesos/maintenance/maintenance.hpp>
 
 #include <mesos/master/allocator.hpp>
+#include <mesos/master/quota.hpp>
 
 #include <mesos/module/authenticator.hpp>
 
@@ -857,10 +858,7 @@ private:
     }
 
     process::Future<process::http::Response> request(
-        const process::http::Request& request) const
-    {
-      return process::http::Accepted();
-    }
+        const process::http::Request& request) const;
 
     process::Future<process::http::Response> update(
         const process::http::Request& request) const
@@ -1219,6 +1217,10 @@ private:
   hashmap<OfferID, process::Timer> inverseOfferTimers;
 
   hashmap<std::string, Role*> roles;
+
+  // A list of granted quotas in the cluster. We hash quotas by role because
+  // quotas are set per role currently.
+  hashmap<std::string, mesos::master::QuotaInfo> quotas;
 
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;
