@@ -173,7 +173,8 @@ Option<Error> Master::QuotaHandler::checkSanity(const QuotaInfo& request) const
     // We do not use statically reserved resources to satisy quota.
     Resources availableForRole =
       availableOnAgent.unreserved() +
-      availableOnAgent.reserved(request.role()).filter(isDynamicallyReserved);
+      availableOnAgent.reserved(
+          request.role()).filter(Resources::isDynamicallyReserved);
 
     // We flatten resources because we are not interested in reservation
     // details.
@@ -212,10 +213,10 @@ Future<Response> Master::QuotaHandler::set(const Request& request) const
   Option<Error> sanityError = checkSanity(quotaInfo.get());
   if (sanityError.isSome()) {
     VLOG(1) << "Sanity check for set quota request failed: "
-            << sanityError.get().message();
+            << sanityError.get().message;
 
     return Conflict("Sanity check for set quota request failed: " +
-                    sanityError.get().message());
+                    sanityError.get().message);
   }
 
   // Populated master's quota-related local state. We do it before updating the
