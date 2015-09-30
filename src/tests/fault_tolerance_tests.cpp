@@ -617,8 +617,6 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   FrameworkInfo framework2 = DEFAULT_FRAMEWORK_INFO;
   framework2.mutable_id()->MergeFrom(frameworkId.get());
 
-  // As a side effect of driver instantiation, registration backoff will be set
-  // to a default: internal::scheduler::REGISTRATION_BACKOFF_FACTOR.
   MesosSchedulerDriver driver2(
       &sched2, framework2, master.get(), DEFAULT_CREDENTIAL);
 
@@ -649,7 +647,9 @@ TEST_F(FaultToleranceTest, SchedulerFailoverRetriedReregistration)
   AWAIT_READY(reregistrationMessage);
 
   // Trigger the re-registration retry instantly to avoid blocking the test.
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  // As a side effect of driver instantiation in tests, registration backoff is
+  // set to a default value.
+  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(sched2Registered);
 
@@ -674,8 +674,6 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
   Try<PID<Slave>> slave = StartSlave();
   ASSERT_SOME(slave);
 
-  // As a side effect of driver instantiation, registration backoff will be set
-  // to a default: internal::scheduler::REGISTRATION_BACKOFF_FACTOR.
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched, DEFAULT_FRAMEWORK_INFO, master.get(), DEFAULT_CREDENTIAL);
@@ -704,9 +702,11 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
   AWAIT_READY(frameworkRegisteredMessage);
 
-  // Trigger the registration retry instantly to avoid blocking the test.
+  // Trigger the re-registration retry instantly to avoid blocking the test.
+  // As a side effect of driver instantiation in tests, registration backoff is
+  // set to a default value.
   Clock::pause();
-  Clock::advance(internal::scheduler::REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(internal::scheduler::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(registered); // Ensures registered message is received.
 
@@ -1548,7 +1548,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
   // parameterless `StartSlave()` would assign.
   slave::Flags flags = this->CreateSlaveFlags();
   flags.registration_backoff_factor =
-    internal::slave::REGISTRATION_BACKOFF_FACTOR;
+    internal::slave::DEFAULT_REGISTRATION_BACKOFF_FACTOR;
 
   Try<PID<Slave>> slave = StartSlave(flags);
   ASSERT_SOME(slave);
@@ -1574,7 +1574,7 @@ TEST_F(FaultToleranceTest, SlaveReliableRegistration)
 
   // Trigger the registration retry instantly to avoid blocking the test.
   Clock::pause();
-  Clock::advance(internal::slave::REGISTRATION_BACKOFF_FACTOR);
+  Clock::advance(internal::slave::DEFAULT_REGISTRATION_BACKOFF_FACTOR);
 
   AWAIT_READY(resourceOffers);
 
