@@ -99,10 +99,10 @@ protected:
     return flags;
   }
 
-  // Sets
+  // Instructs agents to use specified amount of resources.
   virtual slave::Flags CreateSlaveFlags()
   {
-    slave::Flags flags = this->CreateSlaveFlags();
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
     flags.resources = defaultAgentResourcesString;
     return flags;
   }
@@ -194,7 +194,6 @@ TEST_F(MasterQuotaTest, NonExistentRole)
 TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
 {
   TestAllocator<> allocator;
-
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master>> master = StartMaster(&allocator);
@@ -209,13 +208,67 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                    FutureArg<3>(&agentTotalResources)));
   AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // Our quota request requires more resources than available on the agent (and
   // in the cluster).
-  Resources quotaResources =
-    Resources::parse("cpus:3;mem:1024", role1).get();
-  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+  Resources quotaResources = (
+      agentTotalResources.get() +
+      Resources::parse("cpus:1;mem:1024").get()).flatten(role1);
   EXPECT_FALSE(agentTotalResources.get().contains(quotaResources.flatten()));
+
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
+
+  Shutdown();
+}
+
+
+// Checks that a quota request is not satisfied if there are not enough
+// resources.
+TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _));
+
+  Try<PID<Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start one agent and wait until it registers.
+  Try<PID<Slave>> agent1 = StartSlave();
+  ASSERT_SOME(agent1);
+
+  Future<Resources> agent1TotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                   FutureArg<3>(&agent1TotalResources)));
+  AWAIT_READY(agent1TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent1TotalResources.get());
+
+  // Start another agent and wait until it registers.
+  Try<PID<Slave>> agent2 = StartSlave();
+  ASSERT_SOME(agent2);
+
+  Future<Resources> agent2TotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                   FutureArg<3>(&agent2TotalResources)));
+  AWAIT_READY(agent2TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent2TotalResources.get());
+
+  // Our quota request requires more resources than available on the agent (and
+  // in the cluster).
+  Resources quotaResources = (
+      agent1TotalResources.get() +
+      agent2TotalResources.get() +
+      Resources::parse("cpus:1;mem:1024").get()).flatten(role1);
+  EXPECT_FALSE((agent1TotalResources.get() + agent2TotalResources.get())
+                 .contains(quotaResources.flatten()));
 
   Future<Response> response = process::http::post(
         master.get(),
@@ -234,7 +287,6 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
 TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
 {
   TestAllocator<> allocator;
-
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master>> master = StartMaster(&allocator);
@@ -286,25 +338,25 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
 TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
 {
   TestAllocator<> allocator;
-
   EXPECT_CALL(allocator, initialize(_, _, _, _));
 
   Try<PID<Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
+  // Start one agent and wait until it registers.
   Try<PID<Slave>> agent1 = StartSlave();
   ASSERT_SOME(agent1);
 
-  Try<PID<Slave>> agent2 = StartSlave();
-  ASSERT_SOME(agent2);
-
-  // Wait until the agents register.
   Future<Resources> agent1TotalResources;
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                    FutureArg<3>(&agent1TotalResources)));
   AWAIT_READY(agent1TotalResources);
   EXPECT_EQ(defaultAgentResources, agent1TotalResources.get());
+
+  // Start another agent and wait until it registers.
+  Try<PID<Slave>> agent2 = StartSlave();
+  ASSERT_SOME(agent2);
 
   Future<Resources> agent2TotalResources;
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
