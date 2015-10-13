@@ -85,14 +85,25 @@ static JSON::Array toJSONArray(
 class MasterQuotaTest : public MesosTest
 {
 protected:
-  MasterQuotaTest() : nextFrameworkId(1) {}
+  MasterQuotaTest() : nextFrameworkId(1)
+  {
+    defaultAgentResources = Resources::parse(defaultAgentResourcesString).get();
+  }
 
   // Sets up the master flags with two roles and tiny allocation interval.
   virtual master::Flags CreateMasterFlags()
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
     flags.allocation_interval = Milliseconds(50);
-    flags.roles = "role1,role2";
+    flags.roles = role1 + "," + role2;
+    return flags;
+  }
+
+  // Sets
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = this->CreateSlaveFlags();
+    flags.resources = defaultAgentResourcesString;
     return flags;
   }
 
@@ -123,6 +134,14 @@ protected:
   {
     return strings::format("resources=%s", toJSONArray(resources)).get();
   }
+
+protected:
+  const std::string role1{"role1"};
+  const std::string role2{"role2"};
+
+  const std::string defaultAgentResourcesString{
+    "cpus:2;mem:1024;disk:1024;ports:[31000-32000]"};
+  Resources defaultAgentResources;
 
 private:
   int nextFrameworkId;
@@ -172,7 +191,7 @@ TEST_F(MasterQuotaTest, NonExistentRole)
 
 // Checks that a quota request is not satisfied if there are not enough
 // resources.
-TEST_F(MasterQuotaTest, InsufficientResources)
+TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
 {
   TestAllocator<> allocator;
 
@@ -181,10 +200,7 @@ TEST_F(MasterQuotaTest, InsufficientResources)
   Try<PID<Master>> master = StartMaster(&allocator);
   ASSERT_SOME(master);
 
-  slave::Flags flags = this->CreateSlaveFlags();
-  flags.resources = "cpus:1;mem:512;disk:1024;ports:[31000-32000]";
-
-  Try<PID<Slave>> agent = StartSlave(flags);
+  Try<PID<Slave>> agent = StartSlave();
   ASSERT_SOME(agent);
 
   // Wait until the agent registers.
@@ -197,7 +213,8 @@ TEST_F(MasterQuotaTest, InsufficientResources)
   // Our quota request requires more resources than available on the agent (and
   // in the cluster).
   Resources quotaResources =
-    Resources::parse("cpus:1;mem:1024", "role1").get();
+    Resources::parse("cpus:3;mem:1024", role1).get();
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
   EXPECT_FALSE(agentTotalResources.get().contains(quotaResources.flatten()));
 
   Future<Response> response = process::http::post(
@@ -235,12 +252,13 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
 
   // We request quota for a portion of resources available on the agent.
   Resources quotaResources =
-    Resources::parse("cpus:1;mem:512", "role1").get();
+    Resources::parse("cpus:1;mem:512", role1).get();
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources.flatten()));
 
   // Send a quota request for the specified role.
   Future<QuotaInfo> receivedQuotaRequest;
-  EXPECT_CALL(allocator, addQuota(Eq("role1"), _))
+  EXPECT_CALL(allocator, addQuota(Eq(role1), _))
     .WillOnce(DoAll(InvokeAddQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
@@ -256,7 +274,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   // lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ("role1", receivedQuotaRequest.get().role());
+  EXPECT_EQ(role1, receivedQuotaRequest.get().role());
   EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
@@ -286,21 +304,23 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                    FutureArg<3>(&agent1TotalResources)));
   AWAIT_READY(agent1TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent1TotalResources.get());
 
   Future<Resources> agent2TotalResources;
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
                    FutureArg<3>(&agent2TotalResources)));
   AWAIT_READY(agent2TotalResources);
+  EXPECT_EQ(defaultAgentResources, agent2TotalResources.get());
 
   // We request quota for a portion of resources which is not available on a
   // single agent.
   Resources quotaResources =
-    (agent1TotalResources.get() + agent2TotalResources.get()).flatten("role1");
+    (agent1TotalResources.get() + agent2TotalResources.get()).flatten(role1);
 
   // Send a quota request for the specified role.
   Future<QuotaInfo> receivedQuotaRequest;
-  EXPECT_CALL(allocator, addQuota(Eq("role1"), _))
+  EXPECT_CALL(allocator, addQuota(Eq(role1), _))
     .WillOnce(DoAll(InvokeAddQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
@@ -316,7 +336,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   // lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ("role1", receivedQuotaRequest.get().role());
+  EXPECT_EQ(role1, receivedQuotaRequest.get().role());
   EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
 
   Shutdown();
