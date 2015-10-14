@@ -136,6 +136,7 @@ set(MASTER_SRC
   master/maintenance.cpp
   master/master.cpp
   master/metrics.cpp
+  master/quota_handler.cpp
   master/registry.hpp
   master/registry.proto
   master/registrar.cpp
