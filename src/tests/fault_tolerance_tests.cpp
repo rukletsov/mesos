@@ -717,7 +717,12 @@ TEST_F(FaultToleranceTest, FrameworkReliableRegistration)
 
 TEST_F(FaultToleranceTest, FrameworkReregister)
 {
-  Try<PID<Master>> master = StartMaster();
+  // Reduce the allocation interval, so that the reregistered framework
+  // does not wait 1 second for offers, which speeds up the test.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<PID<Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   StandaloneMasterDetector slaveDetector(master.get());
