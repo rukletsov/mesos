@@ -18,7 +18,10 @@
 
 import "mesos/mesos.proto";
 
-package mesos.master;
+package mesos.quota;
+
+option java_package = "org.apache.mesos.quota";
+option java_outer_classname = "Protos";
 
 
 /**
@@ -33,7 +36,7 @@ message QuotaInfo {
   optional string role = 1;
 
   // Resources which are guaranteed to be allocatable by role.
-  // NOTE: Each guarantees.role must match the above role and
+  // NOTE: Each guarantee.role must match the above role and
   // resource names must be unique.
   repeated Resource guarantee = 3;
 }
