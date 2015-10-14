@@ -126,6 +126,9 @@ master::Flags MesosTest::CreateMasterFlags()
 
   flags.authenticators = tests::flags.authenticators;
 
+  // Be explicit about the allocation interval used in tests.
+  flags.allocation_interval = defaultAllocationInterval;
+
   return flags;
 }
 

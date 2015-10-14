@@ -241,6 +241,8 @@ protected:
 
   const std::string defaultAgentResourcesString{
     "cpus:2;mem:1024;disk:1024;ports:[31000-32000]"};
+
+  const Duration defaultAllocationInterval{Seconds(1)};
 };
 
 

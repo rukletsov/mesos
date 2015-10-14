@@ -772,6 +772,12 @@ TEST_F(FaultToleranceTest, FrameworkReregister)
 
   AWAIT_READY(reregistered);
 
+  // Trigger the allocation and therefore resource offer instantly to
+  // avoid blocking the test.
+  Clock::pause();
+  Clock::advance(defaultAllocationInterval);
+  Clock::resume();
+
   // The re-registered framework should get offers.
   AWAIT_READY(resourceOffers2);
 
