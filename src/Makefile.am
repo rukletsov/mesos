@@ -1724,6 +1724,7 @@ mesos_tests_SOURCES =						\
   tests/flags.cpp						\
   tests/gc_tests.cpp						\
   tests/hierarchical_allocator_tests.cpp			\
+  tests/hierarchical_allocator_quota_tests.cpp			\
   tests/hook_tests.cpp						\
   tests/http_api_tests.cpp					\
   tests/log_tests.cpp						\
