@@ -380,6 +380,11 @@ protected:
   struct Role
   {
     mesos::master::RoleInfo info;
+
+    // Setting quota for the role changes the order role's frameworks are
+    // offerred resources. Quota goes before fair share, hence setting quota
+    // moves role's frameworks towards the allocation queue's front.
+    Option<mesos::quota::QuotaInfo> quota;
   };
 
   hashmap<std::string, Role> roles;
@@ -401,6 +406,12 @@ protected:
   // TODO(vinod): Consider using a different fairness algorithm for
   // oversubscribed resources.
   SorterFactoryBase* sorterFactory;
+
+  // A dedicated sorter for roles for which quota is set. Quota'ed roles
+  // belong to a separate allocation group and are allocated resources
+  // separately from non quota'ed roles.
+  Sorter* quotaRoleSorter;
+
   Sorter* roleSorter;
   hashmap<std::string, Sorter*> frameworkSorters;
 };
