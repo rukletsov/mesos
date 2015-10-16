@@ -134,7 +134,13 @@ void HierarchicalAllocatorProcess::initialize(
   inverseOfferCallback = _inverseOfferCallback;
   initialized = true;
 
+  // Resources to quota'ed roles are allocated separately from non-quota'ed
+  // roles, hence a dedicated sorter for quota'ed roles is necessary. We create
+  // an instance of the same sorter type we use for general roles.
+  // TODO(alexr): Introduce a sorter type for quota'ed roles.
   roleSorter = roleSorterFactory();
+  quotaRoleSorter = roleSorterFactory();
+
   foreachpair (const string& name, const RoleInfo& roleInfo, _roles) {
     roles[name] = Role();
     roles[name].info = roleInfo;
@@ -175,6 +181,10 @@ void HierarchicalAllocatorProcess::addFramework(
     roleSorter->allocated(role, slaveId, allocated.unreserved());
     frameworkSorters[role]->add(slaveId, allocated);
     frameworkSorters[role]->allocated(frameworkId.value(), slaveId, allocated);
+
+    if (roles[role].quota.isSome()) {
+      quotaRoleSorter->allocated(role, slaveId, allocated.unreserved());
+    }
   }
 
   frameworks[frameworkId] = Framework();
@@ -216,6 +226,10 @@ void HierarchicalAllocatorProcess::removeFramework(
         const SlaveID& slaveId, const Resources& allocated, allocation) {
       roleSorter->unallocated(role, slaveId, allocated.unreserved());
       frameworkSorters[role]->remove(slaveId, allocated);
+
+      if (roles[role].quota.isSome()) {
+        quotaRoleSorter->unallocated(role, slaveId, allocated.unreserved());
+      }
     }
 
     frameworkSorters[role]->remove(frameworkId.value());
@@ -311,6 +325,7 @@ void HierarchicalAllocatorProcess::addSlave(
   CHECK(!slaves.contains(slaveId));
 
   roleSorter->add(slaveId, total.unreserved());
+  quotaRoleSorter->add(slaveId, total.unreserved());
 
   foreachpair (const FrameworkID& frameworkId,
                const Resources& allocated,
@@ -325,6 +340,10 @@ void HierarchicalAllocatorProcess::addSlave(
       frameworkSorters[role]->add(slaveId, allocated);
       frameworkSorters[role]->allocated(
           frameworkId.value(), slaveId, allocated);
+
+      if (roles[role].quota.isSome()) {
+        quotaRoleSorter->allocated(role, slaveId, allocated.unreserved());
+      }
     }
   }
 
@@ -363,6 +382,7 @@ void HierarchicalAllocatorProcess::removeSlave(
   // than what we currently track in the allocator.
 
   roleSorter->remove(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->remove(slaveId, slaves[slaveId].total.unreserved());
 
   slaves.erase(slaveId);
 
@@ -393,10 +413,9 @@ void HierarchicalAllocatorProcess::updateSlave(
   // Now add the new estimate of oversubscribed resources.
   slaves[slaveId].total += oversubscribed;
 
-  // Now, update the total resources in the role sorter.
-  roleSorter->update(
-      slaveId,
-      slaves[slaveId].total.unreserved());
+  // Now, update the total resources in the role sorters.
+  roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->update(slaveId, slaves[slaveId].total.unreserved());
 
   LOG(INFO) << "Agent " << slaveId << " (" << slaves[slaveId].hostname << ")"
             << " updated with oversubscribed resources " << oversubscribed
@@ -498,6 +517,14 @@ void HierarchicalAllocatorProcess::updateAllocation(
       frameworkAllocation.unreserved(),
       updatedFrameworkAllocation.get().unreserved());
 
+  if (roles[role].quota.isSome()) {
+    quotaRoleSorter->update(
+        role,
+        slaveId,
+        frameworkAllocation.unreserved(),
+        updatedFrameworkAllocation.get().unreserved());
+  }
+
   Try<Resources> updatedSlaveAllocation =
     slaves[slaveId].allocated.apply(operations);
 
@@ -551,8 +578,9 @@ HierarchicalAllocatorProcess::updateAvailable(
 
   slaves[slaveId].total = updatedTotal.get();
 
-  // Now, update the total resources in the role sorter.
+  // Now, update the total resources in the role sorters.
   roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->update(slaveId, slaves[slaveId].total.unreserved());
 
   return Nothing();
 }
@@ -735,6 +763,10 @@ void HierarchicalAllocatorProcess::recoverResources(
           frameworkId.value(), slaveId, resources);
       frameworkSorters[role]->remove(slaveId, resources);
       roleSorter->unallocated(role, slaveId, resources.unreserved());
+
+      if (roles[role].quota.isSome()) {
+        quotaRoleSorter->unallocated(role, slaveId, resources.unreserved());
+      }
     }
   }
 
@@ -852,7 +884,25 @@ void HierarchicalAllocatorProcess::setQuota(
 {
   CHECK(initialized);
 
-  LOG(INFO) << "Received quota set request for role " << role;
+  CHECK(roles.contains(role));
+  CHECK(frameworkSorters.contains(role));
+
+  // This method should be called by the master only if the quota for the role
+  // is not set. Setting quota differs from updating it because the former moves
+  // the role to a different allocation group with a dedicated sorter, while the
+  // later just updates the numbers
+  CHECK(roles[role].quota.isNone());
+
+  // Persist quota in memory and add the role into the corresponding allocation
+  // group.
+  roles[role].quota = quota;
+  quotaRoleSorter->add(role, roles[role].info.weight());
+
+  // TODO(alexr): Print the actual quota which is set for the role.
+  LOG(INFO) << "Set quota " << quota.guarantee() << " for role '" << role
+            << "'";
+
+  allocate();
 }
 
 
@@ -861,7 +911,19 @@ void HierarchicalAllocatorProcess::removeQuota(
 {
   CHECK(initialized);
 
-  LOG(INFO) << "Received quota remove request for role " << role;
+  CHECK(roles.contains(role));
+  CHECK(frameworkSorters.contains(role));
+
+  // Do not allow removing quota if it is not set.
+  CHECK(roles[role].quota.isSome());
+
+  // Remove the role from the quota'ed allocation group.
+  roles[role].quota = None();
+  quotaRoleSorter->remove(role);
+
+  LOG(INFO) << "Removed quota for role '" << role << "'";
+
+  allocate();
 }
 
 
