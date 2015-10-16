@@ -977,6 +977,11 @@ void HierarchicalAllocatorProcess::allocate(
   //       to a framework of any role.
   hashmap<FrameworkID, hashmap<SlaveID, Resources>> offerable;
 
+  // Frameworks in a quota'ed role may temporarily reject resources, but we must
+  // reserve enough of them to satisfy their quota whenever they need it.
+  hashmap<string, Resources> unsatisfiedRoleQuotas;
+  hashmap<SlaveID, Resources> laidAsideResources;
+
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
@@ -988,8 +993,119 @@ void HierarchicalAllocatorProcess::allocate(
       continue;
     }
 
-    foreach (const std::string& role, roleSorter->sort()) {
-      foreach (const std::string& frameworkId_,
+    // Quota comes first and fair share second. Here we process only those
+    // roles, for which quota is set (aka quota'ed roles). Such roles form a
+    // special allocation group with a dedicatedsorter.
+    foreach (const string& role, quotaRoleSorter->sort()) {
+      CHECK(roles[role].quota.isSome());
+
+      // Summing up resources is fine because quota is only for scalar
+      // resources.
+      // TODO(alexr): Ensure dynamically reserved resources are included.
+      Resources roleAllocatedResources =
+        Resources::sum(quotaRoleSorter->allocation(role));
+
+      // Fetch frameworks according to their fair share.
+      foreach (const string& frameworkId_,
+               frameworkSorters[role]->sort()) {
+        // If quota for the role is satisfied, we do not need to do any further
+        // allocations, at least at this stage.
+        // TODO(alexr): Skipping satisifed roles is pessimistic. Better
+        // alternatives are:
+        //   * A custom sorter that is aware of quotas and sort accordingly.
+        //   * Removing satisfied roles from the sorter.
+        if (roleAllocatedResources.contains(
+                roles[role].quota.get().guarantee())) {
+          break;
+        }
+
+        FrameworkID frameworkId;
+        frameworkId.set_value(frameworkId_);
+
+        // If the framework has suppressed offers, we comply and ignore, but
+        // make sure the enough resources are laid aside to satisfy role's
+        // quota.
+        if (frameworks[frameworkId].suppressed) {
+          continue;
+        }
+
+        // Quota is satisfied from the available unreserved non-revocable
+        // resources on the agent.
+        Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+        Resources resources = available.unreserved();
+        resources -= resources.revocable();
+
+        // NOTE: The resources may not be allocatable here, but they can be
+        // accepted by some framework during the DRF allocation stage.
+        if (!allocatable(resources)) {
+          continue;
+        }
+
+        // If the framework filters these resources, we comply and ignore, but
+        // make sure the enough resources are laid aside to satisfy role's
+        // quota.
+        if (isFiltered(frameworkId, slaveId, resources)) {
+          continue;
+        }
+
+        VLOG(2) << "Allocating " << resources << " on agent " << slaveId
+                << " to framework " << frameworkId
+                << " as part of its role quota";
+
+        // Note that we perform "coarse-grained" allocation for quota'ed
+        // resources, which may lead to overcimmittment resources beyond the
+        // quota. This is fine since quota currently represents guarantee.
+        offerable[frameworkId][slaveId] = resources;
+        slaves[slaveId].allocated += resources;
+
+        // Resources allocated as part of the quota count towards role's and
+        // framework's fair share.
+        frameworkSorters[role]->add(slaveId, resources);
+        frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
+        roleSorter->allocated(role, slaveId, resources.unreserved());
+        quotaRoleSorter->allocated(role, slaveId, resources.unreserved());
+      }
+
+      // If the role allocation is less than its quota, save the delta in order
+      // to reserve it later on.
+      roleAllocatedResources =
+        Resources::sum(quotaRoleSorter->allocation(role));
+
+      Resources unsatisfiedRoleQuota =
+        roles[role].quota.get().guarantee() - roleAllocatedResources;
+
+      if (!unsatisfiedRoleQuota.empty()) {
+        unsatisfiedRoleQuotas[role] = unsatisfiedRoleQuota;
+      }
+    }
+
+    // If for whatever reason we have allocated less resources than roles' quota
+    // guarantees, lay aside, i.e. reserve the delta.
+    // TODO(alexr): Consider offer these resources as revocable.
+    if (!unsatisfiedRoleQuotas.empty() &&
+        !Resources::sum(laidAsideResources)
+           .contains(Resources::sum(unsatisfiedRoleQuotas).flatten())) {
+      // Calculate the currently available unreserved non-revocable resources
+      // on the agent.
+      Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
+      Resources resources = available.unreserved();
+      resources -= resources.revocable();
+
+      // NOTE: The resources may not be allocatable here, but they can be
+      // accepted by some framework during the DRF allocation stage.
+      if (!allocatable(resources)) {
+        continue;
+      }
+
+      // Lay aside the resources.
+      laidAsideResources[slaveId] = resources;
+      slaves[slaveId].allocated += resources;
+    }
+
+    // At this point resources for quota are either allocated or laid aside. We
+    // can proceed with allocation the remaining free pool using DRF.
+    foreach (const string& role, roleSorter->sort()) {
+      foreach (const string& frameworkId_,
                frameworkSorters[role]->sort()) {
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
@@ -1037,8 +1153,17 @@ void HierarchicalAllocatorProcess::allocate(
         frameworkSorters[role]->add(slaveId, resources);
         frameworkSorters[role]->allocated(frameworkId_, slaveId, resources);
         roleSorter->allocated(role, slaveId, resources.unreserved());
+        quotaRoleSorter->allocated(role, slaveId, resources.unreserved());
       }
     }
+  }
+
+  // Now we can return all resources we laid aside since we do not intend to
+  // carry them onto subsequent allocation cycles. There will be no allocations
+  // beyond this point.
+  foreachpair (
+    const SlaveID& slaveId, const Resources& resources, laidAsideResources) {
+    slaves[slaveId].allocated -= resources;
   }
 
   if (offerable.empty()) {
