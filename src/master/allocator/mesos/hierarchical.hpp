@@ -334,7 +334,7 @@ protected:
       // master being invalidated, and new offers being sent out.
       hashmap<FrameworkID, mesos::master::InverseOfferStatus> statuses;
 
-      // Represent the "unit of accounting" for maintenance. When a
+      // Represents the "unit of accounting" for maintenance. When a
       // `FrameworkID` is present in the hashset it means an inverse offer has
       // been sent out. When it is not present it means no offer is currently
       // outstanding.
@@ -349,7 +349,14 @@ protected:
 
   hashmap<SlaveID, Slave> slaves;
 
-  hashmap<std::string, mesos::master::RoleInfo> roles;
+  // Represents a role and data associated with it.
+  // NOTE: We currently tie quota to roles, but this may change in the future.
+  struct Role
+  {
+    mesos::master::RoleInfo info;
+  };
+
+  hashmap<std::string, Role> roles;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;

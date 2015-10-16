@@ -34,11 +34,20 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+using std::string;
+using std::vector;
+
 namespace mesos {
 namespace internal {
 namespace master {
 namespace allocator {
 namespace internal {
+
+using mesos::master::InverseOfferStatus;
+using mesos::master::RoleInfo;
+
+using mesos::quota::QuotaInfo;
+
 
 // Used to represent "filters" for resources unused in offers.
 class OfferFilter
@@ -118,17 +127,19 @@ void HierarchicalAllocatorProcess::initialize(
         void(const FrameworkID&,
              const hashmap<SlaveID, UnavailableResources>&)>&
       _inverseOfferCallback,
-    const hashmap<std::string, mesos::master::RoleInfo>& _roles)
+    const hashmap<string, RoleInfo>& _roles)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
-  roles = _roles;
   initialized = true;
 
   roleSorter = roleSorterFactory();
   foreachpair (
-      const std::string& name, const mesos::master::RoleInfo& roleInfo, roles) {
+      const string& name, const RoleInfo& roleInfo, _roles) {
+    roles[name] = Role();
+    roles[name].info = roleInfo;
+
     roleSorter->add(name, roleInfo.weight());
     frameworkSorters[name] = frameworkSorterFactory();
   }
@@ -150,7 +161,7 @@ void HierarchicalAllocatorProcess::addFramework(
 {
   CHECK(initialized);
 
-  const std::string& role = frameworkInfo.role();
+  const string& role = frameworkInfo.role();
 
   CHECK(roles.contains(role));
 
@@ -194,7 +205,7 @@ void HierarchicalAllocatorProcess::removeFramework(
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role;
+  const string& role = frameworks[frameworkId].role;
 
   // Might not be in 'frameworkSorters[role]' because it was previously
   // deactivated and never re-added.
@@ -227,7 +238,7 @@ void HierarchicalAllocatorProcess::activateFramework(
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role;
+  const string& role = frameworks[frameworkId].role;
 
   frameworkSorters[role]->activate(frameworkId.value());
 
@@ -243,7 +254,7 @@ void HierarchicalAllocatorProcess::deactivateFramework(
   CHECK(initialized);
 
   CHECK(frameworks.contains(frameworkId));
-  const std::string& role = frameworks[frameworkId].role;
+  const string& role = frameworks[frameworkId].role;
 
   frameworkSorters[role]->deactivate(frameworkId.value());
 
@@ -306,7 +317,7 @@ void HierarchicalAllocatorProcess::addSlave(
                const Resources& allocated,
                used) {
     if (frameworks.contains(frameworkId)) {
-      const std::string& role = frameworks[frameworkId].role;
+      const string& role = frameworks[frameworkId].role;
 
       // TODO(bmahler): Validate that the reserved resources have the
       // framework's role.
@@ -422,7 +433,7 @@ void HierarchicalAllocatorProcess::deactivateSlave(
 
 
 void HierarchicalAllocatorProcess::updateWhitelist(
-    const Option<hashset<std::string>>& _whitelist)
+    const Option<hashset<string>>& _whitelist)
 {
   CHECK(initialized);
 
@@ -442,7 +453,7 @@ void HierarchicalAllocatorProcess::updateWhitelist(
 
 void HierarchicalAllocatorProcess::requestResources(
     const FrameworkID& frameworkId,
-    const std::vector<Request>& requests)
+    const vector<Request>& requests)
 {
   CHECK(initialized);
 
@@ -453,18 +464,20 @@ void HierarchicalAllocatorProcess::requestResources(
 void HierarchicalAllocatorProcess::updateAllocation(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    const std::vector<Offer::Operation>& operations)
+    const vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
   CHECK(frameworks.contains(frameworkId));
+
+  const string& role = frameworks[frameworkId].role;
 
   // Here we apply offer operations to the allocated resources, which
   // in turns leads to an update of the total. The available resources
   // remain unchanged.
 
   // Update the allocated resources.
-  Sorter* frameworkSorter = frameworkSorters[frameworks[frameworkId].role];
+  Sorter* frameworkSorter = frameworkSorters[role];
 
   Resources frameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
@@ -481,7 +494,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
       updatedFrameworkAllocation.get());
 
   roleSorter->update(
-      frameworks[frameworkId].role,
+      role,
       slaveId,
       frameworkAllocation.unreserved(),
       updatedFrameworkAllocation.get().unreserved());
@@ -509,7 +522,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
 process::Future<Nothing>
 HierarchicalAllocatorProcess::updateAvailable(
     const SlaveID& slaveId,
-    const std::vector<Offer::Operation>& operations)
+    const vector<Offer::Operation>& operations)
 {
   CHECK(initialized);
   CHECK(slaves.contains(slaveId));
@@ -582,7 +595,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
     const Option<UnavailableResources>& unavailableResources,
-    const Option<mesos::master::InverseOfferStatus>& status,
+    const Option<InverseOfferStatus>& status,
     const Option<Filters>& filters)
 {
   CHECK(initialized);
@@ -613,7 +626,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
       // currently so tightly coupled that this check is valuable.
       CHECK_NE(
           status.get().status(),
-          mesos::master::InverseOfferStatus::UNKNOWN);
+          InverseOfferStatus::UNKNOWN);
 
       // If the framework responded, we update our state to match.
       maintenance.statuses[frameworkId].CopyFrom(status.get());
@@ -675,14 +688,14 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
 
 
 process::Future<
-    hashmap<SlaveID, hashmap<FrameworkID, mesos::master::InverseOfferStatus>>>
+    hashmap<SlaveID, hashmap<FrameworkID, InverseOfferStatus>>>
 HierarchicalAllocatorProcess::getInverseOfferStatuses()
 {
   CHECK(initialized);
 
   hashmap<
       SlaveID,
-      hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result;
+      hashmap<FrameworkID, InverseOfferStatus>> result;
 
   // Make a copy of the most recent statuses.
   foreachpair (const SlaveID& id, const Slave& slave, slaves) {
@@ -714,7 +727,7 @@ void HierarchicalAllocatorProcess::recoverResources(
   // MesosAllocatorProcess::deactivateFramework, in which case we will
   // have already recovered all of its resources).
   if (frameworks.contains(frameworkId)) {
-    const std::string& role = frameworks[frameworkId].role;
+    const string& role = frameworks[frameworkId].role;
 
     CHECK(frameworkSorters.contains(role));
 
@@ -835,8 +848,8 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
 
 void HierarchicalAllocatorProcess::setQuota(
-    const std::string& role,
-    const mesos::quota::QuotaInfo& quota)
+    const string& role,
+    const QuotaInfo& quota)
 {
   CHECK(initialized);
 
@@ -845,7 +858,7 @@ void HierarchicalAllocatorProcess::setQuota(
 
 
 void HierarchicalAllocatorProcess::removeQuota(
-    const std::string& role)
+    const string& role)
 {
   CHECK(initialized);
 
@@ -905,7 +918,7 @@ void HierarchicalAllocatorProcess::allocate(
 
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
-  std::vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
+  vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
   foreach (const SlaveID& slaveId, slaveIds) {
@@ -1016,10 +1029,10 @@ void HierarchicalAllocatorProcess::deallocate(
         typename Slave::Maintenance& maintenance =
           slaves[slaveId].maintenance.get();
 
-        hashmap<std::string, Resources> allocation =
+        hashmap<string, Resources> allocation =
           frameworkSorter->allocation(slaveId);
 
-        foreachkey (const std::string& frameworkId_, allocation) {
+        foreachkey (const string& frameworkId_, allocation) {
           FrameworkID frameworkId;
           frameworkId.set_value(frameworkId_);
 
