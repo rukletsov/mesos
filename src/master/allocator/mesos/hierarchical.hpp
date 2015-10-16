@@ -350,11 +350,15 @@ protected:
   hashmap<SlaveID, Slave> slaves;
 
   // Represents a role and data associated with it.
-  // TODO(alexr): Add quota in subsequent patches.
   // NOTE: We currently tie quota to roles, but this may change in the future.
   struct Role
   {
     mesos::master::RoleInfo info;
+
+    // Setting quota for a role changes the order the role's frameworks are
+    // offered resources. Quota goes before fair share, hence setting quota
+    // moves the role's frameworks towards the allocation queue's front.
+    Option<mesos::quota::QuotaInfo> quota;
   };
 
   hashmap<std::string, Role> roles;
@@ -377,6 +381,12 @@ protected:
   // oversubscribed resources.
   const std::function<Sorter*()> roleSorterFactory;
   const std::function<Sorter*()> frameworkSorterFactory;
+
+  // A dedicated sorter for roles for which quota is set. Quota'ed roles
+  // belong to a separate allocation group and have resources allocated
+  // separately from non-quota'ed roles.
+  Sorter* quotaRoleSorter;
+
   Sorter* roleSorter;
   hashmap<std::string, Sorter*> frameworkSorters;
 };
