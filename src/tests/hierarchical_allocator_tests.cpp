@@ -22,6 +22,7 @@
 #include <iostream>
 #include <string>
 #include <queue>
+#include <utility>
 #include <vector>
 
 #include <mesos/master/allocator.hpp>
@@ -50,9 +51,12 @@
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
+using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+
 using mesos::master::allocator::Allocator;
 using mesos::master::RoleInfo;
-using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+
+using mesos::quota::QuotaInfo;
 
 using process::Clock;
 using process::Future;
@@ -175,6 +179,15 @@ protected:
     frameworkInfo.set_role(role);
 
     return frameworkInfo;
+  }
+
+  QuotaInfo createQuotaInfo(const string& role, const string& resources)
+  {
+    QuotaInfo quota;
+    quota.set_role(role);
+    quota.mutable_guarantee()->CopyFrom(Resources::parse(resources).get());
+
+    return quota;
   }
 
   Resources createRevocableResources(
@@ -1123,6 +1136,371 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
   EXPECT_EQ(1u, allocation.get().resources.size());
   EXPECT_TRUE(allocation.get().resources.contains(slave.id()));
   EXPECT_EQ(slave.resources(), Resources::sum(allocation.get().resources));
+}
+
+
+// Those of the overall quota tests that are specific to the built-in
+// Hierarchical DRF allocator (i.e. the way quota is satisfied) are in this
+// file.
+
+// TODO(alexr): Additional tests we may want to implement:
+//   * Quota'ed and non-quota'ed roles, how free pool is allocated.
+//   * Quota'ed and non-quota'ed roles, two frameworks in a quota'ed role, one
+//     declines, the other should get the rest of quota (non fair sharing
+//     inside the role), a greedy non-quota'ed framework tries to eat up free
+//     resources.
+//   * A role has running tasks beyond its fair share, a quota is set and is
+//     greater than the current allocation, the role starts getting
+//     non-revocable offers from the free pool.
+//   * A role has running tasks, quota is being set and is less than the current
+//     allocation, some tasks finish or are killed, but the role does not get
+//     new non-revocable offers (retroactivity).
+//   * Multiple frameworks in a role with quota set, some agents fail,
+//     frameworks should be deprived fairly.
+//   * Multiple quota'ed roles, some agents fail, roles should be deprived
+//     according to their weights.
+
+// In presence of quota'ed and non-quota'ed roles, if a framework in the
+// quota'ed role declines offers, some resources are laid aside for the role,
+// so that a greedy framework from a non-quota'ed role cannot eat up all free
+// resources.
+TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // `role1` is a quota'ed role, `role2` not.
+  const std::string role1{"role1"};
+  const std::string role2{"role2"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize(vector<string>{role1, role2});
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo(role1);
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  QuotaInfo quota1 = createQuotaInfo(role1, "cpus:2;mem:1024;disk:0");
+  allocator->setQuota(role1, quota1);
+
+  // Create `framework2` in a non-quota'ed role.
+  FrameworkInfo framework2 = createFrameworkInfo(role2);
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+
+  // `framework1` will be offered all of `agent1`'s resources because it is
+  // the only framework in the only role with unsatisfied quota.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=1, mem=512.
+  // role1 share = 1 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+
+  // `framework1` will be again offered all of `agent2`'s resources because it
+  // is the only framework in the only role with unsatisfied quota.
+  // `framework2` has to wait.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=2, mem=1024.
+  // role1 share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  // Now `framework1` declines the second offer and sets a filter for 5 seconds.
+  // The declined resources should not be offered to `framework2` because by
+  // doing so they may not be available to `framework1` when the filter expires.
+  Filters filter5s;
+  filter5s.set_refuse_seconds(5.);
+  allocator->recoverResources(
+      framework1.id(),
+      agent2.id(),
+      allocation.get().resources.get(agent2.id()).get(),
+      filter5s);
+
+  // Total cluster resources: cpus=1, mem=512.
+  // role1 share = 0.5 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  // Assuming the default batch allocation interval is less than 5 seconds, all
+  // periodic allocations that happen while the refuse filter is active should
+  // yield no new allocations.
+  ASSERT_LT(flags.allocation_interval.secs(), filter5s.refuse_seconds());
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // TODO(alexr): There is currently no way to check the absence of allocations.
+  // The process::Queue class does not support any size checking methods.
+  // Consider adding `process::Queue::empty()` or refactor the test harness so
+  // that we can reason about whether the Hierarchical allocator has assigned
+  // expected allocations or not. Note that it is utterly hard to capture the
+  // absense of an allocation in a general case, because an allocator may be
+  // complex enough to postpone decisions beyond its allocation cycle.
+
+  // Now advance the clock to make sure the filter is expired. The next and only
+  // allocation should be declined resources to the quota'ed role.
+  Clock::advance(Duration::create(filter5s.refuse_seconds()).get());
+  Clock::settle();
+
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=2, mem=1024.
+  // role1 share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+}
+
+
+// If quota is removed, fair sharing should be restored in the cluster after
+// sufficient number of tasks finish.
+TEST_F(HierarchicalAllocatorTest, RemoveQuota)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // `role1` is a quota'ed role, `role2` not.
+  const std::string role1{"role1"};
+  const std::string role2{"role2"};
+
+  initialize(vector<string>{role1, role2});
+
+  // We start with the following cluster setup.
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // role1 share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  // Create framework and agent descriptions.
+  FrameworkInfo framework1 = createFrameworkInfo(role1);
+  FrameworkInfo framework2 = createFrameworkInfo(role2);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  QuotaInfo quota1 = createQuotaInfo(role1, "cpus:2;mem:1024;disk:0");
+
+  // Notify allocator of agents, frameworks, quota and current allocations.
+  allocator->setQuota(role1, quota1);
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      None(),
+      agent1.resources(),
+      {std::make_pair(framework1.id(), agent1.resources())});
+
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      None(),
+      agent2.resources(),
+      {std::make_pair(framework1.id(), agent2.resources())});
+
+  allocator->addFramework(
+      framework1.id(),
+      framework1,
+      {std::make_pair(agent1.id(), agent1.resources()),
+       std::make_pair(agent2.id(), agent2.resources())});
+
+  allocator->addFramework(
+      framework2.id(),
+      framework2,
+      hashmap<SlaveID, Resources>());
+
+  // All cluster resources are now being used by `framework1` as part of its
+  // role quota, now further allocations are expected. However, once the quota
+  // is removed, quota guarantee does not apply any more and released resources
+  // should be offered to `framework2` to restore fairness.
+
+  allocator->removeQuota(role1);
+
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      agent1.resources(),
+      None());
+
+  // Trigger the next periodic allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=2, mem=1024.
+  // role1 share = 0.5 (cpus=1, mem=512)
+  //   framework1 share = 1
+  // role2 share = 0.5 (cpus=1, mem=512)
+  //   framework2 share = 1
+}
+
+
+// If a quota'ed role contains multiple frameworks, the resources should be
+// distributed fairly between them.
+TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // `role1` is a quota'ed role, `role2` not.
+  const std::string role1{"role1"};
+  const std::string role2{"role2"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize(vector<string>{role1, role2});
+
+  // Create `framework1a` and set quota for its role.
+  FrameworkInfo framework1a = createFrameworkInfo(role1);
+  allocator->addFramework(
+      framework1a.id(), framework1a, hashmap<SlaveID, Resources>());
+
+  QuotaInfo quota1 = createQuotaInfo(role1, "cpus:4;mem:2048;disk:0");
+  allocator->setQuota(role1, quota1);
+
+  // Create `framework2` in a non-quota'ed role.
+  FrameworkInfo framework2 = createFrameworkInfo(role2);
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+
+  // `framework1a` will be offered all of `agent1`'s resources because it is
+  // the only framework in the only role with unsatisfied quota.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1a.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=1, mem=512.
+  // role1 share = 1 (cpus=1, mem=512) [quota: cpus=2, mem=1024]
+  //   framework1a share = 1
+  // role2 share = 0
+  //   framework2 share = 0
+
+  // Create `framework1b` in the quota'ed role.
+  FrameworkInfo framework1b = createFrameworkInfo(role1);
+  allocator->addFramework(
+      framework1b.id(), framework1b, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+
+  // `framework1b` will be offered all of `agent2`'s resources (coarse-grained
+  // allocation) because its share is 0 and it belongs to a role with
+  // unsatisfied quota.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1b.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=3, mem=1536.
+  // role1 share = 1 (cpus=3, mem=1536) [quota: cpus=4, mem=2048]
+  //   framework1a share = 0.33 (cpus=1, mem=512)
+  //   framework1b share = 0.66 (cpus=2, mem=1024)
+  // role2 share = 0
+  //   framework2 share = 0
+
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), EMPTY);
+
+  // `framework1a` will be offered all of `agent3`'s resources because its share
+  // is less than `framework1b`'s and `role1` still has unsatisfied quota.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1a.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent3.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources: cpus=4, mem=2048.
+  // role1 share = 1 (cpus=4, mem=2048) [quota: cpus=4, mem=2048]
+  //   framework1a share = 0.5 (cpus=2, mem=1024)
+  //   framework1b share = 0.5 (cpus=2, mem=1024)
+  // role2 share = 0
+  //   framework2 share = 0
+}
+
+
+// The allocator performs coarse-grained allocations, and allocations to
+// satisfy quota are no exceptions. A role may get more resources as part of its
+// quota if the agent remaining resources are greater than the unsatisfied part
+// of the role's quota.
+TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the periodic allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // `role1` is a quota'ed role, `role2` not.
+  const std::string role1{"role1"};
+  const std::string role2{"role2"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize(vector<string>{role1, role2});
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo(role1);
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  QuotaInfo quota1 = createQuotaInfo(role1, "cpus:0.5;mem:200;disk:0");
+  allocator->setQuota(role1, quota1);
+
+  // Create `framework2` in a non-quota'ed role.
+  FrameworkInfo framework2 = createFrameworkInfo(role2);
+  allocator->addFramework(
+      framework2.id(), framework2, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+
+  // `framework1` will be offered all of `agent1`'s resources because it is
+  // the only framework in the only role with unsatisfied quota and the
+  // allocator performs coarse-grained allocation.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_TRUE(Resources(agent1.resources()).contains(quota1.guarantee()));
+
+  // Total cluster resources: cpus=1, mem=512.
+  // role1 share = 1 (cpus=1, mem=512) [quota: cpus=0.5, mem=200]
+  //   framework1 share = 1
+  // role2 share = 0
+  //   framework2 share = 0
 }
 
 
