@@ -28,6 +28,8 @@
 
 #include "master/master.hpp"
 
+#include "logging/logging.hpp"
+
 using std::string;
 
 using process::Future;
@@ -49,47 +51,90 @@ using process::http::Response;
 // Utility functions. In order to keep dependencies local to this .cpp file, we
 // do not put them into QuotaHandler.
 
-// TODO(alexr): Summarize what it does.
-Try<QuotaInfo> validateQuotaRequest(const Request& request)
+Try<QuotaInfo> Master::QuotaHandler::validateQuotaRequest(
+    const Request& request) const
 {
-  // TODO(alexr): Implement as part per MESOS-3199.
+  VLOG(1) << "Validating Quota Request";
 
-  // Decode the request.
+  // Check that the request type is POST.
   if (request.method != "POST") {
-    return Error("Expecting POST");
+    return Error("QuotaRequest should be POST, got '" + request.method + "'");
   }
 
-  // Parse the query string in the request body.
-  Try<hashmap<string, string>> decode =
-    process::http::query::decode(request.body);
-
-  if (decode.isError()) {
-    return Error("Unable to decode query string: " + decode.error());
+  // Check whether the request is valid json.
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(request.body);
+  if (parse.isError()) {
+    return Error(
+        "Error in parsing Quota Request: " + parse.error());
   }
 
-  // Check all required (or optional, but logically required) fields are
-  // present, including: role, resources, etc.
+  const JSON::Array array = parse.get().values["resources"].as<JSON::Array>();
+  string role;
+  foreach (const JSON::Value& value, array.values) {
+    // Check whether it is a valid resource message.
+    Try<Resource> resource = ::protobuf::parse<Resource>(value);
+    if (resource.isError()) {
+      return Error(
+          "Error in parsing 'resources' in Quota Request: " + resource.error());
+    }
 
-  // Check there are no multiple resources of the same name, Check irrelevant
-  // fields are not set: reservatin, disk, etc.
+    // Check that resource is valid.
+    Option<Error> error = Resources::validate(resource.get());
+    if (error.isSome()) {
+      return Error(
+        "Quota Request with invalid resources: " + error.get().message);
+    }
 
+    // Checking that Resource does not contain non-relevant fields.
+    // Check that Request does not contain ReservationInfo.
+    if (resource.get().has_reservation()) {
+      return Error("Quota Request may not contain ReservationInfo.");
+    }
+    // Check that Request does not contain DiskInfo.
+    if (resource.get().has_disk()) {
+      return Error("Quota Request may not contain DiskInfo.");
+    }
+    // Check that Request does not contain RevocableInfo.
+    if (resource.get().has_revocable()) {
+      return Error("Quota Request may not contain RevocableInfo.");
+    }
+
+    // Check all roles are set and equal.
+    if (!resource.get().has_role()) {
+      return Error("Quota Request without role specified.");
+    }
+    // Store first encountered role as reference.
+    if (role.empty()) {
+      role = resource.get().role();
+    }
+    // Ensure role is equal to reference role.
+    if (role != resource.get().role() ) {
+      return Error("Quota Request with different roles.");
+    }
+
+    // Check that all resources are scalar.
+    if (resource.get().type() != Value::SCALAR) {
+      return Error(
+          "Quota Request including non-scalar resources.");
+    }
+  }
+
+  // Check that the role is kown by the master.
   // TODO(alexr): Once we are able to dynamically add roles, we should stop
   // checking whether the requested role is known to the master, because an
   // operator may set quota for a role that is about to be introduced.
+  if (!master->roles.contains(role)) {
+    return Error("Quota Request for unknown role.");
+  }
 
-  // TODO(alexr): This code creates a `QuotaInfo` protobuf message in a
-  // straightforward and unsafe manner to enable testing. It lacks validation
-  // which is added in subsequent patches.
-  Try<JSON::Array> parse =
-    JSON::parse<JSON::Array>(decode.get().get("resources").get());
-
+  // Create Quota Info Protobuf.
   google::protobuf::RepeatedPtrField<Resource> resources =
-    ::protobuf::parse<google::protobuf::RepeatedPtrField<Resource>>(parse.get())
+    ::protobuf::parse<google::protobuf::RepeatedPtrField<Resource>>(array)
       .get();
 
   QuotaInfo quota;
   quota.mutable_guarantee()->CopyFrom(resources);
-  quota.set_role(resources.begin()->role());
+  quota.set_role(role);
 
   return quota;
 }
@@ -104,6 +149,12 @@ Future<Response> Master::QuotaHandler::set(const Request& request) const
   Try<QuotaInfo> quotaInfo = validateQuotaRequest(request);
   if (quotaInfo.isError()) {
     return BadRequest(quotaInfo.error());
+  }
+
+  // Check we are not updating an existing Quota.
+  if (master->roles[quotaInfo.get().role()]->quotaInfo.isSome()) {
+    return BadRequest(
+        "Existing Quota for role. Use PUT /master/quota/role to update.");
   }
 
   // Check a quota is not set per role.
@@ -131,6 +182,7 @@ Future<Response> Master::QuotaHandler::set(const Request& request) const
 
   return OK();
 }
+
 
 } // namespace master {
 } // namespace internal {
