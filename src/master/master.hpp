@@ -859,6 +859,8 @@ private:
     process::Future<process::http::Response> status(
         const process::http::Request& request) const
     {
+      // TODO(joerg84): For now this is just a stub. It will be filled as
+      // part of MESOS-1791./
       return process::http::Accepted();
     }
 
@@ -868,8 +870,18 @@ private:
     process::Future<process::http::Response> remove(
         const process::http::Request& request) const
     {
+      // TODO(joerg84): For now this is just a stub. It will be filled as
+      // part of MESOS-1791.
       return process::http::Accepted();
     }
+
+    // Check whether the json semantically represents a valid Quota Request:
+    // - Request should be valid json.
+    // - Request has to include a single role across all resources.
+    // - Request should not update existing Quota.
+    // - Request should only contain scalar resources.
+    Try<mesos::quota::QuotaInfo> validateQuotaRequest(
+        const process::http::Request& request) const;
 
   private:
     // To perform actions related to quota management, we require access to the
@@ -1967,6 +1979,11 @@ struct Role
   // with roles in the future.
 
   hashmap<FrameworkID, Framework*> frameworks;
+
+  /**
+  * If set represents the quota for this role.
+  */
+  Option<mesos::quota::QuotaInfo> quotaInfo;
 };
 
 } // namespace master {
