@@ -426,6 +426,321 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
 }
 
 
+// Test whether we can retrieve the current quota status from
+// /master/quota endpoint via a GET request against /quota.
+TEST_F(MasterQuotaTest, QuotaEndpointStatus)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start two agents each having cpus:2;mem:1024;disk:1024;ports:[31000-32000].
+  Future<SlaveRegisteredMessage> agent1RegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get(), _);
+
+  Try<PID<Slave>> agent1 = StartSlave();
+  ASSERT_SOME(agent1);
+
+  Future<SlaveRegisteredMessage> agent2RegisteredMessage = FUTURE_PROTOBUF(
+    SlaveRegisteredMessage(), master.get(), testing::Not(agent1.get()));
+
+  Try<PID<Slave>> agent2 = StartSlave();
+  ASSERT_SOME(agent2);
+
+  // Wait for the agent to be registered.
+  AWAIT_READY(agent1RegisteredMessage);
+  AWAIT_READY(agent2RegisteredMessage);
+
+  // We request quota for a portion of resources available on the agents.
+  Resources quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::Accepted().status, response);
+
+  // Query the master quota endpoint.
+  response = process::http::get(master.get(), "quota");
+  AWAIT_READY(response);
+
+  EXPECT_SOME_EQ(
+      "application/json",
+      response.get().headers.get("Content-Type"));
+
+  const Try<JSON::Object> parse =
+    JSON::parse<JSON::Object>(response.get().body);
+
+  ASSERT_SOME(parse);
+
+  // Check that there are at least two elements in the array.
+  Result<JSON::Array> array = parse.get().find<JSON::Array>("slaves");
+  ASSERT_SOME(array);
+  EXPECT_EQ(2u, array.get().values.size());
+
+  // TODO(joerg84) Add checks for quota
+
+  Shutdown();
+}
+
+
+// Test whether we can request a new quota via /master/quota endpoint.
+// Should return a '200 Ok' return Code.
+TEST_F(MasterQuotaTest, QuotaEndpointCreate)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We request quota for a portion of resources available on the agents.
+  Resources quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::Accepted().status, response);
+
+  Shutdown();
+}
+
+
+// Test whether a QuotaRequest with non-scalar resources fails.
+// Should return a '400 Bad Request' return Code.
+TEST_F(MasterQuotaTest, QuotaEndpointCreateNonScalar)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We request quota for a portion of resources available on the agents.
+  Resources quotaResources =
+    Resources::parse(
+        "cpus:4;mem:512;ports:[10000-20000, 30000-50000]", "quota_ads").get();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  Shutdown();
+}
+
+
+// Test whether a quota request withinvalid json.
+// Should return a '400 Bad Request' return code.
+TEST_F(MasterQuotaTest, QuotaEndpointCreateInvalid)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  string badRequest = "{"
+      "invalidJson"
+      "}";
+
+  Future<process::http::Response> response = process::http::post(
+      master.get(),
+      "quota",
+      None(),
+      Option<std::string>(badRequest),
+      None());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  Shutdown();
+}
+
+
+// Test whether an quota request including multiple roles
+// returns a '400 Bad Request'.
+TEST_F(MasterQuotaTest, QuotaEndpointCreateInvalidRoles)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We request quota for two different roles.
+  Resources quotaResources =
+    Resources::parse(
+        "cpus:4;mem:512;ports:[10000-20000, 30000-50000]", "quota_ads").get();
+
+  Resources quotaResources2 =
+    Resources::parse(
+        "cpus:4;mem:512;ports:[10000-20000, 30000-50000]", "quota_ads2").get();
+
+  quotaResources += quotaResources2;
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  Shutdown();
+}
+
+
+// Test whether updating an exiting quota for an via via POST to
+// /master/quota endpoint results in an error (as this should be done
+// via PUT to /master/quota/role endpoint). Should return a
+// '409 Existing Resource' return Code.
+TEST_F(MasterQuotaTest, QuotaEndpointCreateExisting)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // We request quota for a portion of resources available on the agents.
+  Resources quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::Accepted().status, response);
+
+  // Incremental quota request via post.
+  response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  Shutdown();
+}
+
+
+// Check whether a quota request with either invalid field set is is rejected:
+// - ReservationInfo
+// - RevocableInfo
+// - DiskInfo
+TEST_F(MasterQuotaTest, InvalidResourceInfos)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Create Resources with DiskInfo and check request will return a BadRequest.
+  Resources quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+  Resource volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+  quotaResources += volume;
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  // Create Resources with RevocableInfo and check request will return
+  // a BadRequest.
+  quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+  volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_revocable();
+  quotaResources += volume;
+  // Send a quota request.
+  response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  // Create Resources with ReservationInfo and check request will return
+  // a BadRequest.
+  quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+  volume = Resources::parse("disk", "128", "role1").get();
+  volume.mutable_reservation()->CopyFrom(
+      createReservationInfo("principal"));
+  quotaResources += volume;
+  // Send a quota request.
+  response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+}
+
+
+// Test to release existing quota. Should return a '200 Ok'
+// return code.
+TEST_F(MasterQuotaTest, QuotaEndpointRelease)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Initial quota request.
+  Resources quotaResources =
+    Resources::parse("cpus:4;mem:512", "quota_ads").get();
+
+  // Send a quota request for the specified role.
+  Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::Accepted().status, response);
+
+  // Send a delete request for the 'quota_ads' role.
+  response = process::http::requestDelete(
+        master.get(),
+        "quota/quota_ads",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::Accepted().status, response);
+
+  Shutdown();
+}
+
+
+// Test to release non-existing quota. Should return a '409 Conflict'
+// return code.
+TEST_F(MasterQuotaTest, QuotaEndpointInvalidRelase)
+{
+  // Start up the master.
+  Try<PID<Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Send a delete request for the 'quota_ads' role.
+  Future<Response> response = process::http::requestDelete(
+        master.get(),
+        "quota/non-existent-role",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::BadRequest().status, response);
+
+  Shutdown();
+}
+
 // These tests ensure quota implements declared functionality. Note that the
 // tests here are allocator-agnostic, which means we expect every allocator to
 // implement basic quota guarantees.
