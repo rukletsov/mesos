@@ -342,7 +342,7 @@ void HierarchicalAllocatorProcess::addSlave(
       typename Slave::Maintenance(unavailability.get());
   }
 
-  LOG(INFO) << "Added slave " << slaveId << " (" << slaves[slaveId].hostname
+  LOG(INFO) << "Added agent " << slaveId << " (" << slaves[slaveId].hostname
             << ") with " << slaves[slaveId].total
             << " (allocated: " << slaves[slaveId].allocated << ")";
 
@@ -371,7 +371,7 @@ void HierarchicalAllocatorProcess::removeSlave(
   // HierarchicalAllocatorProcess::expire gets invoked (or the framework
   // that applied the filters gets removed).
 
-  LOG(INFO) << "Removed slave " << slaveId;
+  LOG(INFO) << "Removed agent " << slaveId;
 }
 
 
@@ -398,7 +398,7 @@ void HierarchicalAllocatorProcess::updateSlave(
       slaveId,
       slaves[slaveId].total.unreserved());
 
-  LOG(INFO) << "Slave " << slaveId << " (" << slaves[slaveId].hostname << ")"
+  LOG(INFO) << "Agent " << slaveId << " (" << slaves[slaveId].hostname << ")"
             << " updated with oversubscribed resources " << oversubscribed
             << " (total: " << slaves[slaveId].total
             << ", allocated: " << slaves[slaveId].allocated << ")";
@@ -415,7 +415,7 @@ void HierarchicalAllocatorProcess::activateSlave(
 
   slaves[slaveId].activated = true;
 
-  LOG(INFO)<< "Slave " << slaveId << " reactivated";
+  LOG(INFO)<< "Agent " << slaveId << " reactivated";
 }
 
 
@@ -427,7 +427,7 @@ void HierarchicalAllocatorProcess::deactivateSlave(
 
   slaves[slaveId].activated = false;
 
-  LOG(INFO) << "Slave " << slaveId << " deactivated";
+  LOG(INFO) << "Agent " << slaveId << " deactivated";
 }
 
 
@@ -439,13 +439,13 @@ void HierarchicalAllocatorProcess::updateWhitelist(
   whitelist = _whitelist;
 
   if (whitelist.isSome()) {
-    LOG(INFO) << "Updated slave whitelist: " << stringify(whitelist.get());
+    LOG(INFO) << "Updated agent whitelist: " << stringify(whitelist.get());
 
     if (whitelist.get().empty()) {
       LOG(WARNING) << "Whitelist is empty, no offers will be made!";
     }
   } else {
-    LOG(INFO) << "Advertising offers for all slaves";
+    LOG(INFO) << "Advertising offers for all agents";
   }
 }
 
@@ -512,7 +512,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
   slaves[slaveId].total = updatedTotal.get();
 
   LOG(INFO) << "Updated allocation of framework " << frameworkId
-            << " on slave " << slaveId
+            << " on agent " << slaveId
             << " from " << frameworkAllocation
             << " to " << updatedFrameworkAllocation.get();
 }
@@ -658,7 +658,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
 
   if (seconds.get() != Duration::zero()) {
     VLOG(1) << "Framework " << frameworkId
-            << " filtered inverse offers from slave " << slaveId
+            << " filtered inverse offers from agent " << slaveId
             << " for " << seconds.get();
 
     // Create a new inverse offer filter and delay its expiration.
@@ -751,7 +751,7 @@ void HierarchicalAllocatorProcess::recoverResources(
     LOG(INFO) << "Recovered " << resources
               << " (total: " << slaves[slaveId].total
               << ", allocated: " << slaves[slaveId].allocated
-              << ") on slave " << slaveId
+              << ") on agent " << slaveId
               << " from framework " << frameworkId;
   }
 
@@ -786,7 +786,7 @@ void HierarchicalAllocatorProcess::recoverResources(
 
   if (seconds.get() != Duration::zero()) {
     VLOG(1) << "Framework " << frameworkId
-            << " filtered slave " << slaveId
+            << " filtered agent " << slaveId
             << " for " << seconds.get();
 
     // Create a new filter and delay its expiration.
@@ -879,7 +879,7 @@ void HierarchicalAllocatorProcess::allocate()
 
   allocate(slaves.keys());
 
-  VLOG(1) << "Performed allocation for " << slaves.size() << " slaves in "
+  VLOG(1) << "Performed allocation for " << slaves.size() << " agents in "
             << stopwatch.elapsed();
 }
 
@@ -895,7 +895,7 @@ void HierarchicalAllocatorProcess::allocate(
   slaves.insert(slaveId);
   allocate(slaves);
 
-  VLOG(1) << "Performed allocation for slave " << slaveId << " in "
+  VLOG(1) << "Performed allocation for agent " << slaveId << " in "
           << stopwatch.elapsed();
 }
 
@@ -960,7 +960,7 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
-        VLOG(2) << "Allocating " << resources << " on slave " << slaveId
+        VLOG(2) << "Allocating " << resources << " on agent " << slaveId
                 << " to framework " << frameworkId;
 
         // Note that we perform "coarse-grained" allocation,
@@ -1157,7 +1157,7 @@ HierarchicalAllocatorProcess::isFiltered(
   // https://issues.apache.org/jira/browse/MESOS-444.
   if (frameworks[frameworkId].checkpoint && !slaves[slaveId].checkpoint) {
     VLOG(1) << "Filtered offer with " << resources
-            << " on non-checkpointing slave " << slaveId
+            << " on non-checkpointing agent " << slaveId
             << " for checkpointing framework " << frameworkId;
 
     return true;
@@ -1168,7 +1168,7 @@ HierarchicalAllocatorProcess::isFiltered(
       OfferFilter* offerFilter, frameworks[frameworkId].offerFilters[slaveId]) {
       if (offerFilter->filter(resources)) {
         VLOG(1) << "Filtered offer with " << resources
-                << " on slave " << slaveId
+                << " on agent " << slaveId
                 << " for framework " << frameworkId;
 
         return true;
@@ -1192,7 +1192,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
         InverseOfferFilter* inverseOfferFilter,
         frameworks[frameworkId].inverseOfferFilters[slaveId]) {
       if (inverseOfferFilter->filter()) {
-        VLOG(1) << "Filtered unavailability on slave " << slaveId
+        VLOG(1) << "Filtered unavailability on agent " << slaveId
                 << " for framework " << frameworkId;
 
         return true;
