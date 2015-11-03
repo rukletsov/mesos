@@ -828,6 +828,29 @@ Future<Response> Master::Http::slaves(const Request& request) const
 }
 
 
+Future<Response> Master::Http::quota(const Request& request) const
+{
+  // Dispatch based on HTTP method to seperate QuotaHandler.
+  if (request.method == "GET") {
+    return quotaHandler.status(request);
+  }
+
+  if (request.method == "POST") {
+    return quotaHandler.set(request);
+  }
+
+  if (request.method == "DELETE") {
+    return quotaHandler.remove(request);
+  }
+
+  // TODO(joerg84): Add Update logic for PUT requests
+  // once Quota supports updates.
+
+  return BadRequest(
+      "Expecting GET, DELETE or POST, got '" + request.method + "'");
+}
+
+
 string Master::Http::STATE_HELP()
 {
   return HELP(
