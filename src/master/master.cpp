@@ -1418,6 +1418,13 @@ Future<Nothing> Master::_recover(const Registry& registry)
     machines[machine.info().id()] = Machine(machine.info());
   }
 
+  // Save quotas.
+  foreach (const Registry::Quota& quota, registry.quotas()) {
+    quotas[quota.info().role()] = Quota{quota.info()};
+  }
+
+  // TODO(alexr): Notify allocator about quotas present in the cluster.
+
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
