@@ -1418,6 +1418,32 @@ Future<Nothing> Master::_recover(const Registry& registry)
     machines[machine.info().id()] = Machine(machine.info());
   }
 
+  // Save quotas into both internal master collection and the allocator-
+  // friendly one.
+  hashmap<string, mesos::quota::QuotaInfo> quotas_;
+  foreach (const Registry::Quota& quota, registry.quotas()) {
+    quotas[quota.info().role()] = Quota{quota.info()};
+    quotas_[quota.info().role()] = quota.info();
+  }
+
+  // If there exist any quotas, we have to notify the allocator via
+  // `recover()` call. This has to be done before the first agent
+  // reregisters and makes its resources available for allocation,
+  // because at this point the allocator is already initialized and
+  // ready to perform allocations. An allocator may decide to hold off
+  // with allocation until after it restores a view of the cluster state.
+  //
+  // TODO(alexr): Consider always recovering allocator to facilitate fair
+  // sharing.
+  if (!quotas_.empty()) {
+    int expectedAgentsCount = registry.slaves().slaves().size();
+    allocator->recover(expectedAgentsCount, quotas_);
+  }
+
+  // TODO(alexr): Consider adding a sanity check, whether quotas are
+  // satisfiable given all recovering agents reregister. We may want to
+  // notify operators early if total quota cannot be met.
+
   // Recovery is now complete!
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " slaves"
             << " from the Registry (" << Bytes(registry.ByteSize()) << ")"
