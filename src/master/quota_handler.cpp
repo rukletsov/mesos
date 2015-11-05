@@ -23,16 +23,20 @@
 #include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/owned.hpp>
 
 #include <stout/protobuf.hpp>
 
 #include "logging/logging.hpp"
 
 #include "master/master.hpp"
+#include "master/quota.hpp"
+#include "master/registrar.hpp"
 
 using std::string;
 
 using process::Future;
+using process::Owned;
 
 using process::http::Accepted;
 using process::http::BadRequest;
@@ -236,17 +240,17 @@ Future<Response> Master::QuotaHandler::set(const Request& request) const
   Quota quota{quotaInfo};
   master->quotas[quotaInfo.role()] = quota;
 
-  // Update registry with the new quota.
-  // TODO(alexr): MESOS-3165.
+  // Update registry with the new quota and grant the request.
+  return master->registrar->apply(Owned<Operation>(
+      new quota::UpdateQuota(quotaInfo)))
+    .then(defer(master->self(), [=](bool result) -> Future<Response> {
+      // See the top comment in "master/quota.hpp" for why this check is here.
+      CHECK(result);
 
-  // We are all set, grant the request.
-  // TODO(alexr): Implement as per MESOS-3073.
-  // TODO(alexr): This should be done after registry operation succeeds.
+      master->allocator->setQuota(quotaInfo.role(), quotaInfo);
 
-  // Notfify allocator.
-  master->allocator->setQuota(quotaInfo.role(), quotaInfo);
-
-  return OK();
+      return OK();
+    }));
 }
 
 } // namespace master {
