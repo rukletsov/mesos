@@ -857,7 +857,9 @@ private:
     process::Future<process::http::Response> status(
         const process::http::Request& request) const
     {
-      return process::http::Accepted();
+      // TODO(joerg84): For now this is just a stub. It will be filled as
+      // part of MESOS-1791.
+      return process::http::BadRequest("Not implemented");
     }
 
     process::Future<process::http::Response> set(
@@ -866,8 +868,26 @@ private:
     process::Future<process::http::Response> remove(
         const process::http::Request& request) const
     {
-      return process::http::Accepted();
+      // TODO(joerg84): For now this is just a stub. It will be filled as
+      // part of MESOS-1791.
+      return process::http::BadRequest("Not implemented");
     }
+
+  protected:
+    // Checks whether the request has the correct structure and valid JSON.
+    Try<Nothing> validateRequest(const process::http::Request& request) const;
+
+    // Extracts a QuotaInfo protobuf from the quota request.
+    Try<mesos::quota::QuotaInfo> extractQuotaInfo(
+        const process::http::Request& request) const;
+
+    // Checks whether the QuotaInfo represents a valid quota request:
+    // - Request has to include a single role across all resources.
+    // - Role is known to the master.
+    // - Request should not update existing quota.
+    // - Irrelevant fields in Resources are not set (e.g. `ReservationInfo`).
+    // - Request should only contain scalar resources.
+    Try<Nothing> validateQuotaInfo(const quota::QuotaInfo& quotaInfo) const;
 
   private:
     // To perform actions related to quota management, we require access to the
