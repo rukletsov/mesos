@@ -18,12 +18,75 @@
 
 #include "master/quota.hpp"
 
+#include <string>
+
+#include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
+
+#include <stout/error.hpp>
+#include <stout/option.hpp>
+
 namespace mesos {
 namespace internal {
 namespace master {
 namespace quota {
 
 namespace validation {
+
+using mesos::quota::QuotaInfo;
+using std::string;
+
+Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
+{
+  // The reference role for the quota request.
+  string role = quotaInfo.role();
+
+  foreach (const Resource& resource, quotaInfo.guarantee()) {
+    // Check that each resource is valid.
+    Option<Error> error = Resources::validate(resource);
+    if (error.isSome()) {
+      return Error(
+          "Quota request with invalid resource: " + error.get().message);
+    }
+
+    // Check that `Resource` does not contain non-relevant fields for quota.
+
+    if (resource.has_reservation()) {
+      return Error("Quota request may not contain ReservationInfo");
+    }
+    if (resource.has_disk()) {
+      return Error("Quota request may not contain DiskInfo");
+    }
+    if (resource.has_revocable()) {
+      return Error("Quota request may not contain RevocableInfo");
+    }
+
+    // Check that the `Resource` is scalar.
+    if (resource.type() != Value::SCALAR) {
+      return Error(
+          "Quota request may not include non-scalar resources");
+    }
+
+    // Check all roles are set and equal.
+
+    if (!resource.has_role()) {
+      return Error("Quota request without role specified");
+    }
+    if (resource.role().empty()) {
+      return Error("Quota request with empty role specified");
+    }
+    if (role.empty()) {
+      // Store first encountered role as reference.
+      role = resource.role();
+    } else if (role != resource.role() ) {
+      // All roles should be equal across a quota request.
+      return Error("Quota request with different roles: '" + role +
+                   "','" + resource.role() + "'");
+    }
+  }
+
+  return Nothing();
+}
 
 } // namespace validation {
 
