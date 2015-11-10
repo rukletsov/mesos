@@ -55,6 +55,7 @@
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/json.hpp>
 #include <stout/multihashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/recordio.hpp>
@@ -871,6 +872,11 @@ private:
       // part of MESOS-1791.
       return process::http::NotImplemented();
     }
+
+  protected:
+    // Extracts a `QuotaInfo` protobuf from the quota request.
+    Try<mesos::quota::QuotaInfo> extractQuotaInfo(
+        const JSON::Array& request) const;
 
   private:
     // To perform actions related to quota management, we require access to the
