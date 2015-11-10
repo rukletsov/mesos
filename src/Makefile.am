@@ -336,6 +336,7 @@ python/interface/src/mesos/v1/interface/scheduler_pb2.py: $(V1_SCHEDULER_PROTO)
 	$(SED) -i.bak 's/mesos\.mesos_pb2/mesos_pb2/' $@ && rm $@.bak
 
 
+
 pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/attributes.hpp				\
   $(top_srcdir)/include/mesos/executor.hpp				\
@@ -548,6 +549,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/maintenance.cpp						\
   master/master.cpp							\
   master/metrics.cpp							\
+  master/quota_handler.cpp						\
   master/registrar.cpp							\
   master/repairer.cpp							\
   master/validation.cpp							\
