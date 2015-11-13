@@ -25,12 +25,14 @@
 #include <process/defer.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/owned.hpp>
 
 #include <stout/protobuf.hpp>
 
 #include "logging/logging.hpp"
 
 #include "master/quota.hpp"
+#include "master/registrar.hpp"
 
 namespace http = process::http;
 
@@ -42,6 +44,7 @@ using http::Conflict;
 using http::OK;
 
 using process::Future;
+using process::Owned;
 
 using mesos::quota::QuotaInfo;
 
@@ -228,14 +231,17 @@ Future<http::Response> Master::QuotaHandler::set(
   // Update the registry with the new quota.
   // TODO(alexr): MESOS-3165.
 
-  // We are all set, grant the request.
-  // TODO(alexr): Implement as per MESOS-3073.
-  // TODO(alexr): This should be done after registry operation succeeds.
+  // Update registry with the new quota and grant the request.
+  return master->registrar->apply(Owned<Operation>(
+      new quota::UpdateQuota(quotaInfo)))
+    .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
+      // See the top comment in "master/quota.hpp" for why this check is here.
+      CHECK(result);
 
-  // Notfify allocator.
-  master->allocator->setQuota(quotaInfo.role(), quotaInfo);
+      master->allocator->setQuota(quotaInfo.role(), quotaInfo);
 
-  return OK();
+      return OK();
+    }));
 }
 
 } // namespace master {
