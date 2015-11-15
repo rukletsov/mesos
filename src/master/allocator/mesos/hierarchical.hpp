@@ -72,6 +72,7 @@ public:
       const std::function<Sorter*()>& _frameworkSorterFactory)
     : ProcessBase(process::ID::generate("hierarchical-allocator")),
       initialized(false),
+      paused(true),
       metrics(*this),
       roleSorterFactory(_roleSorterFactory),
       frameworkSorterFactory(_frameworkSorterFactory),
@@ -192,6 +193,10 @@ protected:
   typedef HierarchicalAllocatorProcess Self;
   typedef HierarchicalAllocatorProcess This;
 
+  // Methods for pausing and resuming allocation.
+  void pause();
+  void resume();
+
   // Callback for doing batch allocations.
   void batch();
 
@@ -238,6 +243,10 @@ protected:
   bool allocatable(const Resources& resources);
 
   bool initialized;
+  bool paused;
+
+  // Recovery data.
+  Option<int> expectedAgentCount;
 
   Duration allocationInterval;
 
