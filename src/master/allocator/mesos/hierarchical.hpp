@@ -95,6 +95,9 @@ public:
         inverseOfferCallback,
       const hashmap<std::string, mesos::master::RoleInfo>& roles);
 
+  void recover(
+      const Option<hashmap<std::string, mesos::quota::QuotaInfo>>& quotas);
+
   void addFramework(
       const FrameworkID& frameworkId,
       const FrameworkInfo& frameworkInfo,

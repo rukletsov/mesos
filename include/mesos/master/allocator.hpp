@@ -103,6 +103,13 @@ public:
       const hashmap<std::string, RoleInfo>& roles) = 0;
 
   /**
+   *
+   * @param quotas
+   */
+  virtual void recover(
+      const Option<hashmap<std::string, mesos::quota::QuotaInfo>>& quotas) = 0;
+
+  /**
    * Adds a framework.
    *
    * Adds a framework to the Mesos cluster. The allocator is invoked when
