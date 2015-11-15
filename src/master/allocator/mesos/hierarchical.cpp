@@ -136,6 +136,7 @@ void HierarchicalAllocatorProcess::initialize(
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
   initialized = true;
+  paused = false;
 
   // Resources for quota'ed roles are allocated separately and prior to
   // non-quota'ed roles, hence a dedicated sorter for quota'ed roles is
@@ -171,7 +172,36 @@ void HierarchicalAllocatorProcess::recover(
     const int expectedAgentCount,
     const hashmap<string, Quota>& quotas)
 {
+  // Recovery should start before actual allocation starts.
   CHECK(initialized);
+  CHECK_EQ(0u, slaves.size());
+  CHECK_EQ(0, quotaRoleSorter->count());
+
+  // If there are no quotas, no recovery is currently necessary.
+  if (quotas.empty()) {
+    VLOG(1) << "Skipping recovery of hierarchical allocator: "
+            << "nothing to recover";
+    return;
+  }
+
+  // Pause allocation until after sufficient amount of agents reregister
+  // or a timer expires.
+  pause();
+
+  // TODO(alexr): Consider exposing these constants.
+  const Duration ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT = Minutes(10);
+  const double AGENT_RECOVERY_FACTOR = 0.8;
+
+  // Setup recovery timer.
+  delay(ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT, self(), &Self::resume);
+
+  // Record a number of expected agents.
+  this->expectedAgentCount =
+    static_cast<int>(expectedAgentCount * AGENT_RECOVERY_FACTOR);
+
+  foreachpair (const string& role, const Quota& quota, quotas) {
+    setQuota(role, quota.info);
+  }
 
   LOG(INFO) << "Allocator recovery is not supported yet";
 }
@@ -377,6 +407,15 @@ void HierarchicalAllocatorProcess::addSlave(
   if (unavailability.isSome()) {
     slaves[slaveId].maintenance =
       typename Slave::Maintenance(unavailability.get());
+  }
+
+  if (paused && expectedAgentCount.isSome()) {
+    --expectedAgentCount.get();
+
+    if (expectedAgentCount.get() <= 0) {
+      expectedAgentCount = None();
+      resume();
+    }
   }
 
   LOG(INFO) << "Added slave " << slaveId << " (" << slaves[slaveId].hostname
@@ -946,6 +985,18 @@ void HierarchicalAllocatorProcess::removeQuota(
 }
 
 
+void HierarchicalAllocatorProcess::pause()
+{
+  paused = true;
+}
+
+
+void HierarchicalAllocatorProcess::resume()
+{
+  paused = false;
+}
+
+
 void HierarchicalAllocatorProcess::batch()
 {
   allocate();
@@ -955,6 +1006,10 @@ void HierarchicalAllocatorProcess::batch()
 
 void HierarchicalAllocatorProcess::allocate()
 {
+  if (paused) {
+    return;
+  }
+
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -968,6 +1023,10 @@ void HierarchicalAllocatorProcess::allocate()
 void HierarchicalAllocatorProcess::allocate(
     const SlaveID& slaveId)
 {
+  if (paused) {
+    return;
+  }
+
   Stopwatch stopwatch;
   stopwatch.start();
 
