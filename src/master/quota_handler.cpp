@@ -27,6 +27,7 @@
 #include <process/http.hpp>
 
 #include <stout/protobuf.hpp>
+#include <stout/utils.hpp>
 
 #include "logging/logging.hpp"
 
@@ -150,6 +151,88 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
 }
 
 
+void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
+{
+  const string& role = request.role();
+
+  // This should have been validated earlier.
+  CHECK(master->roles.contains(role));
+
+  int numVisitedAgents = 0;
+
+  int numQuotaedFrameworks = 0;
+  foreachvalue (const Framework* framework, master->roles[role]->frameworks) {
+    if (framework->connected && framework->active) {
+      ++numQuotaedFrameworks;
+    }
+  }
+
+  // The resources recovered and remaining by rescinding outstanding offers.
+  Resources rescinded;
+  Resources remaining(request.guarantee());
+
+  // Because resources are allocated in the allocator, there can be a race
+  // between rescinding and allocating. This race makes it hard to determine
+  // the exact amount of offers that should be rescinded in the master.
+  //
+  // We pessimistically assume that what seems like "available" resources
+  // in the allocator will be gone. We greedily rescind all offers from a
+  // agent at time until we have rescinded "enough" offers.
+  //
+  // Consider a quota request for role `role` for `requested` resources.
+  // There are `numQF` frameworks in `role`. Let `rescinded` be the total
+  // number of rescinded resources and `numVA` be the number of visited
+  // agents. Then the algorithm can be summarized as follows:
+  //
+  //   while (there are agents with outstanding offers) do:
+  //     if ((`rescinded` contains `requested`) && (`numVA` >= `numQF`) break;
+  //     fetch an agent `a` with outstanding offers;
+  //     rescind all outstanding offers from `a`;
+  //     update `rescinded`, inc(numVA);
+  //   end.
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    // If we have rescinded enough offers to cover for quota resources,
+    // we are done.
+    if (rescinded.contains(request.guarantee()) &&
+        (numVisitedAgents >= numQuotaedFrameworks)) {
+      break;
+    }
+
+    // As in the capacity heuristic, we do not consider disconnected or
+    // inactive agents, because they do not participate in resource
+    // allocation.
+    if (!slave->connected || !slave->active) {
+      continue;
+    }
+
+    // Rescind all relevant outstanding offers from the given agent.
+    foreach (Offer* offer, utils::copy(slave->offers)) {
+      // If rescinding the offer would not contribute to satisfying
+      // quota resources, skip it.
+      if (remaining == remaining - offer->resources()) {
+        continue;
+      }
+
+      rescinded += offer->resources();
+      remaining -= offer->resources();
+
+      // We explicitly pass 'Filters()' which has a default 'refuse_sec'
+      // of 5 seconds rather than 'None()' here, so that we can
+      // virtually always win the race against 'allocate'.
+      master->allocator->recoverResources(
+          offer->framework_id(),
+          offer->slave_id(),
+          offer->resources(),
+          Filters());
+
+      master->removeOffer(offer, true);
+    }
+
+    ++numVisitedAgents;
+  }
+}
+
+
 Future<http::Response> Master::QuotaHandler::set(
     const http::Request& request) const
 {
@@ -232,6 +315,9 @@ Future<http::Response> Master::QuotaHandler::set(
   // We are all set, grant the request.
   // TODO(alexr): Implement as per MESOS-3073.
   // TODO(alexr): This should be done after registry operation succeeds.
+
+  // Rescind enough outstanding offers to satisfy the quota request.
+  rescindOffers(quotaInfo);
 
   // Notfify allocator.
   master->allocator->setQuota(quotaInfo.role(), quotaInfo);
