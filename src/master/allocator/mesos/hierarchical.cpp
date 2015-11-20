@@ -1001,15 +1001,15 @@ void HierarchicalAllocatorProcess::allocate(
   vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
+  // Quota comes first and fair share second. Here we process only those
+  // roles, for which quota is set (aka quota'ed roles). Such roles form
+  // a special allocation group with a dedicated sorter.
   foreach (const SlaveID& slaveId, slaveIds) {
     // Don't send offers for non-whitelisted and deactivated slaves.
     if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
       continue;
     }
 
-    // Quota comes first and fair share second. Here we process only those
-    // roles, for which quota is set (aka quota'ed roles). Such roles form
-    // a special allocation group with a dedicated sorter.
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK(roles[role].quota.isSome());
 
@@ -1114,9 +1114,16 @@ void HierarchicalAllocatorProcess::allocate(
       VLOG(2) << "Laying aside " << resources << " on slave " << slaveId
               << " to satisfy total quota";
     }
+  }
 
-    // At this point resources for quota are either allocated or laid aside.
-    // We can proceed with allocation the remaining free pool using DRF.
+  // At this point resources for quota are either allocated or laid aside.
+  // We can proceed with allocation the remaining free pool using DRF.
+  foreach (const SlaveID& slaveId, slaveIds) {
+    // Don't send offers for non-whitelisted and deactivated slaves.
+    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
+      continue;
+    }
+
     foreach (const string& role, roleSorter->sort()) {
       foreach (const string& frameworkId_,
                frameworkSorters[role]->sort()) {
