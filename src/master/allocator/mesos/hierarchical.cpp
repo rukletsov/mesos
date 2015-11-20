@@ -990,20 +990,31 @@ void HierarchicalAllocatorProcess::allocate(
   //       to a framework of any role.
   hashmap<FrameworkID, hashmap<SlaveID, Resources>> offerable;
 
-  // Frameworks in a quota'ed role may temporarily reject resources,
-  // but we must reserve enough of them to satisfy their quota whenever
-  // they need it.
-  hashmap<string, Resources> unallocatedRoleQuotas;
-  hashmap<SlaveID, Resources> laidAsideResources;
-
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
+  // Calculate how many resources (of all kinds) are available for allocation
+  // in this round. We need this in order to ensure we do not allocate
+  // resources, that should be laid away for quota, during the DRF phase.
+  hashmap<SlaveID, Resources> totalAvailable;
+  foreach (const SlaveID& agentId, slaveIds) {
+    // Don't send offers for non-whitelisted and deactivated agents.
+    // TODO(alexr): Filter available agents once.
+    if (!isWhitelisted(agentId) || !slaves[agentId].activated) {
+      continue;
+    }
+
+    // Calculate the currently available resources on the slave.
+    Resources resources = slaves[agentId].total - slaves[agentId].allocated;
+
+    totalAvailable[agentId] += resources;
+  }
+
   // Quota comes first and fair share second. Here we process only those
-  // roles, for which quota is set (aka quota'ed roles). Such roles form
-  // a special allocation group with a dedicated sorter.
+  // roles, for which quota is set (quota'ed roles). Such roles form a
+  // special allocation group with a dedicated sorter.
   foreach (const SlaveID& slaveId, slaveIds) {
     // Don't send offers for non-whitelisted and deactivated slaves.
     if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
@@ -1055,8 +1066,9 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
-        // If the framework filters these resources, we comply and ignore, but
-        // make sure enough resources are laid aside to satisfy role's quota.
+        // If the framework filters these resources, we comply and ignore,
+        // but make sure enough resources are laid away later to satisfy
+        // role's quota.
         if (isFiltered(frameworkId, slaveId, resources)) {
           continue;
         }
@@ -1078,46 +1090,34 @@ void HierarchicalAllocatorProcess::allocate(
         roleSorter->allocated(role, slaveId, resources.unreserved());
         quotaRoleSorter->allocated(role, slaveId, resources.unreserved());
       }
-
-      // If the role allocation is less than its quota, save the delta
-      // in order to reserve it later on.
-      roleConsumedResources =
-        Resources::sum(quotaRoleSorter->allocation(role));
-
-      Resources unallocatedRoleQuota =
-        roles[role].quota.get().guarantee() - roleConsumedResources;
-
-      if (!unallocatedRoleQuota.empty()) {
-        unallocatedRoleQuotas[role] = unallocatedRoleQuota;
-      }
-    }
-
-    // If for whatever reason we have allocated less resources than roles'
-    // quota guarantees, lay aside, i.e. reserve the delta.
-    // TODO(alexr): Consider offer these resources as revocable.
-    if (!unallocatedRoleQuotas.empty() &&
-        !Resources::sum(laidAsideResources)
-           .contains(Resources::sum(unallocatedRoleQuotas).flatten())) {
-      // Calculate the currently available unreserved non-revocable
-      // resources on the agent.
-      Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
-      Resources resources = available.unreserved();
-      resources -= resources.revocable();
-
-      // NOTE: The resources may not be allocatable here, but they can be
-      // accepted by some framework during the DRF allocation stage.
-      if (allocatable(resources)) {
-        laidAsideResources[slaveId] = resources;
-        slaves[slaveId].allocated += resources;
-      }
-
-      VLOG(2) << "Laying aside " << resources << " on slave " << slaveId
-              << " to satisfy total quota";
     }
   }
 
-  // At this point resources for quota are either allocated or laid aside.
-  // We can proceed with allocation the remaining free pool using DRF.
+  // Frameworks in a quota'ed role may temporarily reject resources,
+  // hence quotas may not be fully allocated.
+  hashmap<string, Resources> unallocatedRoleQuotas;
+  foreachpair (const string& name, const Role& role, roles) {
+    if (role.quota.isNone()) {
+      continue;
+    }
+
+    Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
+    Resources required = role.quota.get().guarantee();
+
+    unallocatedRoleQuotas[name] = required - allocated;
+  }
+
+  // Determine how many resources we may allocate during the WDRF stage.
+  // Technically, this should be
+  //     `totalAvailable` - `offerable` - `unallocatedRoleQuotas`,
+  // but we update `offerable` during the next stage, hence the subtraction
+  // will be there as well.
+  Resources availableForWDRF =
+    Resources::sum(totalAvailable) -
+    Resources::sum(unallocatedRoleQuotas);
+
+  // At this point resources for quota are allocated. We can proceed
+  // with allocation the remaining free pool using WDRF.
   foreach (const SlaveID& slaveId, slaveIds) {
     // Don't send offers for non-whitelisted and deactivated slaves.
     if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
@@ -1158,6 +1158,18 @@ void HierarchicalAllocatorProcess::allocate(
           continue;
         }
 
+        // Do not allocate if this will lead to exceeding available
+        // resources for this stage.
+        typedef hashmap<SlaveID, Resources> AgentAllocation;
+        Resources totalOffered = resources;
+        foreachvalue (const AgentAllocation& res, offerable) {
+          totalOffered += Resources::sum(res);
+        }
+
+        if (!availableForWDRF.contains(totalOffered)) {
+          continue;
+        }
+
         VLOG(2) << "Allocating " << resources << " on slave " << slaveId
                 << " to framework " << frameworkId;
 
@@ -1181,14 +1193,6 @@ void HierarchicalAllocatorProcess::allocate(
         }
       }
     }
-  }
-
-  // Now we can return all resources we laid aside since we do not intend
-  // to carry them onto subsequent allocation cycles. There will be no
-  // allocations beyond this point.
-  foreachpair (
-    const SlaveID& slaveId, const Resources& resources, laidAsideResources) {
-    slaves[slaveId].allocated -= resources;
   }
 
   if (offerable.empty()) {
