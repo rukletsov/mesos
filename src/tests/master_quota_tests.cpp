@@ -26,6 +26,7 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
@@ -54,6 +55,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::quota::QuotaInfo;
 
+using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -902,7 +904,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   AWAIT_READY(registered3);
 
   // There should be no offers made to `framework2` and `framework3`
-  // since there are no free resources.
+  // at this point since there are no free resources.
   EXPECT_CALL(sched2, resourceOffers(&framework2, _))
     .Times(0);
   EXPECT_CALL(sched3, resourceOffers(&framework3, _))
@@ -931,6 +933,15 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   EXPECT_CALL(allocator, setQuota(Eq(ROLE2), _))
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
+
+  // We pause the clock to avoid any batch allocations. `Clock::settle()`
+  // ensures all pending allocations fire. When we rescind offers,
+  // resources are being recovered ​and​ become available for allocation.
+  // If a batch allocation sneaks in right afterwards and before the test
+  // finishes, the expectation we set above (that there will be no resource
+  // offers made to quota'ed frameworks) is violated.
+  Clock::pause();
+  Clock::settle();
 
   Future<Response> response = process::http::post(
       master.get(),
