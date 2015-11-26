@@ -231,7 +231,8 @@ void HierarchicalAllocatorProcess::addFramework(
     frameworkSorters[role]->allocated(frameworkId.value(), slaveId, allocated);
 
     if (roles[role].quota.isSome()) {
-      quotaRoleSorter->allocated(role, slaveId, allocated.unreserved());
+      quotaRoleSorter->allocated(
+          role, slaveId, allocated.unreserved().nonRevocable());
     }
   }
 
@@ -277,7 +278,8 @@ void HierarchicalAllocatorProcess::removeFramework(
       frameworkSorters[role]->remove(slaveId, allocated);
 
       if (roles[role].quota.isSome()) {
-        quotaRoleSorter->unallocated(role, slaveId, allocated.unreserved());
+        quotaRoleSorter->unallocated(
+            role, slaveId, allocated.unreserved().nonRevocable());
       }
     }
 
@@ -374,7 +376,7 @@ void HierarchicalAllocatorProcess::addSlave(
   CHECK(!paused || expectedAgentCount.isSome());
 
   roleSorter->add(slaveId, total.unreserved());
-  quotaRoleSorter->add(slaveId, total.unreserved());
+  quotaRoleSorter->add(slaveId, total.unreserved().nonRevocable());
 
   // Update the allocation for each framework.
   foreachpair (const FrameworkID& frameworkId,
@@ -392,7 +394,8 @@ void HierarchicalAllocatorProcess::addSlave(
           frameworkId.value(), slaveId, allocated);
 
       if (roles[role].quota.isSome()) {
-        quotaRoleSorter->allocated(role, slaveId, allocated.unreserved());
+        quotaRoleSorter->allocated(
+            role, slaveId, allocated.unreserved().nonRevocable());
       }
     }
   }
@@ -444,7 +447,8 @@ void HierarchicalAllocatorProcess::removeSlave(
   // than what we currently track in the allocator.
 
   roleSorter->remove(slaveId, slaves[slaveId].total.unreserved());
-  quotaRoleSorter->remove(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->remove(
+      slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
   slaves.erase(slaveId);
 
@@ -475,7 +479,8 @@ void HierarchicalAllocatorProcess::updateSlave(
 
   // Now, update the total resources in the role sorters.
   roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
-  quotaRoleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->update(
+      slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
   LOG(INFO) << "Slave " << slaveId << " (" << slaves[slaveId].hostname << ")"
             << " updated with oversubscribed resources " << oversubscribed
@@ -581,8 +586,8 @@ void HierarchicalAllocatorProcess::updateAllocation(
     quotaRoleSorter->update(
         role,
         slaveId,
-        frameworkAllocation.unreserved(),
-        updatedFrameworkAllocation.get().unreserved());
+        frameworkAllocation.unreserved().nonRevocable(),
+        updatedFrameworkAllocation.get().unreserved().nonRevocable());
   }
 
   Try<Resources> updatedSlaveAllocation =
@@ -639,7 +644,8 @@ Future<Nothing> HierarchicalAllocatorProcess::updateAvailable(
 
   // Now, update the total resources in the role sorters.
   roleSorter->update(slaveId, slaves[slaveId].total.unreserved());
-  quotaRoleSorter->update(slaveId, slaves[slaveId].total.unreserved());
+  quotaRoleSorter->update(
+      slaveId, slaves[slaveId].total.unreserved().nonRevocable());
 
   return Nothing();
 }
@@ -819,7 +825,8 @@ void HierarchicalAllocatorProcess::recoverResources(
       roleSorter->unallocated(role, slaveId, resources.unreserved());
 
       if (roles[role].quota.isSome()) {
-        quotaRoleSorter->unallocated(role, slaveId, resources.unreserved());
+        quotaRoleSorter->unallocated(
+            role, slaveId, resources.unreserved().nonRevocable());
       }
     }
   }
@@ -957,7 +964,7 @@ void HierarchicalAllocatorProcess::setQuota(
   foreachpair (
       const SlaveID& slaveId, const Resources& resources, roleAllocation) {
     quotaRoleSorter->allocated(
-        role, slaveId, resources.unreserved());
+        role, slaveId, resources.unreserved().nonRevocable());
   }
 
   // TODO(alexr): Print all quota info for the role.
@@ -1107,12 +1114,11 @@ void HierarchicalAllocatorProcess::allocate(
 
       // Summing up resources is fine because quota is only for scalar
       // resources.
-      // NOTE: Allocation for a quota'ed role may contain revocable resources
-      // from the WDRF stage, which we should not count towards quota.
+      // NOTE: Reserved and revocable resources are excluded in
+      // `quotaRoleSorter`.
       // TODO(alexr): Consider including dynamically reserved resources.
       Resources roleConsumedResources =
         Resources::sum(quotaRoleSorter->allocation(role));
-      roleConsumedResources -= roleConsumedResources.revocable();
 
       // If quota for the role is satisfied, we do not need to do any further
       // allocations, at least at this stage.
@@ -1140,8 +1146,7 @@ void HierarchicalAllocatorProcess::allocate(
         // resources on the agent.
         // TODO(alexr): Consider adding dynamically reserved resources.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
-        Resources resources = available.unreserved();
-        resources -= resources.revocable();
+        Resources resources = available.unreserved().nonRevocable();
 
         // NOTE: The resources may not be allocatable here, but they can be
         // accepted by some framework during the DRF allocation stage.
@@ -1194,10 +1199,8 @@ void HierarchicalAllocatorProcess::allocate(
     }
 
     // Compute the amount of quota that the role does not have allocated.
-    // NOTE: Allocation for a quota'ed role may contain revocable resources
-    // from the WDRF stage, which we should not count towards quota.
+    // NOTE: Reserved and revocable resources are excluded in `quotaRoleSorter`.
     Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
-    allocated -= allocated.revocable();
 
     Resources required = role.quota.get().guarantee();
 
@@ -1287,7 +1290,8 @@ void HierarchicalAllocatorProcess::allocate(
         roleSorter->allocated(role, slaveId, resources.unreserved());
 
         if (roles[role].quota.isSome()) {
-          quotaRoleSorter->allocated(role, slaveId, resources.unreserved());
+          quotaRoleSorter->allocated(
+              role, slaveId, resources.unreserved().nonRevocable());
         }
       }
     }
