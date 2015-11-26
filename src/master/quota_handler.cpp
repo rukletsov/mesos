@@ -78,17 +78,23 @@ static Try<google::protobuf::RepeatedPtrField<Resource>> parseResources(
 
 // Creates a `QuotaInfo` protobuf from the quota request.
 static Try<QuotaInfo> createQuotaInfo(
-    const google::protobuf::RepeatedPtrField<Resource>& resources)
+    google::protobuf::RepeatedPtrField<Resource> resources)
 {
   VLOG(1) << "Constructing QuotaInfo from resources protobuf";
 
   QuotaInfo quota;
-  quota.mutable_guarantee()->CopyFrom(resources);
 
   // Set the role if we have one.
   if (resources.size() > 0) {
      quota.set_role(resources.begin()->role());
   }
+
+  // Remove the role from each resource.
+  foreach (Resource& resource, resources) {
+    resource.clear_role();
+  }
+
+  quota.mutable_guarantee()->CopyFrom(resources);
 
   return quota;
 }
