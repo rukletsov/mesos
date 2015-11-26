@@ -208,6 +208,7 @@ void HierarchicalAllocatorProcess::recover(
   // Setup recovery timer.
   delay(ALLOCATION_HOLD_OFF_RECOVERY_TIMEOUT, self(), &Self::resume);
 
+  // NOTE: `quotaRoleSorter` is updated implicitly in `setQuota()`.
   foreachpair (const string& role, const Quota& quota, quotas) {
     setQuota(role, quota.info);
   }
@@ -967,6 +968,14 @@ void HierarchicalAllocatorProcess::setQuota(
   // allocation group.
   roles[role].quota = quota;
   quotaRoleSorter->add(role, roles[role].info.weight());
+
+  // Copy allocation information for the quota'ed role.
+  hashmap<SlaveID, Resources> roleAllocation = roleSorter->allocation(role);
+  foreachpair (
+      const SlaveID& slaveId, const Resources& resources, roleAllocation) {
+    quotaRoleSorter->allocated(
+        role, slaveId, resources.unreserved());
+  }
 
   // TODO(alexr): Print all quota info for the role.
   LOG(INFO) << "Set quota " << quota.guarantee() << " for role '" << role
