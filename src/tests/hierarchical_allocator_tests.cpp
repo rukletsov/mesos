@@ -47,6 +47,9 @@
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
 
+#include <iostream>
+#include <fstream>
+
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
@@ -1649,6 +1652,12 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 // the issue.
 TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 {
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+
+  log << " >>> Test started! alloca interval is " << flags.allocation_interval
+      << std::endl;
+
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the periodic allocation in the allocator, which
   // would slow down the test.
@@ -1681,10 +1690,16 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       framework1,
       hashmap<SlaveID, Resources>());
 
+  log << " >>> Added framework1" << std::endl;
+  log.flush();
+
   allocator->addFramework(
       framework2.id(),
       framework2,
       hashmap<SlaveID, Resources>());
+
+  log << " >>> Added framework2" << std::endl;
+  log.flush();
 
   allocator->addSlave(
       agent1.id(),
@@ -1697,6 +1712,9 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // NOTE: No allocations happen because all resources are already allocated.
   Clock::settle();
 
+  log << " >>> Added agent1" << std::endl;
+  log.flush();
+
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -1704,13 +1722,18 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
       agent2.resources(),
       hashmap<FrameworkID, Resources>());
 
+  log << " >>> Added agent2, before first allocation" << std::endl;
+  log.flush();
+
   // Free cluster resources on `agent2` will be allocated to `framework2`
   // because its share is 0.
-
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  log << " >>> after first allocation" << std::endl;
+  log.flush();
 
   // Total cluster resources (2 identical agents): cpus=2, mem=1024.
   // ROLE_WITH_QUOTA share = 0.5 (cpus=1, mem=512)
@@ -1735,14 +1758,23 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // ROLE_NO_QUOTA   share = 0
   //   framework2 share = 0
 
+  log << " >>> before second allocation, after decline" << std::endl;
+  log.flush();
+
   // Trigger the next periodic allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
+
+  log << " >>> right after second allocation, after advance" << std::endl;
+  log.flush();
 
   allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  log << " >>> after second allocation, after expectations" << std::endl;
+  log.flush();
 
   // `framework2` continues declining offers.
   allocator->recoverResources(
@@ -1755,6 +1787,9 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   QuotaInfo quota1 = createQuotaInfo(ROLE_WITH_QUOTA, "cpus:2;mem:1024");
   allocator->setQuota(ROLE_WITH_QUOTA, quota1);
 
+  log << " >>> Setting quota!" << std::endl;
+  log.flush();
+
   // Since `ROLE_WITH_QUOTA` is under quota, `agent2`'s resources will
   // be allocated to `framework1`.
 
@@ -1763,11 +1798,17 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
 
+  log << " >>> after third allocation, after expectations" << std::endl;
+  log.flush();
+
   // Total cluster resources: cpus=2, mem=1024.
   // ROLE_WITH_QUOTA share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
   //   framework1 share = 1
   // ROLE_NO_QUOTA share = 0
   //   framework2 share = 0
+
+  log << " >>> Test ended!" << std::endl;
+  log.flush();
 }
 
 

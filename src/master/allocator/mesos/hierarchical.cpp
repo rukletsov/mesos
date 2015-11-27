@@ -33,6 +33,9 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include <iostream>
+#include <fstream>
+
 using std::string;
 using std::vector;
 
@@ -944,6 +947,9 @@ void HierarchicalAllocatorProcess::setQuota(
     const string& role,
     const QuotaInfo& quota)
 {
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+
   CHECK(initialized);
   CHECK(roles.contains(role));
   CHECK(frameworkSorters.contains(role));
@@ -966,6 +972,13 @@ void HierarchicalAllocatorProcess::setQuota(
     quotaRoleSorter->allocated(
         role, slaveId, resources.unreserved().nonRevocable());
   }
+
+  foreachkey (const string& role, roles) {
+    log << "setQuota() for " << role << ", quota: " << quota.guarantee()
+        << ", allocation: " << Resources::sum(roleSorter->allocation(role))
+        << std::endl;
+  }
+  log.flush();
 
   // TODO(alexr): Print all quota info for the role.
   LOG(INFO) << "Set quota " << quota.guarantee() << " for role '" << role
@@ -1039,6 +1052,10 @@ void HierarchicalAllocatorProcess::allocate()
   Stopwatch stopwatch;
   stopwatch.start();
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Batch allocation" << std::endl;
+
   allocate(slaves.keys());
 
   VLOG(1) << "Performed allocation for " << slaves.size() << " slaves in "
@@ -1058,6 +1075,10 @@ void HierarchicalAllocatorProcess::allocate(
   Stopwatch stopwatch;
   stopwatch.start();
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Event allocation" << std::endl;
+
   // TODO(bmahler): Add initializer list constructor for hashset.
   hashset<SlaveID> slaves;
   slaves.insert(slaveId);
@@ -1076,6 +1097,16 @@ void HierarchicalAllocatorProcess::allocate(
     LOG(ERROR) << "No roles specified, cannot allocate resources!";
     return;
   }
+
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+
+  foreachkey (const string& role, roles) {
+    log << "allocate() for " << role
+        << ", allocation: " << Resources::sum(roleSorter->allocation(role))
+        << std::endl;
+  }
+  log.flush();
 
   // Compute the offerable resources, per framework:
   //   (1) For reserved resources on the slave, allocate these to a
@@ -1111,6 +1142,11 @@ void HierarchicalAllocatorProcess::allocate(
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK_SOME(roles[role].quota);
+
+//      log << "allocate(); role: " << role
+//          << ", quota: " << roles[role].quota.get().guarantee()
+//          << ", allocation: "
+//          << Resources::sum(quotaRoleSorter->allocation(role)) << std::endl;
 
       // Summing up resources is fine because quota is only for scalar
       // resources.
@@ -1299,6 +1335,7 @@ void HierarchicalAllocatorProcess::allocate(
 
   if (offerable.empty()) {
     VLOG(1) << "No resources available to allocate!";
+    log << "No resources available to allocate!" << std::endl;
   } else {
     // Now offer the resources to each framework.
     foreachkey (const FrameworkID& frameworkId, offerable) {
