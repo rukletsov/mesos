@@ -17,6 +17,7 @@
 #include "master/allocator/mesos/hierarchical.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -1082,22 +1083,27 @@ void HierarchicalAllocatorProcess::allocate(
   // make sure that we don't assume cluster knowledge when summing resources
   // from that set.
 
+  vector<SlaveID> slaveIds;
+  slaveIds.reserve(slaveIds_.size());
+
+  // Filter out non-whitelisted and deactivated slaves in order not to send
+  // offers for them.
+  std::copy_if(
+      slaveIds_.begin(),
+      slaveIds_.end(),
+      std::back_inserter(slaveIds),
+      [this](const SlaveID& slaveId) {
+        return (isWhitelisted(slaveId) && slaves[slaveId].activated);
+      });
+
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
-  vector<SlaveID> slaveIds(slaveIds_.begin(), slaveIds_.end());
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
   // Quota comes first and fair share second. Here we process only those
   // roles, for which quota is set (quota'ed roles). Such roles form a
   // special allocation group with a dedicated sorter.
   foreach (const SlaveID& slaveId, slaveIds) {
-    // Don't send offers for non-whitelisted and deactivated slaves.
-    // TODO(alexr): We skip non-whitelisted or deactivated agents in every
-    // loop. Consider doing it once at the beginning before shuffling.
-    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
-      continue;
-    }
-
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK_SOME(roles[role].quota);
 
@@ -1177,11 +1183,6 @@ void HierarchicalAllocatorProcess::allocate(
   // ensure we do not over-allocate resources during the WDRF phase.
   Resources remainingClusterResources;
   foreach (const SlaveID& slaveId, slaveIds) {
-    // Don't consider non-whitelisted and deactivated agents.
-    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
-      continue;
-    }
-
     Resources resources = slaves[slaveId].total - slaves[slaveId].allocated;
     remainingClusterResources += resources;
   }
@@ -1222,11 +1223,6 @@ void HierarchicalAllocatorProcess::allocate(
   // At this point resources for quotas are allocated. Proceed with
   // allocating the remaining free pool using WDRF.
   foreach (const SlaveID& slaveId, slaveIds) {
-    // Don't send offers for non-whitelisted and deactivated slaves.
-    if (!isWhitelisted(slaveId) || !slaves[slaveId].activated) {
-      continue;
-    }
-
     // If there are no resources available for the current WDRF stage, stop.
     if ((remainingClusterResources - allocatedForWDRF).empty()) {
       break;
