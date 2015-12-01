@@ -26,7 +26,6 @@
 
 #include <mesos/quota/quota.hpp>
 
-#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
@@ -55,7 +54,6 @@ using mesos::internal::slave::Slave;
 
 using mesos::quota::QuotaInfo;
 
-using process::Clock;
 using process::Future;
 using process::PID;
 
@@ -67,6 +65,7 @@ using process::http::Response;
 using testing::_;
 using testing::DoAll;
 using testing::Eq;
+using testing::Return;
 
 namespace mesos {
 namespace internal {
@@ -934,15 +933,18 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
-  // We pause the clock to avoid any further batch allocations.
-  // `Clock::settle()` ensures that all pending allocations fire. When we
-  // rescind offers, resources are recovered ​and​ become available for
-  // allocation. This prevents a batch allocation from sneaking in right
-  // after the rescind calls, allowing us to ensure that the expectation
-  // we set above (that there will be no resource offers made to quota'ed
-  // frameworks) is not violated.
-  Clock::pause();
-  Clock::settle();
+  // Reset the expectations we set above (that there will be no resource
+  // offers made to quota'ed frameworks). When we rescind offers, resources
+  // are recovered and become available for allocation, hence a batch
+  // allocation may sneak in right after the rescind calls and offer
+  // recovered resources to quota'ed frameworks.
+  ::testing::Mock::VerifyAndClearExpectations(&sched2);
+  ::testing::Mock::VerifyAndClearExpectations(&sched3);
+
+  EXPECT_CALL(sched2, resourceOffers(&framework2, _))
+    .WillRepeatedly(Return());
+  EXPECT_CALL(sched3, resourceOffers(&framework3, _))
+    .WillRepeatedly(Return());
 
   Future<Response> response = process::http::post(
       master.get(),
@@ -962,9 +964,6 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   //   framework3 share = 0
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
-
-  Clock::settle();
-  Clock::resume();
 
   // The quota request is granted and reached the allocator. Make sure nothing
   // got lost in-between.
