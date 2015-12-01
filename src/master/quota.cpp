@@ -100,6 +100,9 @@ Try<Nothing> quotaInfo(const QuotaInfo& quotaInfo)
   }
 
   // Check that `QuotaInfo` contains at least one guarantee.
+  // TODO(alexr): Relaxing this may make sense once we offer non-revocable
+  // resources only as part of quota. Setting quota with empty guarantee
+  // means the role is not entitled to get non-revocable offers.
   if (quotaInfo.guarantee().size() == 0) {
     return Error("QuotaInfo with empty 'guarantee'");
   }

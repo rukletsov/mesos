@@ -120,9 +120,6 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
     totalQuota += quota.info.guarantee();
   }
 
-  // Remove roles via `flatten()` to facilitate resource math.
-  totalQuota = totalQuota.flatten();
-
   // Determine whether the total quota, including the new request, does
   // not exceed the sum of non-static cluster resources.
   // NOTE: We do not necessarily calculate the full sum of non-static
@@ -207,7 +204,7 @@ void Master::QuotaHandler::rescindOffers(const QuotaInfo& request) const
   foreachvalue (const Slave* slave, master->slaves.registered) {
     // If we have rescinded offers with at least as many resources as the
     // quota request resources, then we are done.
-    if (rescinded.contains(Resources(request.guarantee()).flatten()) &&
+    if (rescinded.contains(request.guarantee()) &&
         (visitedAgents >= frameworksInRole)) {
       break;
     }
