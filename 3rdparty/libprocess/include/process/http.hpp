@@ -575,10 +575,22 @@ struct NotFound : Response
 
 struct MethodNotAllowed : Response
 {
-  MethodNotAllowed() : Response(Status::METHOD_NOT_ALLOWED) {}
+  // According to RFC 2616, "An Allow header field MUST be present in a
+  // 405 (Method Not Allowed) response".
 
-  explicit MethodNotAllowed(const std::string& body)
-    : Response(body, Status::METHOD_NOT_ALLOWED) {}
+  explicit MethodNotAllowed(const std::vector<std::string>& allowedMethods)
+    : Response(Status::METHOD_NOT_ALLOWED)
+  {
+    headers["Allow"] = strings::join(", ", allowedMethods);
+  }
+
+  MethodNotAllowed(
+      const std::vector<std::string>& allowedMethods,
+      const std::string& body)
+    : Response(body, Status::METHOD_NOT_ALLOWED)
+  {
+    headers["Allow"] = strings::join(", ", allowedMethods);
+  }
 };
 
 
