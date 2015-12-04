@@ -497,6 +497,12 @@ public:
       const process::UPID& from,
       const process::UPID& pid);
 
+  // Helper for doing authentication, returns the credential used if
+  // the authentication was successful (or none if no credentials
+  // have been given to the master), otherwise an Error.
+  Result<Credential> authenticateRequest(
+      const process::http::Request& request) const;
+
   // TODO(bmahler): It would be preferred to use a unique libprocess
   // Process identifier (PID is not sufficient) for identifying the
   // framework instance, rather than relying on re-registration time.
@@ -1074,12 +1080,6 @@ private:
     static std::string QUOTA_HELP();
 
   private:
-    // Helper for doing authentication, returns the credential used if
-    // the authentication was successful (or none if no credentials
-    // have been given to the master), otherwise an Error.
-    Result<Credential> authenticate(
-        const process::http::Request& request) const;
-
     // Continuations.
     process::Future<process::http::Response> _teardown(
         const FrameworkID& id) const;

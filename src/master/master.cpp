@@ -5356,6 +5356,48 @@ void Master::authenticationTimeout(Future<Option<string>> future)
 }
 
 
+Result<Credential> Master::authenticateRequest(
+    const process::http::Request& request) const
+{
+  // By default, assume everyone is authenticated if no credentials
+  // were provided.
+  if (credentials.isNone()) {
+    return None();
+  }
+
+  Option<string> authorization = request.headers.get("Authorization");
+
+  if (authorization.isNone()) {
+    return Error("Missing 'Authorization' request header");
+  }
+
+  Try<string> decode =
+    base64::decode(strings::split(authorization.get(), " ", 2)[1]);
+
+  if (decode.isError()) {
+    return Error("Failed to decode 'Authorization' header: " + decode.error());
+  }
+
+  vector<string> pairs = strings::split(decode.get(), ":", 2);
+
+  if (pairs.size() != 2) {
+    return Error("Malformed 'Authorization' request header");
+  }
+
+  const string& username = pairs[0];
+  const string& password = pairs[1];
+
+  foreach (const Credential& credential, credentials.get().credentials()) {
+    if (credential.principal() == username &&
+        credential.secret() == password) {
+      return credential;
+    }
+  }
+
+  return Error("Could not authenticate '" + username + "'");
+}
+
+
 // NOTE: This function is only called when the slave re-registers
 // with a master that already knows about it (i.e., not a failed
 // over master).

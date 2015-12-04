@@ -44,6 +44,7 @@ using http::Accepted;
 using http::BadRequest;
 using http::Conflict;
 using http::OK;
+using http::Unauthorized;
 
 using process::Future;
 using process::Owned;
@@ -239,8 +240,13 @@ Future<http::Response> Master::QuotaHandler::set(
 {
   VLOG(1) << "Setting quota from request: '" << request.body << "'";
 
-  // Authenticate and authorize the request.
-  // TODO(alexr): Check Master::Http::authenticate() for an example.
+  // Authenticate the request.
+  Result<Credential> credential = master->authenticateRequest(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // TODO(nfnt): Authorize the request.
 
   // Check that the request type is POST which is guaranteed by the master.
   CHECK_EQ("POST", request.method);
@@ -353,8 +359,13 @@ Future<http::Response> Master::QuotaHandler::remove(
 {
   VLOG(1) << "Removing quota for request path: '" << request.url.path << "'";
 
-  // Authenticate and authorize the request.
-  // TODO(alexr): Check Master::Http::authenticate() for an example.
+  // Authenticate the request.
+  Result<Credential> credential = master->authenticateRequest(request);
+  if (credential.isError()) {
+    return Unauthorized("Mesos master", credential.error());
+  }
+
+  // TODO(nfnt): Authorize the request.
 
   // Check that the request type is DELETE which is guaranteed by the master.
   CHECK_EQ("DELETE", request.method);
