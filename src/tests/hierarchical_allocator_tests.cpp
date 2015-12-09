@@ -20,6 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include <fstream>
+
 #include <gmock/gmock.h>
 
 #include <mesos/master/allocator.hpp>
@@ -1794,6 +1796,63 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 }
+
+
+TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
+{
+  Clock::pause();
+
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << std::endl << std::endl
+      << " >>> Starting test `QuotaAbsentFramework`"
+      << std::endl << std::endl << std::endl;
+  log.flush();
+
+
+  const string QUOTA_ROLE{"quota-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize(vector<string>{QUOTA_ROLE, NO_QUOTA_ROLE});
+
+  // Set quota for the quota'ed role. This role isn't registered with
+  // the allocator yet.
+  QuotaInfo quota1 = createQuotaInfo(QUOTA_ROLE, "cpus:2;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota1);
+
+  // Create `framework1` in the non-quota'ed role.
+  FrameworkInfo framework1 = createFrameworkInfo(NO_QUOTA_ROLE);
+  allocator->addFramework(
+      framework1.id(), framework1, hashmap<SlaveID, Resources>());
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
+
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // `framework1` will always be allocated resources on `agent2`,
+  // because all the resources on `agent1` must be set aside due to
+  // the unsatisfied quota.
+  //
+  // NOTE: We would prefer to test that, without the presence of
+  // `agent2`, `framework` is not allocated anything. However, we
+  // can't easily test for the absence of an allocation, so we make
+  // due with this instead.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  log << " >>> Finishing test `QuotaAbsentFramework`" << std::endl;
+  log.flush();
+}
+
 
 
 // This test checks that quota is respected even for roles that don't

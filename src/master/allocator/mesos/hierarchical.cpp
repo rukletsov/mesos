@@ -32,6 +32,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
+#include <fstream>
+
 using std::string;
 using std::vector;
 
@@ -259,6 +261,10 @@ void HierarchicalAllocatorProcess::addFramework(
 
   LOG(INFO) << "Added framework " << frameworkId;
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Call allocate() from add framework" << std::endl;
+
   allocate();
 }
 
@@ -465,6 +471,10 @@ void HierarchicalAllocatorProcess::addSlave(
   LOG(INFO) << "Added slave " << slaveId << " (" << slaves[slaveId].hostname
             << ") with " << slaves[slaveId].total
             << " (allocated: " << slaves[slaveId].allocated << ")";
+
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Call allocate() from add slave" << std::endl;
 
   allocate(slaveId);
 }
@@ -1007,6 +1017,10 @@ void HierarchicalAllocatorProcess::setQuota(
   LOG(INFO) << "Set quota " << quota.guarantee() << " for role '" << role
             << "'";
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Call allocate() from set quota" << std::endl;
+
   // Trigger the allocation explicitly in order to promptly react to the
   // operator's request.
   allocate();
@@ -1071,6 +1085,10 @@ void HierarchicalAllocatorProcess::allocate()
     return;
   }
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "allocate() for all slaves" << std::endl;
+
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -1090,6 +1108,10 @@ void HierarchicalAllocatorProcess::allocate(
     return;
   }
 
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+  log << "Call allocate() for slave: " << slaveId << std::endl;
+
   Stopwatch stopwatch;
   stopwatch.start();
 
@@ -1107,6 +1129,18 @@ void HierarchicalAllocatorProcess::allocate(
 void HierarchicalAllocatorProcess::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
+  std::ofstream log;
+  log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+
+  log << "Current allocation before allocate() starts:" << std::endl;
+  foreachkey (const string& role, roles) {
+    log << "  " << role << " allocation: "
+        << Resources::sum(roleSorter->allocation(role))
+        << std::endl;
+  }
+  log.flush();
+
+
   // Compute the offerable resources, per framework:
   //   (1) For reserved resources on the slave, allocate these to a
   //       framework having the corresponding role.
@@ -1132,6 +1166,23 @@ void HierarchicalAllocatorProcess::allocate(
   // Randomize the order in which slaves' resources are allocated.
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
+
+
+
+  log << "Available resources:" << std::endl;
+  Resources remainingClusterResources2;
+  foreach (const SlaveID& slaveId, slaveIds) {
+    log << "  on " << slaveId << ": "
+        << (slaves[slaveId].total - slaves[slaveId].allocated) << std::endl;
+
+    remainingClusterResources2 +=
+      slaves[slaveId].total - slaves[slaveId].allocated;
+  }
+  log << "Total remaining cluster resources: "
+      << remainingClusterResources2 << std::endl;
+  log.flush();
+
+
 
   // Quota comes first and fair share second. Here we process only those
   // roles, for which quota is set (quota'ed roles). Such roles form a
@@ -1327,6 +1378,10 @@ void HierarchicalAllocatorProcess::allocate(
 
   if (offerable.empty()) {
     VLOG(1) << "No resources available to allocate!";
+
+    std::ofstream log;
+    log.open("/Users/alex/Temp/quota_tests.txt", std::ios_base::app);
+    log << "No resources to allocate!" << std::endl;
   } else {
     // Now offer the resources to each framework.
     foreachkey (const FrameworkID& frameworkId, offerable) {
