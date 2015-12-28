@@ -357,6 +357,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   task.mutable_command()->MergeFrom(command);
 
+  Clock::pause();
   // Expect the launch and just assume it was sucessful since we'll be
   // launching the executor ourselves manually below.
   Future<Nothing> launch;
@@ -430,6 +431,15 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   termination.set_message("Killed executor");
   termination.set_status(0);
   promise.set(termination);
+
+  kill(executor.get().pid(), SIGTERM);
+
+  while (executor.get().status().isPending()) {
+    Clock::advance(process::MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
