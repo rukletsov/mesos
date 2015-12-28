@@ -13,7 +13,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#include <iostream>
 #include <unistd.h>
 
 #include <algorithm>
@@ -320,6 +320,9 @@ TEST_F(SlaveTest, RemoveUnregisteredTerminatedExecutor)
 // command to use via the --override argument.
 TEST_F(SlaveTest, CommandExecutorWithOverride)
 {
+  Stopwatch s;
+  s.start();
+
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -415,6 +418,8 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   ASSERT_SOME(executor);
 
+  std::cout << " >>> executor started " << s.elapsed().ms() << std::endl;
+
   // Scheduler should first receive TASK_RUNNING followed by the
   // TASK_FINISHED from the executor.
   AWAIT_READY(statusRunning);
@@ -426,6 +431,7 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished.get().source());
 
   AWAIT_READY(wait);
+  std::cout << " >>> statuses recieved " << s.elapsed().ms() << std::endl;
 
   containerizer::Termination termination;
   termination.set_message("Killed executor");
@@ -434,17 +440,22 @@ TEST_F(SlaveTest, CommandExecutorWithOverride)
 
   kill(executor.get().pid(), SIGTERM);
 
-  while (executor.get().status().isPending()) {
-    Clock::advance(process::MAX_REAP_INTERVAL());
-    Clock::settle();
-  }
+//  while (executor.get().status().isPending()) {
+//    std::cout << " >>> advanced clock " << s.elapsed().ms() << std::endl;
+//    Clock::advance(process::MAX_REAP_INTERVAL());
+//    Clock::settle();
+//  }
 
   Clock::resume();
 
   driver.stop();
   driver.join();
 
+  std::cout << " >>> driver stopped " << s.elapsed().ms() << std::endl;
+
   AWAIT_READY(executor.get().status());
+
+  std::cout << " >>> executor exited " << s.elapsed().ms() << std::endl;
 
   // Verify file contents.
   Try<std::string> validate = os::read(file.get());

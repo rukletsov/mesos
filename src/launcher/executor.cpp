@@ -528,7 +528,7 @@ private:
     // slave before we exit the process. Without this, we
     // may exit before libprocess has sent the data over
     // the socket. See MESOS-4111.
-    os::sleep(Seconds(1));
+    //os::sleep(Seconds(1));
     driver->stop();
   }
 
