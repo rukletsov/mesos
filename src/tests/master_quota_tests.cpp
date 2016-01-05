@@ -149,6 +149,7 @@ protected:
 // while irrelevant fields are not present.
 
 // TODO(alexr): Tests to implement:
+//   * Implicit roles are used in the master.
 //   * Role is absent.
 //   * Role is an empty string.
 //   * Role is '*'?
@@ -182,7 +183,7 @@ TEST_F(MasterQuotaTest, NonExistentRole)
 
 
 // Quota requests with invalid structure should return a '400 Bad Request'.
-TEST_F(MasterQuotaTest, SetInvalidRequest)
+TEST_F(MasterQuotaTest, InvalidSetRequest)
 {
   Try<PID<Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -302,7 +303,7 @@ TEST_F(MasterQuotaTest, ResourcesSpecifyRole)
   // we start looking at available resources.
 
   // Create a quota request with the 'role' field set in resources.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;", ROLE1).get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512", ROLE1).get();
 
   Future<Response> response = process::http::post(
       master.get(),
@@ -340,7 +341,7 @@ TEST_F(MasterQuotaTest, SetExistingQuota)
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // We request quota for a portion of resources available on the agent.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   Future<Response> response = process::http::post(
@@ -420,11 +421,11 @@ TEST_F(MasterQuotaTest, SetInvalidResourceInfos)
   {
     Resources quotaResources = Resources::parse("cpus:4;mem:512").get();
 
-    Resource volume = Resources::parse("disk", "128", ROLE1).get();
-    volume.mutable_reservation()->CopyFrom(
+    Resource reserved = Resources::parse("disk", "128", ROLE1).get();
+    reserved.mutable_reservation()->CopyFrom(
         createReservationInfo(DEFAULT_CREDENTIAL.principal()));
 
-    quotaResources += volume;
+    quotaResources += reserved;
 
     Future<Response> response = process::http::post(
         master.get(),
@@ -470,7 +471,8 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
   };
 
-  // Ensure that we can't remove quota for a role that is unknown to the master.
+  // Ensure that we can't remove quota for a role that is unknown to
+  // the master when using explicitly configured list of role names.
   {
     Future<Response> response = removeQuota("quota/" + UNKNOWN_ROLE);
 
@@ -735,7 +737,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -804,7 +806,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   AWAIT_READY(receivedQuotaRequest);
 
   EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -962,7 +964,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, Resources(receivedQuotaRequest.get().guarantee()));
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
 
   Shutdown();
 }
@@ -1094,28 +1096,32 @@ TEST_F(MasterQuotaTest, UnauthenticatedQuotaRequest)
 
   // The master is configured so that only requests from `DEFAULT_CREDENTIAL`
   // are authenticated.
-  Credential credential;
-  credential.set_principal("unknown-principal");
-  credential.set_secret("test-secret");
+  {
+    Credential credential;
+    credential.set_principal("unknown-principal");
+    credential.set_secret("test-secret");
 
-  Future<Response> response1 = process::http::post(
-      master.get(),
-      "quota",
-      createBasicAuthHeaders(credential),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        createBasicAuthHeaders(credential),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status, response1) << response1.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        Unauthorized("Mesos master").status, response) << response.get().body;
+  }
 
   // The absense of credentials leads to authentication failure as well.
-  Future<Response> response2 = process::http::post(
-      master.get(),
-      "quota",
-      None(),
-      createRequestBody(ROLE1, quotaResources));
+  {
+    Future<Response> response = process::http::post(
+        master.get(),
+        "quota",
+        None(),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      Unauthorized("Mesos master").status, response2) << response2.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+        Unauthorized("Mesos master").status, response) << response.get().body;
+  }
 
   Shutdown();
 }
@@ -1152,7 +1158,7 @@ TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequest)
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // Request quota for a portion of the resources available on the agent.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   Future<QuotaInfo> quotaInfo;
@@ -1214,7 +1220,7 @@ TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequestWithoutPrincipal)
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // Request quota for a portion of the resources available on the agent.
-  Resources quotaResources = Resources::parse("cpus:1;mem:512;").get();
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   // Create a HTTP request without authorization headers.
