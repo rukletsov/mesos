@@ -63,18 +63,54 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-// Creates a `QuotaInfo` protobuf from the quota request.
-static Try<QuotaInfo> createQuotaInfo(
-    const string& role,
-    const RepeatedPtrField<Resource>& resources)
+// Creates a `QuotaInfo` protobuf from the request JSON.
+static Try<QuotaInfo> createQuotaInfo(const JSON::Object& json)
 {
+  // Extract role from the request JSON.
+  Result<JSON::String> roleJSON = json.find<JSON::String>("role");
+
+  if (roleJSON.isError()) {
+    // An `Error` usually indicates that a search string is malformed
+    // (which is not the case here), however it may also indicate that
+    // the `role` field is not a string.
+    return Error(roleJSON.error());
+  }
+
+  if (roleJSON.isNone()) {
+    return Error("Field 'role' is missing");
+  }
+
+  const string role = roleJSON.get().value;
+
+  // Extract resources from the request JSON.
+  Result<JSON::Array> resourcesJSON = json.find<JSON::Array>("resources");
+
+  if (resourcesJSON.isError()) {
+    // An `Error` usually indicates that a search string is malformed
+    // (which is not the case here), however it may also indicate that
+    // the `resources` field is not an array.
+    return Error(resourcesJSON.error());
+  }
+
+  if (resourcesJSON.isNone()) {
+    return Error("Field 'resources' is missing");
+  }
+
+  // Create protobuf representation of resources.
+  Try<RepeatedPtrField<Resource>> resources =
+    ::protobuf::parse<RepeatedPtrField<Resource>>(resourcesJSON.get());
+
+  if (resources.isError()) {
+    return Error(resources.error());
+  }
+
   VLOG(1) << "Constructing QuotaInfo for role \"" << role
-          << "\" from resources protobuf";
+          << "\" from the quota request JSON";
 
   QuotaInfo quota;
 
   quota.set_role(role);
-  quota.mutable_guarantee()->CopyFrom(resources);
+  quota.mutable_guarantee()->CopyFrom(resources.get());
 
   return quota;
 }
@@ -239,57 +275,8 @@ Future<http::Response> Master::QuotaHandler::set(
         parse.error());
   }
 
-  // Extract role from the request JSON.
-  Result<JSON::String> roleJSON = parse.get().find<JSON::String>("role");
-
-  if (roleJSON.isError()) {
-    // An `Error` usually indicates that a search string is malformed
-    // (which is not the case here), however it may also indicate that
-    // the `role` field is not a string.
-    return BadRequest(
-        "Failed to extract 'role' from set quota request JSON '" +
-        request.body + "': " + roleJSON.error());
-  }
-
-  if (roleJSON.isNone()) {
-    return BadRequest(
-        "Failed to extract 'role' from set quota request JSON '" +
-        request.body + "': Field is missing");
-  }
-
-  string role = roleJSON.get().value;
-
-  // Extract resources from the request JSON.
-  Result<JSON::Array> resourcesJSON =
-    parse.get().find<JSON::Array>("resources");
-
-  if (resourcesJSON.isError()) {
-    // An `Error` usually indicates that a search string is malformed
-    // (which is not the case here), however it may also indicate that
-    // the `resources` field is not an array.
-    return BadRequest(
-        "Failed to extract 'resources' from set quota request JSON '" +
-        request.body + "': " + resourcesJSON.error());
-  }
-
-  if (resourcesJSON.isNone()) {
-    return BadRequest(
-        "Failed to extract 'resources' from set quota request JSON '" +
-        request.body + "': Field is missing");
-  }
-
-  // Create protobuf representation of resources.
-  Try<RepeatedPtrField<Resource>> resources =
-    ::protobuf::parse<RepeatedPtrField<Resource>>(resourcesJSON.get());
-
-  if (resources.isError()) {
-    return BadRequest(
-        "Failed to parse 'resources' from set quota request JSON '" +
-        request.body + "': " + resources.error());
-  }
-
   // Create the `QuotaInfo` protobuf message from the request JSON.
-  Try<QuotaInfo> create = createQuotaInfo(role, resources.get());
+  Try<QuotaInfo> create = createQuotaInfo(parse.get());
   if (create.isError()) {
     return BadRequest(
         "Failed to create 'QuotaInfo' from set quota request JSON '" +
