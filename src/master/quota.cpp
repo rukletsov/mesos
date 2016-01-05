@@ -28,6 +28,31 @@ using mesos::quota::QuotaInfo;
 
 using std::string;
 
+Try<Quota> Quota::create(const QuotaInfo& info)
+{
+  Option<Error> error = validate(info);
+  if (error.isSome()) {
+    return Error("QuotaInfo is invalid: " + error.get().message);
+  }
+
+  return Quota(info);
+}
+
+
+Option<Error> Quota::validate(const QuotaInfo& info)
+{
+  return mesos::internal::master::quota::validation::quotaInfo(info);
+}
+
+
+const QuotaInfo& Quota::info() const
+{
+  return info_;
+}
+
+
+Quota::Quota(const QuotaInfo& info) : info_(info) {}
+
 namespace mesos {
 namespace internal {
 namespace master {

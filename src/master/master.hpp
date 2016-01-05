@@ -1006,7 +1006,7 @@ private:
         const std::string& role) const;
 
     process::Future<process::http::Response> _set(
-        const mesos::quota::QuotaInfo& quota,
+        const Quota& quota,
         bool forced) const;
 
     // To perform actions related to quota management, we require access to the

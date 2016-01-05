@@ -20,12 +20,31 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/quota/quota.pb.h>
 
+#include <stout/error.hpp>
+#include <stout/option.hpp>
+#include <stout/try.hpp>
+
 // A C++ wrapper for `QuotaInfo` used to communicate between the
-// Allocator and Master.
-struct Quota
+// allocator and the master. Ensures contained `QuotaInfo` is valid.
+class Quota
 {
+public:
+  //
+  static Try<Quota> create(const mesos::quota::QuotaInfo& info);
+
+  //
+  static Option<Error> validate(const mesos::quota::QuotaInfo& info);
+
+  const mesos::quota::QuotaInfo& info() const;
+
+private:
+  // Because we want to validate `QuotaInfo` before constructing `Quota`
+  // instance, we prohibit direct construction. However copy construction
+  // and assignment are allowed.
+  Quota(const mesos::quota::QuotaInfo& info);
+
   // Holds the quota protobuf, as constructed from an operator's request.
-  mesos::quota::QuotaInfo info;
+  mesos::quota::QuotaInfo info_;
 };
 
 #endif // __MESOS_QUOTA_PROTO_HPP__

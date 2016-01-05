@@ -132,7 +132,7 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
   // TODO(alexr): Relax this constraint once we allow updating quotas.
   Resources totalQuota = request.guarantee();
   foreachvalue (const Quota& quota, master->quotas) {
-    totalQuota += quota.info.guarantee();
+    totalQuota += quota.info().guarantee();
   }
 
   // Determine whether the total quota, including the new request, does
@@ -280,33 +280,33 @@ Future<http::Response> Master::QuotaHandler::set(
   }
 
   // Create the `QuotaInfo` protobuf message from the request JSON.
-  Try<QuotaInfo> create = createQuotaInfo(parse.get());
-  if (create.isError()) {
+  Try<QuotaInfo> createInfo = createQuotaInfo(parse.get());
+  if (createInfo.isError()) {
     return BadRequest(
         "Failed to create 'QuotaInfo' from set quota request JSON '" +
-        request.body + "': " + create.error());
+        request.body + "': " + createInfo.error());
   }
 
-  const QuotaInfo& quotaInfo = create.get();
-
-  // Check that the `QuotaInfo` is a valid quota request.
-  Option<Error> validateError = quota::validation::quotaInfo(quotaInfo);
-  if (validateError.isSome()) {
+  // Create the `Quota` instance out of `QuotaInfo`.
+  Try<Quota> createQuota = Quota::create(createInfo.get());
+  if (createQuota.isError()) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body + "': " +
-        validateError.get().message);
+        createQuota.error());
   }
 
+  const Quota& quota = createQuota.get();
+
   // Check that the role is on the role whitelist, if it exists.
-  if (!master->isWhitelistedRole(quotaInfo.role())) {
+  if (!master->isWhitelistedRole(quota.info().role())) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body +
-        "': Unknown role '" + quotaInfo.role() + "'");
+        "': Unknown role '" + quota.info().role() + "'");
   }
 
   // Check that we are not updating an existing quota.
   // TODO(joerg84): Update error message once quota update is in place.
-  if (master->quotas.contains(quotaInfo.role())) {
+  if (master->quotas.contains(quota.info().role())) {
     return BadRequest(
         "Failed to validate set quota request JSON '" + request.body +
         "': Can not set quota for a role that already has quota");
@@ -329,26 +329,26 @@ Future<http::Response> Master::QuotaHandler::set(
   Option<string> principal =
     credential.isSome() ? credential.get().principal() : Option<string>::none();
 
-  return authorize(principal, quotaInfo.role())
+  return authorize(principal, quota.info().role())
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       if (!authorized) {
         return Unauthorized("Mesos master");
       }
 
-      return _set(quotaInfo, forced);
+      return _set(quota, forced);
     }));
 }
 
 
 Future<http::Response> Master::QuotaHandler::_set(
-    const QuotaInfo& quotaInfo,
+    const Quota& quota,
     bool forced) const
 {
   if (forced) {
     VLOG(1) << "Using force flag to override quota capacity heuristic check";
   } else {
     // Validate whether a quota request can be satisfied.
-    Option<Error> error = capacityHeuristic(quotaInfo);
+    Option<Error> error = capacityHeuristic(quota.info());
     if (error.isSome()) {
       return Conflict(
           "Heuristic capacity check for set quota request failed: " +
@@ -356,23 +356,21 @@ Future<http::Response> Master::QuotaHandler::_set(
     }
   }
 
-  Quota quota = Quota{quotaInfo};
-
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to
   // satisfy a request for this role (since this is a multi-phase event).
   // NOTE: We do not need to remove quota for the role if the registry update
   // fails because in this case the master fails as well.
-  master->quotas[quotaInfo.role()] = quota;
+  master->quotas[quota.info().role()] = quota;
 
   // Update the registry with the new quota and acknowledge the request.
   return master->registrar->apply(Owned<Operation>(
-      new quota::UpdateQuota(quotaInfo)))
+      new quota::UpdateQuota(quota.info())))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
 
-      master->allocator->setQuota(quotaInfo.role(), quota);
+      master->allocator->setQuota(quota.info().role(), quota);
 
       // Rescind outstanding offers to facilitate satisfying the quota request.
       // NOTE: We set quota before we rescind to avoid a race. If we were to
@@ -384,7 +382,7 @@ Future<http::Response> Master::QuotaHandler::_set(
       // allocation is invoked.
       // This can be resolved in the future with an explicit allocation call,
       // and this solution is preferred to having the race described earlier.
-      rescindOffers(quotaInfo);
+      rescindOffers(quota.info());
 
       return OK();
     }));
