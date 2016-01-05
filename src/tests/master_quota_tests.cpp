@@ -47,8 +47,6 @@ using mesos::internal::master::Master;
 
 using mesos::internal::slave::Slave;
 
-using mesos::quota::QuotaInfo;
-
 using process::Future;
 using process::PID;
 
@@ -654,7 +652,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   EXPECT_TRUE(agentTotalResources.get().contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<QuotaInfo> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -671,8 +669,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
+  EXPECT_EQ(ROLE1, receivedQuotaRequest.get().info.role());
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
 
   Shutdown();
 }
@@ -723,7 +721,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
     });
 
   // Send a quota request for the specified role.
-  Future<QuotaInfo> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -740,8 +738,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(ROLE1, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
+  EXPECT_EQ(ROLE1, receivedQuotaRequest.get().info.role());
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
 
   Shutdown();
 }
@@ -871,7 +869,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
     .Times(2);
 
   // Send a quota request for the specified role.
-  Future<QuotaInfo> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, setQuota(Eq(ROLE2), _))
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -898,8 +896,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // The quota request is granted and reached the allocator. Make sure nothing
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
-  EXPECT_EQ(ROLE2, receivedQuotaRequest.get().role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().guarantee());
+  EXPECT_EQ(ROLE2, receivedQuotaRequest.get().info.role());
+  EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
 
   Shutdown();
 }
@@ -962,7 +960,7 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
     // Request quota for a portion of the resources available on the agent.
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-    Future<QuotaInfo> receivedSetRequest;
+    Future<Quota> receivedSetRequest;
     EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
       .WillOnce(DoAll(InvokeSetQuota(&allocator),
                       FutureArg<1>(&receivedSetRequest)));
@@ -1072,10 +1070,10 @@ TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequest)
   // Request quota for a portion of the resources available on the agent.
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-  Future<QuotaInfo> quotaInfo;
+  Future<Quota> quota;
   EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeSetQuota(&allocator),
-                    FutureArg<1>(&quotaInfo)));
+                    FutureArg<1>(&quota)));
 
   // Note that we set the force flag because we are setting a quota that
   // cannot currently be satisfied by the resources in the cluster
@@ -1088,12 +1086,12 @@ TEST_F(MasterQuotaTest, AuthorizedQuotaSetRequest)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response) << response.get().body;
 
-  AWAIT_READY(quotaInfo);
+  AWAIT_READY(quota);
 
   // TODO(nfnt): Quota removal authorization will add a principal field to
   // `QuotaInfo`. Check it for the correct principal value.
-  EXPECT_EQ(ROLE1, quotaInfo.get().role());
-  EXPECT_EQ(quotaResources, quotaInfo.get().guarantee());
+  EXPECT_EQ(ROLE1, quota.get().info.role());
+  EXPECT_EQ(quotaResources, quota.get().info.guarantee());
 
   Shutdown();
 }
