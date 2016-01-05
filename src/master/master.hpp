@@ -1006,7 +1006,7 @@ private:
         const Option<std::string>& quotaPrincipal) const;
 
     process::Future<process::http::Response> _set(
-        const mesos::quota::QuotaInfo& quota,
+        const Quota& quota,
         bool forced) const;
 
     process::Future<process::http::Response> _remove(

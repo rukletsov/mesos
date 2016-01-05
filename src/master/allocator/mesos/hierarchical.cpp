@@ -998,8 +998,8 @@ void HierarchicalAllocatorProcess::setQuota(
   }
 
   // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Set quota " << quota.info.guarantee() << " for role '" << role
-            << "'";
+  LOG(INFO) << "Set quota " << quota.info().guarantee() << " for role '"
+            << role << "'";
 
   // Trigger the allocation explicitly in order to promptly react to the
   // operator's request.
@@ -1017,7 +1017,7 @@ void HierarchicalAllocatorProcess::removeQuota(
   CHECK(quotaRoleSorter->contains(role));
 
   // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Removed quota " << quotas[role].info.guarantee()
+  LOG(INFO) << "Removed quota " << quotas[role].info().guarantee()
             << " for role '" << role << "'";
 
   // Remove the role from the quota'ed allocation group.
@@ -1152,7 +1152,7 @@ void HierarchicalAllocatorProcess::allocate(
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
       //   * Removing satisfied roles from the sorter.
-      if (roleConsumedResources.contains(quotas[role].info.guarantee())) {
+      if (roleConsumedResources.contains(quotas[role].info().guarantee())) {
         break;
       }
 
@@ -1222,7 +1222,7 @@ void HierarchicalAllocatorProcess::allocate(
     // Compute the amount of quota that the role does not have allocated.
     // NOTE: Reserved and revocable resources are excluded in `quotaRoleSorter`.
     Resources allocated = Resources::sum(quotaRoleSorter->allocation(name));
-    const Resources required = quota.info.guarantee();
+    const Resources required = quota.info().guarantee();
     unallocatedQuotaResources += (required - allocated);
   }
 
