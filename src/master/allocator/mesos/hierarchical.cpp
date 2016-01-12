@@ -150,6 +150,17 @@ void HierarchicalAllocatorProcess::initialize(
 }
 
 
+// Allocator recovery is a trigger for when the allocator can start doing
+// allocations again.
+//
+// If quota is enabled, we need to delay allocations after a failover because
+// otherwise we perform allocations on partial allocation information while
+// the agents are re-registering. This means that we may perform unnecessary
+// allocations to satisfy quota constraints, which can lead to over-allocating
+// non-revocable resources to quota'ed roles. As a result, frameworks in
+// non-quota'ed roles can starve (i.e. get no or less resources offered if
+// there was no failover) and we may be unable to satisfy all of the quota
+// constraints. Repeated failovers exacerbate the concerns here.
 void HierarchicalAllocatorProcess::recover(
     const int _expectedAgentCount,
     const hashmap<string, Quota>& quotas)
