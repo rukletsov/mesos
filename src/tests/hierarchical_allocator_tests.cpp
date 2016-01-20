@@ -1811,6 +1811,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
 
 // This test verifies, that the free pool (what is left after all quotas
 // are satisfied) is allocated according to the DRF algorithm.
+// NOTE: The allocator marks all resources beyond quota as revocable.
 TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
@@ -1823,22 +1824,15 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (1 agent): cpus=1, mem=512.
-  // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0
-  //   framework2 share = 0
-
-  // Create framework and agent descriptions.
+  // Create framework descriptions. Note that the quota'ed framework opts for
+  // revocable resources.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
+  framework1.add_capabilities()->set_type(
+      FrameworkInfo::Capability::REVOCABLE_RESOURCES);
+
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota1);
 
   allocator->addFramework(
@@ -1856,6 +1850,14 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  // We start with the following cluster setup.
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0
+  //   framework2 share = 0
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1879,7 +1881,26 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
   //   framework1 share = 1
   // NO_QUOTA_ROLE share = 0.75 (cpus=0.75, mem=384)
-  //   framework2 share = 0
+  //   framework2 share = 1
+
+  // Add one more framework to the quota'ed role. Not that it does not opt
+  // for revocable resources.
+  FrameworkInfo framework3 = createFrameworkInfo(QUOTA_ROLE);
+  allocator->addFramework(
+      framework3.id(),
+      framework3,
+      hashmap<SlaveID, Resources>());
+
+  // Process the allocation event triggered by adding `framework3`.
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
+
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
+  //   framework1 share = 1
+  //   framework3 share = 0
+  // NO_QUOTA_ROLE share = 0.75 (cpus=0.75, mem=384)
+  //   framework2 share = 1
 
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
@@ -1889,13 +1910,65 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
       agent2.resources(),
       hashmap<FrameworkID, Resources>());
 
-  // `framework1` will be offered all of `agent2`'s resources
-  // (coarse-grained allocation) because its share is less than
-  // `framework2`'s share.
+  // `framework1` will be offered all of `agent2`'s resources as revocable
+  // (coarse-grained allocation) because:
+  //   * `framework3` has not opted for revocable resources, though its share
+  //     is smaller than `framework1`'a share;
+  //   * `framework1` has opted for revocable resources;
+  //   * `framework1`'s share is less than `framework2`'s share.
+  Resources expected = agent2.resources();
+  foreach (Resource& resource, expected) {
+    resource.mutable_revocable();
+  }
+
   allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
-  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+  EXPECT_EQ(expected, Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // QUOTA_ROLE share = 0.625 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
+  //                          (cpus{REV}=1, mem{REV}=512)
+  //   framework1 share = 1
+  //   framework3 share = 0
+  // NO_QUOTA_ROLE share = 0.375 (cpus=0.75, mem=384)
+  //   framework2 share = 1
+
+  // Recover non-revocable resources that are used by the quota'ed `framework1`.
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      Resources(quota1.info.guarantee()),
+      None());
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // QUOTA_ROLE share = 0.5 (cpus{REV}=1, mem{REV}=512)
+  //                                       [quota: cpus=0.25, mem=128]
+  //   framework1 share = 1
+  //   framework3 share = 0
+  // NO_QUOTA_ROLE share = 0.375 (cpus=0.75, mem=384)
+  //   framework2 share = 1
+
+  // Trigger the next periodic allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // Though `QUOTA_ROLE` is allocated some revocable resources, its quota is
+  // not satisfied, hence recovered resources are allocated to `framework3`,
+  // the framework with the smallest share in the role.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework3.id(), allocation.get().frameworkId);
+  EXPECT_EQ(Resources(quota1.info.guarantee()),
+            Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // QUOTA_ROLE share = 0.625 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
+  //                          (cpus{REV}=1, mem{REV}=512)
+  //   framework1 share = 0.8
+  //   framework3 share = 0.2
+  // NO_QUOTA_ROLE share = 0.375 (cpus=0.75, mem=384)
+  //   framework2 share = 1
 }
 
 

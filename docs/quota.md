@@ -275,6 +275,13 @@ The wDRF allocator first allocates (or lays away if offers are declined)
 resources to framework in roles with quota set. Once all quotas are
 satisfied, it proceeds with the standard wDRF for all frameworks.
 
+__NOTE:__ A quota'ed role may not be allocated any non-revocable resources
+          beyond its quota. If frameworks in the quota'ed role has not opted
+          for revocable resources, they may stop getting offers once quota
+          for the role is satisfied. In this case setting quota to any value
+          that is less than the role's fair share may reduce the amount of
+          resources offered to this role.
+
 If there are multiple frameworks in a role with quota set, the standard wDRF
 algorithm determines framework priority inside this role.
 
