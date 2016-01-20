@@ -1282,6 +1282,10 @@ void HierarchicalAllocatorProcess::allocate(
       break;
     }
 
+    VLOG(1) << "Looking at the agent '" << slaveId << "' with "
+            << "[total=" << slaves[slaveId].total
+            << ", allocated=" << slaves[slaveId].allocated << "]";
+
     foreach (const string& role, roleSorter->sort()) {
       foreach (const string& frameworkId_,
                frameworkSorters[role]->sort()) {
@@ -1292,6 +1296,11 @@ void HierarchicalAllocatorProcess::allocate(
         if (frameworks[frameworkId].suppressed) {
           continue;
         }
+
+        VLOG(1) << " > Looking at framework '" << frameworkId << "' in role '"
+                << role << "' with allocation "
+             << Resources::sum(frameworkSorters[role]->allocation(frameworkId_))
+                << " and " << Resources::sum(roleSorter->allocation(role));
 
         // Calculate the currently available resources on the slave.
         Resources available = slaves[slaveId].total - slaves[slaveId].allocated;
@@ -1305,6 +1314,7 @@ void HierarchicalAllocatorProcess::allocate(
         // We do not terminate early, as offers generated further in the
         // loop may be small enough to fit within `remainingClusterResources`.
         if (!remainingClusterResources.contains(allocatedStage2 + resources)) {
+          VLOG(1) << " > violating quota";
           continue;
         }
 
@@ -1327,16 +1337,20 @@ void HierarchicalAllocatorProcess::allocate(
         // Remove revocable resources if the framework has not opted
         // for them.
         if (!frameworks[frameworkId].revocable) {
+          VLOG(1) << " > framework '" << frameworkId << "' in role '" << role
+                  << "' opted out for revocable resources";
           offerableResources = offerableResources.nonRevocable();
         }
 
         // If the resources are not allocatable, ignore.
         if (!allocatable(offerableResources)) {
+          VLOG(1) << " > not allocatable";
           continue;
         }
 
         // If the framework filters these resources, ignore.
         if (isFiltered(frameworkId, slaveId, offerableResources)) {
+          VLOG(1) << " > filtered";
           continue;
         }
 
