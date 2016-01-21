@@ -1565,8 +1565,6 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
   // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota1);
 
-  // NOTE: We do not report about allocated resources to `framework1`
-  // here to avoid double accounting.
   allocator->addFramework(
       framework1.id(),
       framework1,
@@ -1833,8 +1831,6 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota1);
 
-  // NOTE: We do not report about allocated resources to `framework1`
-  // here to avoid double accounting.
   allocator->addFramework(
       framework1.id(),
       framework1,
@@ -1929,8 +1925,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
   // Notify allocator of agents, frameworks, and current allocations.
-  // NOTE: We do not report about allocated resources to `framework1`
-  // here to avoid double accounting.
   allocator->addFramework(
       framework1.id(),
       framework1,
