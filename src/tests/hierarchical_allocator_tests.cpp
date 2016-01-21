@@ -446,6 +446,235 @@ TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 }
 
 
+// This test ensures that an offer filter larger than the allocation
+// interval effectively filters out resources.
+TEST_F(HierarchicalAllocatorTest, OfferFilter)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // We put both frameworks into the same role, but we could also have had
+  // separate roles; this should not influence the test.
+  const string ROLE{"role"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  initialize();
+
+  FrameworkInfo framework1 = createFrameworkInfo(ROLE);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  allocator->addFramework(
+      framework1.id(),
+      framework1,
+      hashmap<SlaveID, Resources>());
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      None(),
+      agent1.resources(),
+      EMPTY);
+
+  // `framework1` will be offered all of the `agent1`'s resources because
+  // it is the only framework in the cluster.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  // Now `framework1` declines the offer and sets a filter with the duration
+  // greater than the allocation interval.
+  Duration filterTimeout = flags.allocation_interval * 2;
+  Filters offerFilter;
+  offerFilter.set_refuse_seconds(filterTimeout.secs());
+
+  allocator->recoverResources(
+      framework1.id(),
+      agent1.id(),
+      allocation.get().resources.get(agent1.id()).get(),
+      offerFilter);
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // There should be no allocation due to `offerFilter`.
+  allocation = allocations.get();
+  ASSERT_TRUE(allocation.isPending());
+
+  // Ensure the `offerFilter` times out.
+  Clock::advance(filterTimeout);
+  Clock::settle();
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // The next batch allocation should offer resources to `framework1`.
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+}
+
+
+// This test ensures that an offer filter is not removed earlier than the
+// next batch allocation. Ыee MESOS-4302 for more information.
+//
+// NOTE: If we update the code to allocate upon resource recovery (MESOS-3078),
+// this test will still apply, but timing may require adjustment.
+TEST_F(HierarchicalAllocatorTest, FilterTimeoutRespected)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  // We put both frameworks into the same role, but we could also have had
+  // separate roles; this should not influence the test.
+  const string ROLE{"role"};
+
+  hashmap<FrameworkID, Resources> EMPTY;
+
+  // Explcitly set the allocation interval to make sure it is greater than
+  // the offer filter timeout.
+  master::Flags flags_;
+  flags_.allocation_interval = Minutes(1);
+
+  initialize(flags_);
+
+  // We start with the following cluster setup.
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // ROLE1 share = 1 (cpus=1, mem=512)
+  //   framework1 share = 1 (cpus=1, mem=512)
+  //   framework2 share = 0
+
+  FrameworkInfo framework1 = createFrameworkInfo(ROLE);
+  FrameworkInfo framework2 = createFrameworkInfo(ROLE);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  allocator->addFramework(
+      framework1.id(),
+      framework1,
+      hashmap<SlaveID, Resources>());
+
+  allocator->addFramework(
+      framework2.id(),
+      framework2,
+      hashmap<SlaveID, Resources>());
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      None(),
+      agent1.resources(),
+      {std::make_pair(framework1.id(), agent1.resources())});
+
+  // Process all triggered allocation events.
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
+
+  // Add one more agent with some free resources.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      None(),
+      agent2.resources(),
+      EMPTY);
+
+  // Process the allocation triggered by the agent addition.
+  Clock::settle();
+
+  // `framework2` will be offered all of the `agent2`'s resources because
+  // its share (0) is smaller than `framework1`'s.
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 agents): cpus=2, mem=1024.
+  // ROLE1 share = 1 (cpus=2, mem=1024)
+  //   framework1 share = 0.5 (cpus=1, mem=512)
+  //   framework2 share = 0.5 (cpus=1, mem=512)
+
+  // Now `framework2` declines the offer and sets a filter for 1s,
+  // which is less than the allocation interval.
+  Duration filterTimeout = Seconds(1);
+  ASSERT_GT(flags.allocation_interval, filterTimeout);
+
+  Filters offerFilter;
+  offerFilter.set_refuse_seconds(filterTimeout.secs());
+
+  allocator->recoverResources(
+      framework2.id(),
+      agent2.id(),
+      allocation.get().resources.get(agent2.id()).get(),
+      offerFilter);
+
+  // Total cluster resources (2 agents): cpus=2, mem=1024.
+  // ROLE1 share = 0.5 (cpus=1, mem=512)
+  //   framework1 share = 1 (cpus=1, mem=512)
+  //   framework2 share = 0
+
+  // The offer filter times out. Since the allocator ensures that offer
+  // filters are removed after at least one batch allocation has occurred,
+  // we expect that after the timeout elapses, the filter will remain active
+  // for the next allocation and the resources are allocated to `framework1`.
+  Clock::advance(filterTimeout);
+  Clock::settle();
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // Since `offerFilter` is applied, resources are offered to `framework1`
+  // even though its share is greater than `framework2`'s.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 agents): cpus=2, mem=1024.
+  // ROLE1 share = 1 (cpus=2, mem=1024)
+  //   framework1 share = 1 (cpus=2, mem=1024)
+  //   framework2 share = 0
+
+  // The `offerFilter` filter should be removed after the batch allocation.
+
+  // Now `framework1` declines the offer.
+  allocator->recoverResources(
+      framework1.id(),
+      agent2.id(),
+      allocation.get().resources.get(agent2.id()).get(),
+      None());
+
+  // Total cluster resources (2 agents): cpus=2, mem=1024.
+  // ROLE1 share = 0.5 (cpus=1, mem=512)
+  //   framework1 share = 1 (cpus=1, mem=512)
+  //   framework2 share = 0
+
+  // Trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // Since `offerFilter` is removed, resources are offered to `framework2`.
+  allocation = allocations.get();
+  AWAIT_READY(allocation);
+  EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
+  EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 agents): cpus=2, mem=1024.
+  // ROLE1 share = 1 (cpus=2, mem=1024)
+  //   framework1 share = 0.5 (cpus=1, mem=512)
+  //   framework2 share = 0.5 (cpus=1, mem=512)
+}
+
+
 // This test ensures that agents which are scheduled for maintenance are
 // properly sent inverse offers after they have accepted or reserved resources.
 TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
@@ -1281,10 +1510,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   // general case, because an allocator may be complex enough to postpone
   // decisions beyond its allocation cycle.
 
-  // Now advance the clock to make sure the filter is expired. The next
-  // and only allocation should be the declined resources offered to the
-  // quota'ed role.
+  // Now advance the clock to make sure the filter is expired and removed.
   Clock::advance(Duration::create(filter5s.refuse_seconds()).get());
+  Clock::settle();
+
+  // Trigger the next periodic allocation. It should offer the previously
+  // declined resources to the quota'ed role.
+  Clock::advance(flags.allocation_interval);
   Clock::settle();
 
   allocation = allocations.get();
