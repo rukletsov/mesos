@@ -253,7 +253,7 @@ class HierarchicalAllocatorTest : public HierarchicalAllocatorTestBase {};
 TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -379,7 +379,7 @@ TEST_F(HierarchicalAllocatorTest, UnreservedDRF)
 TEST_F(HierarchicalAllocatorTest, ReservedDRF)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -684,9 +684,9 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
 // properly sent inverse offers after they have accepted or reserved resources.
 TEST_F(HierarchicalAllocatorTest, MaintenanceInverseOffers)
 {
-  // Pausing the clock is not necessary, but ensures that the test doesn't rely
-  // on the periodic allocation in the allocator, which would slow down the
-  // test.
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
   Clock::pause();
 
   initialize();
@@ -981,7 +981,7 @@ TEST_F(HierarchicalAllocatorTest, RecoverResources)
 TEST_F(HierarchicalAllocatorTest, Allocatable)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1205,7 +1205,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateAvailableFail)
 // subsequent allocations properly account for that.
 TEST_F(HierarchicalAllocatorTest, UpdateSlave)
 {
-  // Pause clock to disable periodic allocation.
+  // Pause clock to disable batch allocation.
   Clock::pause();
 
   initialize();
@@ -1263,7 +1263,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlave)
 // revocable resources do not get allocated oversubscribed resources.
 TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
 {
-  // Pause clock to disable periodic allocation.
+  // Pause clock to disable batch allocation.
   Clock::pause();
 
   initialize();
@@ -1299,7 +1299,7 @@ TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
 // recovered subsequent allocation properly accounts for that.
 TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
 {
-  // Pause clock to disable periodic allocation.
+  // Pause clock to disable batch allocation.
   Clock::pause();
 
   initialize();
@@ -1420,7 +1420,7 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1501,7 +1501,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   //   framework2 share = 0
 
   // Assuming the default batch allocation interval is less than 5 seconds,
-  // all periodic allocations that happen while the refuse filter is active
+  // all batch allocations that happen while the refuse filter is active
   // should yield no new allocations.
   ASSERT_LT(flags.allocation_interval.secs(), filter5s.refuse_seconds());
   Clock::advance(flags.allocation_interval);
@@ -1521,7 +1521,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
   Clock::advance(Duration::create(filter5s.refuse_seconds()).get());
   Clock::settle();
 
-  // Trigger the next periodic allocation. It should offer the previously
+  // Trigger the next batch allocation. It should offer the previously
   // declined resources to the quota'ed role.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
@@ -1544,7 +1544,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesQuarantee)
 TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1614,7 +1614,7 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
       agent1.resources(),
       None());
 
-  // Trigger the next periodic allocation.
+  // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
 
@@ -1638,7 +1638,7 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1734,7 +1734,7 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
       agent3.resources(),
       filter5s);
 
-  // Trigger the next periodic allocation.
+  // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
 
@@ -1759,7 +1759,7 @@ TEST_F(HierarchicalAllocatorTest, MultipleFrameworksInRoleWithQuota)
 TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1814,7 +1814,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
 TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1912,7 +1912,7 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -1996,7 +1996,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 
-  // Trigger the next periodic allocation.
+  // Trigger the next batch allocation.
   Clock::advance(flags.allocation_interval);
   Clock::settle();
 
@@ -2039,7 +2039,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -2118,7 +2118,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -2163,7 +2163,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
 TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
@@ -2253,7 +2253,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
 {
   // Pausing the clock is not necessary, but ensures that the test
-  // doesn't rely on the periodic allocation in the allocator, which
+  // doesn't rely on the batch allocation in the allocator, which
   // would slow down the test.
   Clock::pause();
 
