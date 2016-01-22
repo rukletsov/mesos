@@ -548,12 +548,6 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
 
   initialize(flags_);
 
-  // We start with the following cluster setup.
-  // Total cluster resources (1 agent): cpus=1, mem=512.
-  // ROLE1 share = 1 (cpus=1, mem=512)
-  //   framework1 share = 1 (cpus=1, mem=512)
-  //   framework2 share = 0
-
   FrameworkInfo framework1 = createFrameworkInfo(ROLE);
   FrameworkInfo framework2 = createFrameworkInfo(ROLE);
 
@@ -580,6 +574,11 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
   //
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
+
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // ROLE1 share = 1 (cpus=1, mem=512)
+  //   framework1 share = 1 (cpus=1, mem=512)
+  //   framework2 share = 0
 
   // Add one more agent with some free resources.
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
@@ -1553,13 +1552,6 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
-  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0
-  //   framework2 share = 0
-
   // Create framework and agent descriptions.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1595,6 +1587,12 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
       None(),
       agent2.resources(),
       {std::make_pair(framework1.id(), agent2.resources())});
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0
+  //   framework2 share = 0
 
   // All cluster resources are now being used by `framework1` as part of
   // its role quota, no further allocations are expected. However, once the
@@ -1823,13 +1821,6 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (1 agent): cpus=1, mem=512.
-  // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0
-  //   framework2 share = 0
-
   // Create framework and agent descriptions.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1862,6 +1853,12 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
       None(),
       agent1.resources(),
       {std::make_pair(framework1.id(), Resources(quota1.info.guarantee()))});
+
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // QUOTA_ROLE share = 0.25 (cpus=0.25, mem=128) [quota: cpus=0.25, mem=128]
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0
+  //   framework2 share = 0
 
   // Some resources on `agent1` are now being used by `framework1` as part
   // of its role quota. All quotas are satisfied, all available resources
@@ -1921,13 +1918,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
-  // QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0
-  //   framework2 share = 0
-
   // Create framework and agent descriptions.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
@@ -1957,6 +1947,12 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   //
   // NOTE: No allocations happen because all resources are already allocated.
   Clock::settle();
+
+  // Total cluster resources (1 agent): cpus=1, mem=512.
+  // QUOTA_ROLE share = 1 (cpus=1, mem=512)
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0
+  //   framework2 share = 0
 
   allocator->addSlave(
       agent2.id(),
@@ -2050,13 +2046,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (2 agents): cpus=3, mem=1536.
-  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
-  //   no frameworks
-  // NO_QUOTA_ROLE share = 0
-  //   framework share = 1
-
   // Set quota for the quota'ed role. This role isn't registered with
   // the allocator yet.
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
@@ -2075,6 +2064,12 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
+  // Total cluster resources (0 agents): 0.
+  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
+  //   no frameworks
+  // NO_QUOTA_ROLE share = 0
+  //   framework share = 0
+
   // Each `addSlave()` triggers an event-based allocation.
   //
   // NOTE: The second event-based allocation for `agent2` takes into account
@@ -2082,13 +2077,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
   allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), EMPTY);
   allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), EMPTY);
-
-  // Total cluster resources (2 agents): cpus=3, mem=1536.
-  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024], but
-  //                    some resources (cpus=2, mem=1024) are laid away
-  //   no frameworks
-  // NO_QUOTA_ROLE share = 0.33
-  //   framework share = 1 (cpus=1, mem=512)
 
   // `framework` can only be allocated resources on `agent2`. This
   // is due to the coarse-grained nature of the allocations. All the
@@ -2104,6 +2092,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent2.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (2 agents): cpus=3, mem=1536.
+  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024], but
+  //                    (cpus=2, mem=1024) are laid away
+  //   no frameworks
+  // NO_QUOTA_ROLE share = 0.33
+  //   framework share = 1 (cpus=1, mem=512)
 }
 
 
@@ -2174,13 +2169,6 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 
   initialize();
 
-  // We start with the following cluster setup.
-  // Total cluster resources (2 identical agents): cpus=2, mem=2048.
-  // QUOTA_ROLE1 share = 0.5 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
-  //   framework1 share = 1
-  // QUOTA_ROLE2 share = 0.5 (cpus=1, mem=1024) [quota: cpus=2, mem=2000]
-  //   framework2 share = 1
-
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
 
@@ -2220,6 +2208,12 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent2.resources(),
       {std::make_pair(framework2.id(), agent2.resources())});
 
+  // Total cluster resources (2 identical agents): cpus=2, mem=2048.
+  // QUOTA_ROLE1 share = 0.5 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
+  //   framework1 share = 1
+  // QUOTA_ROLE2 share = 0.5 (cpus=1, mem=1024) [quota: cpus=2, mem=2000]
+  //   framework2 share = 1
+
   // Quota for the `QUOTA_ROLE1` role is satisfied, while `QUOTA_ROLE2` is
   // under quota. Hence resources of the newly added agent should be offered
   // to the framework in `QUOTA_ROLE2`.
@@ -2233,18 +2227,18 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent3.resources(),
       EMPTY);
 
-  // Total cluster resources (3 agents): cpus=4, mem=4096.
-  // QUOTA_ROLE1 share = 0.25 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
-  //   framework1 share = 1
-  // QUOTA_ROLE2 share = 0.75 (cpus=3, mem=3072) [quota: cpus=2, mem=2000]
-  //   framework2 share = 1
-
   // `framework2` will get all agent3's resources because its role is under
   // quota, while other roles' quotas are satisfied.
   Future<Allocation> allocation = allocations.get();
   AWAIT_READY(allocation);
   EXPECT_EQ(framework2.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent3.resources(), Resources::sum(allocation.get().resources));
+
+  // Total cluster resources (3 agents): cpus=4, mem=4096.
+  // QUOTA_ROLE1 share = 0.25 (cpus=1, mem=1024) [quota: cpus=1, mem=200]
+  //   framework1 share = 1
+  // QUOTA_ROLE2 share = 0.75 (cpus=3, mem=3072) [quota: cpus=2, mem=2000]
+  //   framework2 share = 1
 }
 
 
