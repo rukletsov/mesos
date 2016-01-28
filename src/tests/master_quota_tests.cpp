@@ -897,7 +897,8 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // Set expectations for the first offer and launch the framework.
   EXPECT_CALL(sched1, registered(&framework1, _, _));
   EXPECT_CALL(sched1, resourceOffers(&framework1, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   framework1.start();
 
@@ -985,6 +986,18 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   AWAIT_READY(receivedQuotaRequest);
   EXPECT_EQ(ROLE2, receivedQuotaRequest.get().info.role());
   EXPECT_EQ(quotaResources, receivedQuotaRequest.get().info.guarantee());
+
+  // In this test we are not interested in which frameworks will be offered
+  // the rescinded resources, hence we do not set any expectations about this.
+
+  framework1.stop();
+  framework1.join();
+
+  framework2.stop();
+  framework2.join();
+
+  framework3.stop();
+  framework3.join();
 
   Shutdown();
 }
