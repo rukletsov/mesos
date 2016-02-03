@@ -521,8 +521,14 @@ void HierarchicalAllocatorProcess::updateSlave(
 
   // Update the total resources.
 
-  // Remove the old oversubscribed resources from the total and then
-  // add the new estimate of oversubscribed resources.
+  // Remove the old revocable resources from the total and then add the
+  // new estimate of usage slack oversubscribed resources.
+  //
+  // NOTE: All modifications to revocable resources in the allocator for
+  // `slaveId` are lost.
+  //
+  // TODO(alexr): Update this math once the source of revocable resources
+  // is extended beyond usage slack oversubscription.
   slaves[slaveId].total = slaves[slaveId].total.nonRevocable() + oversubscribed;
 
   // Now, update the total resources in the role sorters.
