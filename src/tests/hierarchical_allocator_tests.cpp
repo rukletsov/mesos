@@ -1352,6 +1352,100 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 }
 
 
+//
+TEST_F(HierarchicalAllocatorTest, Order)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  const string SOME_ROLE{"some-role"};
+
+  initialize();
+
+  // Start with two identical agents and two frameworks in the same role,
+  // each having one agent allocated.
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+
+  FrameworkInfo framework1 = createFrameworkInfo(SOME_ROLE);
+  FrameworkInfo framework2 = createFrameworkInfo(SOME_ROLE);
+
+  hashmap<FrameworkID, Resources> agent1Allocation = {
+    std::make_pair(framework1.id(), agent1.resources())};
+  hashmap<FrameworkID, Resources> agent2Allocation = {
+    std::make_pair(framework2.id(), agent2.resources())};
+
+  hashmap<SlaveID, Resources> framework1Allocation = {
+    std::make_pair(agent1.id(), agent1.resources())};
+  hashmap<SlaveID, Resources> framework2Allocation = {
+    std::make_pair(agent2.id(), agent2.resources())};
+
+  //
+  allocator->addFramework(framework1.id(), framework1, framework1Allocation);
+
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), agent1Allocation);
+
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), agent2Allocation);
+
+  allocator->addFramework(framework2.id(), framework2, framework2Allocation);
+
+
+  // Same fair shares.
+
+
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), {});
+
+  SlaveInfo agent4 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  allocator->addSlave(agent4.id(), agent4, None(), agent4.resources(), {});
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0
+  //   framework2 share = 0
+
+  // All cluster resources are now being used by `framework1` as part of
+  // its role quota, no further allocations are expected. However, once the
+  // quota is removed, quota guarantee does not apply any more and released
+  // resources should be offered to `framework2` to restore fairness.
+
+  // Process all triggered allocation events.
+  //
+  // NOTE: No allocations happen because there are no resources to allocate.
+  Clock::settle();
+
+
+  // TODO(alexr): Simplify
+
+  Future<Allocation> allocation1 = allocations.get();
+  Future<Allocation> allocation2 = allocations.get();
+  AWAIT_READY(allocation1);
+  AWAIT_READY(allocation2);
+
+  //
+  std::set<FrameworkID> frameworksInOffer =
+    {allocation1.get().frameworkId, allocation2.get().frameworkId};
+
+  std::set<FrameworkID> frameworksInOfferExepcted =
+    {framework1.id(), framework2.id()};
+
+  EXPECT_EQ(frameworksInOfferExepcted, frameworksInOffer);
+
+
+
+  // Total cluster resources: cpus=2, mem=1024.
+  // QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
+  //   framework1 share = 1
+  // NO_QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
+  //   framework2 share = 1
+}
+
+
 // The quota tests that are specific to the built-in Hierarchical DRF
 // allocator (i.e. the way quota is satisfied) are in this file.
 
