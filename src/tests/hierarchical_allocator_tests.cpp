@@ -1720,6 +1720,98 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 }
 
 
+// This test checks that the order in which `addFramework()` and `addSlave()`
+// are called does not influence the bookkeeping. We start with two frameworks
+// with identical allocations, but we update the allocator in different order
+// for each framework. We expect the fair shares of the frameworks to be
+// identical, which we implicitly check by subsequent allocations.
+TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  const string SOME_ROLE{"some-role"};
+  const string agentResources{"cpus:1;mem:512;disk:0"};
+
+  initialize();
+
+  // Start with two identical agents and two frameworks,
+  // each having one agent allocated to it.
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  SlaveInfo agent2 = createSlaveInfo(agentResources);
+
+  FrameworkInfo framework1 = createFrameworkInfo(SOME_ROLE);
+  FrameworkInfo framework2 = createFrameworkInfo(SOME_ROLE);
+
+  hashmap<FrameworkID, Resources> agent1Allocation =
+    {std::make_pair(framework1.id(), agent1.resources())};
+  hashmap<FrameworkID, Resources> agent2Allocation =
+    {std::make_pair(framework2.id(), agent2.resources())};
+
+  hashmap<SlaveID, Resources> framework1Allocation =
+    {std::make_pair(agent1.id(), agent1.resources())};
+  hashmap<SlaveID, Resources> framework2Allocation =
+    {std::make_pair(agent2.id(), agent2.resources())};
+
+  // Call `addFramework()` and `addSlave()` in different order for
+  // `framework1` and `framework2`
+  allocator->addFramework(framework1.id(), framework1, framework1Allocation);
+
+  allocator->addSlave(
+      agent1.id(), agent1, None(), agent1.resources(), agent1Allocation);
+
+  allocator->addSlave(
+      agent2.id(), agent2, None(), agent2.resources(), agent2Allocation);
+
+  allocator->addFramework(framework2.id(), framework2, framework2Allocation);
+
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // SOME_ROLE share = 1
+  //   framework1 share = 0.5
+  //   framework2 share = 0.5
+
+  // Add two more identical agents.
+  SlaveInfo agent3 = createSlaveInfo(agentResources);
+  allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), {});
+
+  SlaveInfo agent4 = createSlaveInfo(agentResources);
+  allocator->addSlave(agent4.id(), agent4, None(), agent4.resources(), {});
+
+  // We expect the frameworks to be equally eligible for the next allocation,
+  // because they should identical shares.
+  //
+  // TODO(alexr): Additionally check metrics once they are available.
+  hashmap<FrameworkID, Allocation> frameworkAllocations;
+
+  Future<Allocation> allocation1 = allocations.get();
+  AWAIT_READY(allocation1);
+  frameworkAllocations[allocation1.get().frameworkId] = allocation1.get();
+
+  Future<Allocation> allocation2 = allocations.get();
+  AWAIT_READY(allocation2);
+  frameworkAllocations[allocation2.get().frameworkId] = allocation2.get();
+
+  // NOTE: `agent3` and `agent4` have the same resources, we don't care which
+  // framework received which agent, only that they each received one.
+  ASSERT_TRUE(frameworkAllocations.contains(framework1.id()));
+  ASSERT_EQ(1u, frameworkAllocations[framework1.id()].resources.size());
+  EXPECT_EQ(Resources::parse(agentResources).get(),
+            Resources::sum(frameworkAllocations[framework1.id()].resources));
+
+  ASSERT_TRUE(frameworkAllocations.contains(framework2.id()));
+  ASSERT_EQ(1u, frameworkAllocations[framework2.id()].resources.size());
+  EXPECT_EQ(Resources::parse(agentResources).get(),
+            Resources::sum(frameworkAllocations[framework2.id()].resources));
+
+  // Total cluster resources (4 identical agents): cpus=4, mem=2048.
+  // SOME_ROLE share = 1
+  //   framework1 share = 0.5
+  //   framework2 share = 0.5
+}
+
+
 // The quota tests that are specific to the built-in Hierarchical DRF
 // allocator (i.e. the way quota is satisfied) are in this file.
 
