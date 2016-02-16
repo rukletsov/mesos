@@ -1352,8 +1352,15 @@ TEST_F(HierarchicalAllocatorTest, Whitelist)
 }
 
 
+// This test checks that the order in which `addFramework()` and `addSlave()`
+// are called does not influence the bookkeeping. We start with two frameworks
+// with identical allocations, but we update the allocator in different order
+// for each framework. We expect the fair shares of the frameworks to be
+// identical, which we implicitly check by subsequent allocations.
 //
-TEST_F(HierarchicalAllocatorTest, Order)
+// TODO(alexr): Allocator metrics would allow us to explicitly examine the
+// allocator state.
+TEST_F(HierarchicalAllocatorTest, NoDoubleAccounting)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -1364,25 +1371,26 @@ TEST_F(HierarchicalAllocatorTest, Order)
 
   initialize();
 
-  // Start with two identical agents and two frameworks in the same role,
-  // each having one agent allocated.
+  // Start with two identical agents and two frameworks,
+  // each having one agent allocated to it.
   SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
 
   FrameworkInfo framework1 = createFrameworkInfo(SOME_ROLE);
   FrameworkInfo framework2 = createFrameworkInfo(SOME_ROLE);
 
-  hashmap<FrameworkID, Resources> agent1Allocation = {
-    std::make_pair(framework1.id(), agent1.resources())};
-  hashmap<FrameworkID, Resources> agent2Allocation = {
-    std::make_pair(framework2.id(), agent2.resources())};
+  hashmap<FrameworkID, Resources> agent1Allocation =
+    {std::make_pair(framework1.id(), agent1.resources())};
+  hashmap<FrameworkID, Resources> agent2Allocation =
+    {std::make_pair(framework2.id(), agent2.resources())};
 
-  hashmap<SlaveID, Resources> framework1Allocation = {
-    std::make_pair(agent1.id(), agent1.resources())};
-  hashmap<SlaveID, Resources> framework2Allocation = {
-    std::make_pair(agent2.id(), agent2.resources())};
+  hashmap<SlaveID, Resources> framework1Allocation =
+    {std::make_pair(agent1.id(), agent1.resources())};
+  hashmap<SlaveID, Resources> framework2Allocation =
+    {std::make_pair(agent2.id(), agent2.resources())};
 
-  //
+  // Call `addFramework()` and `addSlave()` in different order for
+  // `framework1` and `framework2`
   allocator->addFramework(framework1.id(), framework1, framework1Allocation);
 
   allocator->addSlave(
@@ -1393,33 +1401,22 @@ TEST_F(HierarchicalAllocatorTest, Order)
 
   allocator->addFramework(framework2.id(), framework2, framework2Allocation);
 
+  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
+  // SOME_ROLE share = 1
+  //   framework1 share = 0.5
+  //   framework2 share = 0.5
 
-  // Same fair shares.
-
-
+  // Add two more identical agents.
   SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), {});
 
   SlaveInfo agent4 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(agent4.id(), agent4, None(), agent4.resources(), {});
 
-  // Total cluster resources (2 identical agents): cpus=2, mem=1024.
-  // QUOTA_ROLE share = 1 (cpus=2, mem=1024) [quota: cpus=2, mem=1024]
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0
-  //   framework2 share = 0
-
-  // All cluster resources are now being used by `framework1` as part of
-  // its role quota, no further allocations are expected. However, once the
-  // quota is removed, quota guarantee does not apply any more and released
-  // resources should be offered to `framework2` to restore fairness.
-
-  // Process all triggered allocation events.
+  // We expect the frameworks to be equally eligible for the next allocation,
+  // because the should have identical
+  // identical, which we implicitly check by subsequent allocations.
   //
-  // NOTE: No allocations happen because there are no resources to allocate.
-  Clock::settle();
-
-
   // TODO(alexr): Simplify
 
   Future<Allocation> allocation1 = allocations.get();
@@ -1438,11 +1435,11 @@ TEST_F(HierarchicalAllocatorTest, Order)
 
 
 
-  // Total cluster resources: cpus=2, mem=1024.
-  // QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
-  //   framework1 share = 1
-  // NO_QUOTA_ROLE share = 0.5 (cpus=1, mem=512)
-  //   framework2 share = 1
+
+  // Total cluster resources (4 identical agents): cpus=4, mem=2048.
+  // SOME_ROLE share = 1
+  //   framework1 share = 0.5
+  //   framework2 share = 0.5
 }
 
 
