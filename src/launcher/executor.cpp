@@ -75,6 +75,8 @@ namespace internal {
 
 using namespace process;
 
+const Duration DEFAULT_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
+
 class CommandExecutorProcess : public ProtobufProcess<CommandExecutorProcess>
 {
 public:
@@ -91,7 +93,7 @@ public:
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      escalationTimeout(DEFAULT_SIGNAL_ESCALATION_TIMEOUT),
       driver(None()),
       healthCheckDir(_healthCheckDir),
       override(override),
