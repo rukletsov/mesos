@@ -72,6 +72,13 @@ using process::wait; // Necessary on some OS's to disambiguate.
 namespace mesos {
 namespace internal {
 
+// A custom executor can be non-cooperative as it can block the shutdown
+// callback and take over the actor thread. As a result, the libprocess
+// process may exit (e.g. a Java executor can be garbage collected) before
+// a delayed shutdown callback is invoked. Therefore we need a separate
+// libprocess process to ensure clean-up. However, if the executor shuts
+// down and calls `os::exit()` in another libprocess process, the
+// `ShutdownProcess::kill()` will not be called.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
 public:
