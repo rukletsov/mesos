@@ -168,6 +168,12 @@ public:
         << "' to have a command!";
     }
 
+    // Adjust the signal escalation timeout if set in the command.
+    if (command.has_signal_escalation_timeout()) {
+      escalationTimeout =
+        Nanoseconds(command.signal_escalation_timeout().nanoseconds());
+    }
+
     if (override.isNone()) {
       // TODO(jieyu): For now, we just fail the executor if the task's
       // CommandInfo is not valid. The framework will receive
@@ -487,8 +493,6 @@ public:
              << stringify(trees.get()) << endl;
       }
 
-      // TODO(nnielsen): Make escalationTimeout configurable through
-      // slave flags and/or per-framework/executor.
       escalationTimer = delay(
           escalationTimeout,
           self(),
