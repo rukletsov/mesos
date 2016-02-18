@@ -224,6 +224,13 @@ protected:
     connected = true;
     connection = UUID::random();
 
+    // If the executor provides signal escalation timeout, add it to the
+    // total shutdown grace period.
+    if (executorInfo.command().has_signal_escalation_timeout()) {
+      shutdownGracePeriod += Nanoseconds(
+          executorInfo.command().signal_escalation_timeout().nanoseconds());
+    }
+
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
       stopwatch.start();

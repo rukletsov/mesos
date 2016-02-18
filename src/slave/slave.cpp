@@ -3677,6 +3677,13 @@ ExecutorInfo Slave::getExecutorInfo(
           task.command().environment());
     }
 
+    // Copy signal escalation timeout to advertize additional
+    // time the command executor may need to clean up.
+    if (task.command().has_signal_escalation_timeout()) {
+      executor.mutable_command()->mutable_signal_escalation_timeout()
+        ->MergeFrom(task.command().signal_escalation_timeout());
+    }
+
     // We skip setting the user for the command executor that has
     // a rootfs image since we need root permissions to chroot.
     // We assume command executor will change to the correct user
@@ -4211,8 +4218,20 @@ void Slave::_shutdownExecutor(Framework* framework, Executor* executor)
   // will be dropped to the floor!
   executor->send(ShutdownExecutorMessage());
 
+  // If the executor provides signal escalation timeout, add it to the
+  // total shutdown timeout.
+  Duration shutdownTimeout = flags.executor_shutdown_grace_period;
+  if (executor->info.command().has_signal_escalation_timeout()) {
+    shutdownTimeout += Nanoseconds(
+        executor->info.command().signal_escalation_timeout().nanoseconds());
+  }
+
   // Prepare for sending a kill if the executor doesn't comply.
-  delay(flags.executor_shutdown_grace_period,
+  //
+  // TODO(alexr): Implement a two-phase escalation. Send a SIGTERM after
+  // `flags.executor_shutdown_grace_period` and SIGKILL after additional
+  // signal escalation timeout.
+  delay(shutdownTimeout,
         self(),
         &Slave::shutdownExecutorTimeout,
         framework->id(),
