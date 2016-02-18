@@ -123,8 +123,8 @@ public:
                   bool _local,
                   const string& _directory,
                   bool _checkpoint,
-                  Duration _recoveryTimeout,
-                  Duration _shutdownGracePeriod,
+                  const Duration& _recoveryTimeout,
+                  const Duration& _shutdownGracePeriod,
                   std::recursive_mutex* _mutex,
                   Latch* _latch)
     : ProcessBase(ID::generate("executor")),
