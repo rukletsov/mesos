@@ -479,6 +479,26 @@ Option<Error> validateResources(const TaskInfo& task)
   return None();
 }
 
+
+Option<Error> validateHealthCheck(const TaskInfo& task)
+{
+  if (task.has_health_check() && !task.has_command()) {
+    return Error("Task 'health_check' is only supported for 'command' tasks");
+  }
+
+  return None();
+}
+
+
+Option<Error> validateKillPolicy(const TaskInfo& task)
+{
+  if (task.has_kill_policy() && !task.has_command()) {
+    return Error("Task 'kill_policy' is only supported for 'command' tasks");
+  }
+
+  return None();
+}
+
 } // namespace internal {
 
 
@@ -501,6 +521,8 @@ Option<Error> validate(
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateExecutorInfo, task, framework, slave),
     lambda::bind(internal::validateResources, task),
+    lambda::bind(internal::validateHealthCheck, task),
+    lambda::bind(internal::validateKillPolicy, task),
     lambda::bind(
         internal::validateResourceUsage, task, framework, slave, offered)
   };

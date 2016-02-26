@@ -344,6 +344,24 @@ message HealthCheck {
 
 
 /**
+ * Describes a kill policy for a task. Currently does not express
+ * different policies (e.g. hitting HTTP endpoints). For now,
+ * this controls how long to wait between SIGTERM and SIGKILL:
+ *
+ *            SIGTERM ------------> SIGKILL
+ *                    grace_period
+ *
+ */
+message KillPolicy {
+  // The grace period specifies how long to wait before forcibly
+  // killing the task. It is recommended to attempt to gracefully
+  // kill the task (and send TASK_KILLING) to indicate that the
+  // graceful kill is in progress.
+  optional DurationInfo grace_period = 1;
+}
+
+
+/**
  * Describes a command, executed via: '/bin/sh -c value'. Any URIs specified
  * are fetched before executing the command.  If the executable field for an
  * uri is set, executable file permission is set on the downloaded file.
@@ -1208,11 +1226,15 @@ message TaskInfo {
   // of this task paired with the task's CommandInfo.
   optional ContainerInfo container = 9;
 
-  optional bytes data = 6;
-
-  // A health check for the task (currently in *alpha* and initial
-  // support will only be for TaskInfo's that have a CommandInfo).
+  // A health check for the task, currently only supported for
+  // command tasks (i.e. CommandInfo is set).
   optional HealthCheck health_check = 8;
+
+  // A kill policy for the task, currently only supported for
+  // command tasks (i.e. CommandInfo is set).
+  optional KillPolicy kill_policy = 12;
+
+  optional bytes data = 6;
 
   // Labels are free-form key value pairs which are exposed through
   // master and slave endpoints. Labels will not be interpreted or

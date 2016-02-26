@@ -91,7 +91,6 @@ public:
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
       driver(None()),
       frameworkInfo(None()),
       taskId(None()),
@@ -150,6 +149,11 @@ public:
 
     // Capture the TaskID.
     taskId = task.task_id();
+
+    // Capture the kill policy.
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
+    }
 
     // Determine the command to launch the task.
     CommandInfo command;
@@ -461,14 +465,50 @@ public:
   {
     cout << "Received killTask" << endl;
 
+    // If the kill policy is not specified, we use the shutdown
+    // grace period. Note that we leave a small buffer of time
+    // to do the forced kill, otherwise the agent may destroy
+    // the container before we can send TASK_KILLED.
+    Duration gracePeriod = shutdownGracePeriod - Seconds(1);
+
+    if (killPolicy.isSome()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
     // Since the command executor manages a single task, we
     // shutdown completely when we receive a killTask.
-    shutdown(driver);
+    shutdown(driver, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
 
   void shutdown(ExecutorDriver* driver)
+  {
+    cout << "Shutting down" << endl;
+
+    Option<Duration> killPolicyGracePeriod = None();
+    if (killPolicy.isSome()) {
+      killPolicyGracePeriod =
+        Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    // We'll escalate to SIGKILL based on the smaller of the
+    // shutdown grace period and the kill policy grace period.
+    // Note that we leave a small buffer of time to do the
+    // forced kill, otherwise the agent may destroy the
+    // container before we can send TASK_KILLED.
+    Duration gracePeriod =
+      min(shutdownGracePeriod - Seconds(1), killPolicyGracePeriod);
+
+    // TODO(bmahler): If a shutdown arrives during the grace
+    // period of the KillPolicy, we may need to escalate more
+    // quickly (e.g. the shutdown grace period allotted by the
+    // agent is smaller than the kill grace period).
+
+    shutdown(driver, gracePeriod);
+  }
+
+  void shutdown(ExecutorDriver* driver, Duration gracePeriod)
   {
     cout << "Shutting down" << endl;
 
@@ -508,12 +548,7 @@ public:
              << stringify(trees.get()) << endl;
       }
 
-      // TODO(nnielsen): Make escalationTimeout configurable through
-      // slave flags and/or per-framework/executor.
-      escalationTimer = delay(
-          escalationTimeout,
-          self(),
-          &Self::escalated);
+      escalationTimer = delay(gracePeriod, self(), &Self::escalated);
 
       killed = true;
     }
@@ -624,10 +659,10 @@ private:
     driver->stop();
   }
 
-  void escalated()
+  void escalated(Duration timeout)
   {
     cout << "Process " << pid << " did not terminate after "
-         << escalationTimeout << ", sending SIGKILL to "
+         << timeout << ", sending SIGKILL to "
          << "process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
@@ -700,7 +735,7 @@ private:
   bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
-  Duration escalationTimeout;
+  Option<KillPolicy> killPolicy;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
