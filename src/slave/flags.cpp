@@ -248,10 +248,16 @@ mesos::internal::slave::Flags::Flags()
       "shutting it down (e.g., 60secs, 3mins, etc)",
       EXECUTOR_REGISTRATION_TIMEOUT);
 
+  // TODO(bmahler): Now that this is only the default, rename this to
+  // "default_executor_shutdown_grace_period".
   add(&Flags::executor_shutdown_grace_period,
       "executor_shutdown_grace_period",
-      "Amount of time to wait for an executor\n"
-      "to shut down (e.g., 60secs, 3mins, etc)",
+      "Default amount of time to wait for an executor to shut down.\n"
+      "ExecutorInfo.shutdown_grace_period overrides this default.\n"
+      "Also note that the executor The executor must not assume that\n"
+      "it will be alloted the full grace period, as the agent may\n"
+      "decide to allot a shorter period, and failures / forcible\n"
+      "terminations may occur. (e.g. 60secs, 3mins, etc)",
       DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD);
 
   add(&Flags::gc_delay,

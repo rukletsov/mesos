@@ -229,6 +229,12 @@ protected:
       stopwatch.start();
     }
 
+    // Overwrite the default shutdown grace period, if applicable.
+    if (executorInfo.has_shutdown_grace_period()) {
+      shutdownGracePeriod =
+        Nanoseconds(executorInfo.shutdown_grace_period().nanoseconds());
+    }
+
     executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
 
     VLOG(1) << "Executor::registered took " << stopwatch.elapsed();
@@ -701,10 +707,10 @@ Status MesosExecutorDriver::start()
     workDirectory = value.get();
 
     // Get the default executor shutdown grace period from the
-    // environment. This was introduced in 0.28.0 so we accept
-    // it being unset for backwards compatibility.
-    //
-    // TODO(bmahler): Make this configurable in ExecutorInfo.
+    // environment, note that the the shutdown_grace_period in
+    // ExecutorInfo will override this default. This was
+    // introduced in 0.28.0 so we accept it being unset for
+    // backwards compatibility.
     Duration shutdownGracePeriod = DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
     value = os::getenv("MESOS_DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
     if (value.isSome()) {
