@@ -81,15 +81,15 @@ namespace internal {
 // Process here, see: MESOS-4729.
 class ShutdownProcess : public Process<ShutdownProcess>
 {
+public:
+  explicit ShutdownProcess(const Duration& _timeout) : timeout(_timeout) {}
+
 protected:
   virtual void initialize()
   {
-    VLOG(1) << "Scheduling shutdown of the executor in "
-            << slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    VLOG(1) << "Scheduling shutdown of the executor in " << timeout;
 
-    // TODO(benh): Pass the shutdown timeout with ExecutorRegistered
-    // since it might have gotten configured on the command line.
-    delay(slave::EXECUTOR_SHUTDOWN_GRACE_PERIOD, self(), &Self::kill);
+    delay(timeout, self(), &Self::kill);
   }
 
   void kill()
@@ -105,6 +105,9 @@ protected:
     os::sleep(Seconds(5));
     exit(EXIT_FAILURE);
   }
+
+private:
+  const Duration timeout;
 };
 
 
@@ -121,6 +124,7 @@ public:
                   const string& _directory,
                   bool _checkpoint,
                   Duration _recoveryTimeout,
+                  Duration _shutdownGracePeriod,
                   std::recursive_mutex* _mutex,
                   Latch* _latch)
     : ProcessBase(ID::generate("executor")),
@@ -138,7 +142,8 @@ public:
       latch(_latch),
       directory(_directory),
       checkpoint(_checkpoint),
-      recoveryTimeout(_recoveryTimeout)
+      recoveryTimeout(_recoveryTimeout),
+      shutdownGracePeriod(_shutdownGracePeriod)
   {
     LOG(INFO) << "Version: " << MESOS_VERSION;
 
@@ -391,7 +396,7 @@ protected:
 
     if (!local) {
       // Start the Shutdown Process.
-      spawn(new ShutdownProcess(), true);
+      spawn(new ShutdownProcess(shutdownGracePeriod), true);
     }
 
     Stopwatch stopwatch;
@@ -475,7 +480,7 @@ protected:
 
     if (!local) {
       // Start the Shutdown Process.
-      spawn(new ShutdownProcess(), true);
+      spawn(new ShutdownProcess(shutdownGracePeriod), true);
     }
 
     Stopwatch stopwatch;
@@ -559,6 +564,7 @@ private:
   const string directory;
   bool checkpoint;
   Duration recoveryTimeout;
+  Duration shutdownGracePeriod;
 
   LinkedHashMap<UUID, StatusUpdate> updates; // Unacknowledged updates.
 
@@ -694,6 +700,25 @@ Status MesosExecutorDriver::start()
     }
     workDirectory = value.get();
 
+    // Get the default executor shutdown grace period from the
+    // environment. This was introduced in 0.28.0 so we accept
+    // it being unset for backwards compatibility.
+    //
+    // TODO(bmahler): Make this configurable in ExecutorInfo.
+    Duration shutdownGracePeriod = DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+    value = os::getenv("MESOS_DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+    if (value.isSome()) {
+      Try<Duration> parse = Duration::parse(value.get());
+      if (parse.isError()) {
+        EXIT(EXIT_FAILURE)
+          << "Failed to parse value '" << value.get() << "'"
+          << " of 'MESOS_DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD': "
+          << parse.error();
+      }
+
+      shutdownGracePeriod = parse.get();
+    }
+
     // Get checkpointing status from environment.
     value = os::getenv("MESOS_CHECKPOINT");
     checkpoint = value.isSome() && value.get() == "1";
@@ -709,8 +734,8 @@ Status MesosExecutorDriver::start()
 
         if (_recoveryTimeout.isError()) {
           EXIT(EXIT_FAILURE)
-            << "Cannot parse MESOS_RECOVERY_TIMEOUT '" << value.get() << "': "
-            << _recoveryTimeout.error();
+            << "Failed to parse value '" << value.get() << "'"
+            << " of 'MESOS_RECOVERY_TIMEOUT': " << _recoveryTimeout.error();
         }
 
         recoveryTimeout = _recoveryTimeout.get();
@@ -730,6 +755,7 @@ Status MesosExecutorDriver::start()
         workDirectory,
         checkpoint,
         recoveryTimeout,
+        shutdownGracePeriod,
         &mutex,
         latch);
 

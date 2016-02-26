@@ -84,14 +84,16 @@ message Event {
     required bytes data = 1;
   }
 
-  // Received when the agent asks the executor to shutdown/kill itself. The
-  // executor is then required to kill all its active tasks, send 'TASK_KILLED'
-  // status updates and gracefully exit. If an executor does not terminate
-  // within a certain period ('grace_period_seconds'), the agent will forcefully
-  // destroy the container where the executor is running. The agent would then
-  // send 'TASK_LOST' updates for any remaining active tasks of this executor.
+  // Received when the agent asks the executor to shutdown/kill
+  // itself. The executor is then required to kill all its active
+  // tasks, send 'TASK_KILLED' status updates and gracefully exit.
+  // If an executor does not terminate within a certain period
+  // ('shutdown_grace_period'), the agent will forcefully destroy
+  // the container where the executor is running. The agent would
+  // then send 'TASK_LOST' updates for any remaining active tasks
+  // of this executor.
   message Shutdown {
-    optional double grace_period_seconds = 1 [default = 5.0];
+    optional DurationInfo shutdown_grace_period = 1;
   }
 
   // Received in case the executor sends invalid calls (e.g.,

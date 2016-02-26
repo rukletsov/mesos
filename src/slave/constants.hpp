@@ -36,12 +36,19 @@ namespace slave {
 // details in MESOS-1023.
 
 extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
-extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
+
+// The default amount of time to wait for the executor to
+// shut down before destroying the container.
+extern const Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
 extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
+
 extern const Duration RECOVERY_TIMEOUT;
+
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
+
 extern const Duration GC_DELAY;
 extern const Duration DISK_WATCH_INTERVAL;
 
