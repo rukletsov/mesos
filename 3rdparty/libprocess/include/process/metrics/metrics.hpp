@@ -13,16 +13,20 @@
 #ifndef __PROCESS_METRICS_METRICS_HPP__
 #define __PROCESS_METRICS_METRICS_HPP__
 
+#include <list>
 #include <string>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/limiter.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
+#include <process/statistics.hpp>
 
 #include <process/metrics/metric.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>

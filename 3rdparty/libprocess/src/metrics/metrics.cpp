@@ -12,12 +12,11 @@
 
 #include <glog/logging.h>
 
-#include <list>
 #include <string>
 #include <vector>
 
 #include <process/collect.hpp>
-#include <process/dispatch.hpp>
+#include <process/defer.hpp>
 #include <process/help.hpp>
 #include <process/once.hpp>
 #include <process/owned.hpp>
@@ -28,10 +27,12 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/json.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/try.hpp>
 
 using std::list;
 using std::string;
