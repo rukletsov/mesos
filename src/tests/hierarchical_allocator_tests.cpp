@@ -458,11 +458,9 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   initialize();
 
   FrameworkInfo framework1 = createFrameworkInfo(ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   allocator->addFramework(framework1.id(), framework1, {});
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
 
   // `framework1` will be offered all of `agent1` resources
@@ -533,14 +531,12 @@ TEST_F(HierarchicalAllocatorTest, SmallOfferFilterTimeout)
   initialize(flags_);
 
   FrameworkInfo framework1 = createFrameworkInfo(ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   allocator->addFramework(framework1.id(), framework1, {});
 
+  FrameworkInfo framework2 = createFrameworkInfo(ROLE);
   allocator->addFramework(framework2.id(), framework2, {});
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1157,7 +1153,6 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlave)
   FrameworkInfo framework = createFrameworkInfo("role1");
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-
   allocator->addFramework(framework.id(), framework, {});
 
   // Initially, all the resources are allocated.
@@ -1245,7 +1240,6 @@ TEST_F(HierarchicalAllocatorTest, RecoverOversubscribedResources)
   FrameworkInfo framework = createFrameworkInfo("role1");
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::REVOCABLE_RESOURCES);
-
   allocator->addFramework(framework.id(), framework, {});
 
   // Initially, all the resources are allocated.
@@ -1561,22 +1555,16 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
 
   initialize();
 
-  // Create framework and agent descriptions.
-  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:2;mem:1024");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota1);
 
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
 
+  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
   allocator->addFramework(framework2.id(), framework2, {});
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1584,6 +1572,7 @@ TEST_F(HierarchicalAllocatorTest, RemoveQuota)
       agent1.resources(),
       {std::make_pair(framework1.id(), agent1.resources())});
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -1816,19 +1805,13 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
 
   initialize();
 
-  // Create framework and agent descriptions.
-  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   const Quota quota1 = createQuota(QUOTA_ROLE, "cpus:0.25;mem:128");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota1);
 
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
 
+  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
   allocator->addFramework(framework2.id(), framework2, {});
 
   // Process all triggered allocation events.
@@ -1836,6 +1819,8 @@ TEST_F(HierarchicalAllocatorTest, DRFWithQuota)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  // Add an agent with some allocated resources.
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1902,18 +1887,13 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 
   initialize();
 
-  // Create framework and agent descriptions.
   FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
-
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
-  // Notify allocator of agents, frameworks, and current allocations.
   allocator->addFramework(framework1.id(), framework1, {});
 
+  FrameworkInfo framework2 = createFrameworkInfo(NO_QUOTA_ROLE);
   allocator->addFramework(framework2.id(), framework2, {});
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -1932,6 +1912,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
   // NO_QUOTA_ROLE share = 0
   //   framework2 share = 0
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
 
   // Free cluster resources on `agent2` will be allocated to `framework2`
@@ -2031,9 +2012,6 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
-
   // Total cluster resources (0 agents): 0.
   // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
   //   no frameworks
@@ -2045,7 +2023,10 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // NOTE: The second event-based allocation for `agent2` takes into account
   // that `agent1`'s resources are laid away for `QUOTA_ROLE`'s quota and
   // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
   allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
   allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
 
   // `framework` can only be allocated resources on `agent2`. This
@@ -2093,7 +2074,6 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaAbsentFrameworks)
   initialize();
 
   SlaveInfo agent = createSlaveInfo("cpus:2;mem:2048;disk:0");
-
   allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
 
   // Set quota for both roles.
@@ -2134,9 +2114,6 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
 
   initialize();
 
-  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
-
   // Mem Quota for `QUOTA_ROLE1` is 10 times smaller than for `QUOTA_ROLE2`.
   const Quota quota1 = createQuota(QUOTA_ROLE1, "cpus:1;mem:200");
   allocator->setQuota(QUOTA_ROLE1, quota1);
@@ -2157,6 +2134,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;disk:0");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -2164,6 +2142,7 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
       agent1.resources(),
       {std::make_pair(framework1.id(), agent1.resources())});
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;disk:0");
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -2182,7 +2161,6 @@ TEST_F(HierarchicalAllocatorTest, MultiQuotaWithFrameworks)
   // to the framework in `QUOTA_ROLE2`.
 
   SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048");
-
   allocator->addSlave(agent3.id(), agent3, None(), agent3.resources(), {});
 
   // `framework2` will get all agent3's resources because its role is under
@@ -2213,16 +2191,13 @@ TEST_F(HierarchicalAllocatorTest, ReservationWithinQuota)
 
   initialize();
 
-  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
-  FrameworkInfo framework2 = createFrameworkInfo(NON_QUOTA_ROLE);
-
   const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:256");
-
-  // Notify allocator of agents, frameworks, quota and current allocations.
   allocator->setQuota(QUOTA_ROLE, quota);
 
+  FrameworkInfo framework1 = createFrameworkInfo(QUOTA_ROLE);
   allocator->addFramework(framework1.id(), framework1, {});
 
+  FrameworkInfo framework2 = createFrameworkInfo(NON_QUOTA_ROLE);
   allocator->addFramework(framework2.id(), framework2, {});
 
   // Process all triggered allocation events.
