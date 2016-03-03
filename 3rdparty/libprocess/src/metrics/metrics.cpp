@@ -220,8 +220,9 @@ Future<http::Response> MetricsProcess::_snapshot(const http::Request& request)
 list<Future<double> > MetricsProcess::_snapshotTimeout(
     const list<Future<double> >& futures)
 {
-  // Stop waiting for all futures to transition and return a 'ready'
-  // list to proceed handling the request.
+  // Stop waiting for all futures to transition and return an original
+  // 'ready' list (where not all futures are necessarily ready) to
+  // proceed handling the request.
   return futures;
 }
 
