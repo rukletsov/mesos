@@ -881,6 +881,13 @@ and resource allocations in the hierarchical allocator.
 </tr>
 <tr>
   <td>
+  <code>allocator/framework_allocations/ID</code>
+  </td>
+  <td>Number of times framework <code>ID</code> received allocations</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>allocator/total/KIND</code>
   </td>
   <td>Total resources of kind <code>KIND</code></td>

@@ -55,6 +55,11 @@ Metrics::~Metrics()
   foreachvalue (const process::metrics::Gauge& gauge, allocated) {
     process::metrics::remove(gauge);
   }
+
+  foreachvalue (
+      const process::metrics::Counter& counter, framework_allocations) {
+    process::metrics::remove(counter);
+  }
 }
 
 

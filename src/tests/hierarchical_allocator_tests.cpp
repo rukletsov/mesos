@@ -33,6 +33,7 @@
 #include <stout/gtest.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
+#include <stout/json.hpp>
 #include <stout/os.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
@@ -2429,11 +2430,19 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
   EXPECT_EQ(1024, metrics.values["allocator/allocated/mem"]);
   EXPECT_EQ(0u, metrics.values.count("allocator/allocated/disk"));
 
+  string metricKey =
+    strings::join("/", "allocator/framework_allocations", framework1.id());
+  EXPECT_EQ(1, metrics.values[metricKey]);
+
   EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
   allocator->addFramework(framework2.id(), framework2, {});
   ++allocations; // Adding a framework triggers allocations.
+
+  allocator->setQuota(
+      framework1.role(), createQuota(framework1.role(), "disk:10"));
+  ++allocations; // Setting a quota triggers allocations.
 
   SlaveInfo agent2 = createSlaveInfo("cpus:8;mem:2048;disk:200");
   allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
@@ -2448,6 +2457,51 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
 
   // Coarse-grained allocation leads to offering all of `agent2` to
   // `framework1`, so that now all resources are used.
+  EXPECT_EQ(10, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(3072, metrics.values["allocator/allocated/mem"]);
+  EXPECT_EQ(200, metrics.values["allocator/allocated/disk"]);
+
+  // All of agent2's disk resources are offered towards famework1's
+  // outstanding quota. Framework2 receives nothing.
+  metricKey =
+    strings::join("/", "allocator/framework_allocations", framework1.id());
+  EXPECT_EQ(2, metrics.values[metricKey]);
+
+  metricKey =
+    strings::join("/", "allocator/framework_allocations", framework2.id());
+  EXPECT_EQ(0, metrics.values[metricKey]);
+
+  EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
+
+  // Recovering some of the offered resources is correctly reflected
+  // in allocator/allocated metrics.
+  allocator->recoverResources(
+      framework1.id(),
+      agent2.id(),
+      Resources::parse("cpus:4;mem:1024;disk:100").get(),
+      None());
+
+  Clock::settle();
+
+  metrics = Metrics();
+
+  EXPECT_EQ(6, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(2048, metrics.values["allocator/allocated/mem"]);
+  EXPECT_EQ(100, metrics.values["allocator/allocated/disk"]);
+
+  Clock::advance(flags.allocation_interval);
+  ++allocations;
+
+  Clock::settle();
+
+  metrics = Metrics();
+
+  // All remaining resources on `agent2` will be offered to
+  // `framework2`, so that again all resources are used.
+  metricKey =
+      strings::join("/", "allocator/framework_allocations", framework2.id());
+  EXPECT_EQ(1, metrics.values[metricKey]);
+
   EXPECT_EQ(10, metrics.values["allocator/allocated/cpus"]);
   EXPECT_EQ(3072, metrics.values["allocator/allocated/mem"]);
   EXPECT_EQ(200, metrics.values["allocator/allocated/disk"]);
@@ -2495,6 +2549,16 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
   EXPECT_EQ(0, metrics.values["allocator/total/cpus"]);
   EXPECT_EQ(0, metrics.values["allocator/total/mem"]);
   EXPECT_EQ(0, metrics.values["allocator/total/disk"]);
+
+  // Framework metrics are removed together with the framework.
+  allocator->removeFramework(framework1.id());
+
+  Clock::settle();
+
+  metrics = Metrics();
+  metricKey =
+    strings::join("/", "allocator/framework_allocations", framework1.id());
+  EXPECT_EQ(0u, metrics.values.count(metricKey));
 }
 
 

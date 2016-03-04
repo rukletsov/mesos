@@ -19,8 +19,12 @@
 
 #include <string>
 
+#include <mesos/mesos.hpp>
+#include <mesos/type_utils.hpp>
+
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
+#include <process/metrics/timer.hpp>
 
 #include <stout/hashmap.hpp>
 
@@ -56,6 +60,9 @@ public:
 
   // Gauges for the allocated amount of each resource kind in the cluster.
   hashmap<std::string, process::metrics::Gauge> allocated;
+
+  // Number of times a framework received allocations.
+  hashmap<FrameworkID, process::metrics::Counter> framework_allocations;
 };
 
 } // namespace internal {

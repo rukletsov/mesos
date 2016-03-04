@@ -27,6 +27,9 @@
 #include <process/id.hpp>
 #include <process/timeout.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/check.hpp>
 #include <stout/hashset.hpp>
 #include <stout/lambda.hpp>
@@ -42,6 +45,8 @@ using mesos::master::InverseOfferStatus;
 using process::Failure;
 using process::Future;
 using process::Timeout;
+
+using process::metrics::Counter;
 
 namespace mesos {
 namespace internal {
@@ -264,6 +269,16 @@ void HierarchicalAllocatorProcess::addFramework(
 
   frameworks[frameworkId].suppressed = false;
 
+  // Install a metrics endpoint reporting the number of allocations
+  // towards this framework.
+  CHECK_NONE(metrics.framework_allocations.get(frameworkId));
+  metrics.framework_allocations.put(
+      frameworkId,
+      Counter(
+          strings::join(
+              "/", "allocator/framework_allocations", frameworkId.value())));
+  process::metrics::add(metrics.framework_allocations.get(frameworkId).get());
+
   LOG(INFO) << "Added framework " << frameworkId;
 
   allocate();
@@ -324,6 +339,12 @@ void HierarchicalAllocatorProcess::removeFramework(
   // HierarchicalAllocatorProcess::reviveOffers and
   // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
+
+  // Remove this framework from the reported metrics.
+  Option<Counter> counter = metrics.framework_allocations.get(frameworkId);
+  CHECK_SOME(counter);
+  process::metrics::remove(counter.get());
+  metrics.framework_allocations.erase(frameworkId);
 
   LOG(INFO) << "Removed framework " << frameworkId;
 }
@@ -1473,6 +1494,9 @@ void HierarchicalAllocatorProcess::allocate(
     // Now offer the resources to each framework.
     foreachkey (const FrameworkID& frameworkId, offerable) {
       offerCallback(frameworkId, offerable[frameworkId]);
+
+      CHECK_SOME(metrics.framework_allocations.get(frameworkId));
+      ++metrics.framework_allocations.get(frameworkId).get();
     }
   }
 
