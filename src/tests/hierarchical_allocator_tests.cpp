@@ -44,6 +44,7 @@
 
 #include "tests/allocator.hpp"
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
@@ -2374,6 +2375,47 @@ TEST_F(HierarchicalAllocatorTest, DeactivateAndReactivateFramework)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent.resources(), Resources::sum(allocation.get().resources));
+}
+
+
+// This test checks that allocator state is correctly reflected in the
+// metrics endpoint.
+TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  unsigned int allocations = 0;
+
+  // Allocations were not triggered yet.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(0u, metrics.values.count("allocations/allocation_runs"));
+
+  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+  ++allocations; // Adding an agent triggers allocations.
+
+  FrameworkInfo framework1 = createFrameworkInfo("role1");
+  allocator->addFramework(framework1.id(), framework1, {});
+  ++allocations; // Adding a framework triggers allocations.
+
+  Clock::settle();
+
+  metrics = Metrics();
+  EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
+
+  FrameworkInfo framework2 = createFrameworkInfo("role2");
+  allocator->addFramework(framework2.id(), framework2, {});
+  ++allocations; // Adding a framework triggers allocations.
+
+  Clock::settle();
+
+  metrics = Metrics();
+  EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
 }
 
 

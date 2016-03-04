@@ -17,6 +17,7 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 #define __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 
+#include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
 
 namespace mesos {
@@ -35,7 +36,11 @@ public:
 
   ~Metrics();
 
+  // Number of dispatch events currently waiting in the allocator process.
   process::metrics::Gauge event_queue_dispatches;
+
+  // Number of times the allocation loop was triggered.
+  process::metrics::Counter allocation_runs;
 };
 
 } // namespace internal {
