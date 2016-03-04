@@ -2395,9 +2395,20 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
   JSON::Object metrics = Metrics();
   EXPECT_EQ(0u, metrics.values.count("allocations/allocation_runs"));
 
-  SlaveInfo agent = createSlaveInfo("cpus:2;mem:1024;disk:0");
-  allocator->addSlave(agent.id(), agent, None(), agent.resources(), {});
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  allocator->addSlave(agent1.id(), agent1, None(), agent1.resources(), {});
   ++allocations; // Adding an agent triggers allocations.
+
+  Clock::settle();
+
+  metrics = Metrics();
+
+  // No users are registered yet, so nothing can be allocated.
+  EXPECT_EQ(0, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(0, metrics.values["allocator/allocated/mem"]);
+
+  // Metric for disk does not exist yet.
+  EXPECT_EQ(0u, metrics.values.count("allocator/allocated/disk"));
 
   FrameworkInfo framework1 = createFrameworkInfo("role1");
   allocator->addFramework(framework1.id(), framework1, {});
@@ -2406,16 +2417,84 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
   Clock::settle();
 
   metrics = Metrics();
+  EXPECT_EQ(2, metrics.values["allocator/total/cpus"]);
+  EXPECT_EQ(1024, metrics.values["allocator/total/mem"]);
+
+  // Metric for disk does still not exist.
+  EXPECT_EQ(0u, metrics.values.count("allocator/total/disk"));
+
+  // Coarse-grained allocation leads to offering all of `agent1` to
+  // `framework1`.
+  EXPECT_EQ(2, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(1024, metrics.values["allocator/allocated/mem"]);
+  EXPECT_EQ(0u, metrics.values.count("allocator/allocated/disk"));
+
   EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
 
   FrameworkInfo framework2 = createFrameworkInfo("role2");
   allocator->addFramework(framework2.id(), framework2, {});
   ++allocations; // Adding a framework triggers allocations.
 
+  SlaveInfo agent2 = createSlaveInfo("cpus:8;mem:2048;disk:200");
+  allocator->addSlave(agent2.id(), agent2, None(), agent2.resources(), {});
+  ++allocations; // Adding an agent triggers allocations.
+
   Clock::settle();
 
   metrics = Metrics();
+  EXPECT_EQ(10, metrics.values["allocator/total/cpus"]);
+  EXPECT_EQ(3072, metrics.values["allocator/total/mem"]);
+  EXPECT_EQ(200, metrics.values["allocator/total/disk"]);
+
+  // Coarse-grained allocation leads to offering all of `agent2` to
+  // `framework1`, so that now all resources are used.
+  EXPECT_EQ(10, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(3072, metrics.values["allocator/allocated/mem"]);
+  EXPECT_EQ(200, metrics.values["allocator/allocated/disk"]);
+
   EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
+
+  // Removing an agent does not trigger allocations.
+  allocator->removeSlave(agent1.id());
+
+  Clock::settle();
+
+  metrics = Metrics();
+
+  EXPECT_EQ(8, metrics.values["allocator/total/cpus"]);
+  EXPECT_EQ(2048, metrics.values["allocator/total/mem"]);
+  EXPECT_EQ(200, metrics.values["allocator/total/disk"]);
+
+  EXPECT_EQ(allocations, metrics.values["allocator/allocation_runs"]);
+
+  // Oversubscribe 10 CPUs on `agent2`.
+  allocator->updateSlave(agent2.id(), createRevocableResources("cpus", "10"));
+  ++allocations; // Updating an agent triggers allocations.
+
+  Clock::settle();
+
+  // The total CPUs should now be the original resources of `agent2`
+  // and additionally 10 oversubscribed CPUs.
+  metrics = Metrics();
+  EXPECT_EQ(
+      Resources(agent2.resources()).cpus().getOrElse(0.0) + 10,
+      metrics.values["allocator/total/cpus"]);
+
+  // Removing an agent does not trigger allocations.
+  allocator->removeSlave(agent2.id());
+
+  Clock::settle();
+
+  metrics = Metrics();
+
+  // Metrics are not 'forgotten' once added. Their values do reflect
+  // the actual cluster though.
+  EXPECT_EQ(0, metrics.values["allocator/allocated/cpus"]);
+  EXPECT_EQ(0, metrics.values["allocator/allocated/mem"]);
+  EXPECT_EQ(0, metrics.values["allocator/allocated/disk"]);
+  EXPECT_EQ(0, metrics.values["allocator/total/cpus"]);
+  EXPECT_EQ(0, metrics.values["allocator/total/mem"]);
+  EXPECT_EQ(0, metrics.values["allocator/total/disk"]);
 }
 
 

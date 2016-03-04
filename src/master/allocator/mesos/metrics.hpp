@@ -17,8 +17,13 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 #define __MASTER_ALLOCATOR_MESOS_METRICS_HPP__
 
+#include <string>
+
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
+
+#include <stout/hashmap.hpp>
+
 
 namespace mesos {
 namespace internal {
@@ -36,11 +41,21 @@ public:
 
   ~Metrics();
 
+  void createGaugesForResource(
+      const HierarchicalAllocatorProcess& allocator,
+      const std::string& resourceName);
+
   // Number of dispatch events currently waiting in the allocator process.
   process::metrics::Gauge event_queue_dispatches;
 
   // Number of times the allocation loop was triggered.
   process::metrics::Counter allocation_runs;
+
+  // Gauges for the total amount of each resource kind in the cluster.
+  hashmap<std::string, process::metrics::Gauge> total;
+
+  // Gauges for the allocated amount of each resource kind in the cluster.
+  hashmap<std::string, process::metrics::Gauge> allocated;
 };
 
 } // namespace internal {

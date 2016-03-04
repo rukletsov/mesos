@@ -18,7 +18,11 @@
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/strings.hpp>
+
 #include "master/allocator/mesos/hierarchical.hpp"
+
+using std::string;
 
 namespace mesos {
 namespace internal {
@@ -43,6 +47,44 @@ Metrics::~Metrics()
 {
   process::metrics::remove(event_queue_dispatches);
   process::metrics::remove(allocation_runs);
+
+  foreachvalue (const process::metrics::Gauge& gauge, total) {
+    process::metrics::remove(gauge);
+  }
+
+  foreachvalue (const process::metrics::Gauge& gauge, allocated) {
+    process::metrics::remove(gauge);
+  }
+}
+
+
+void Metrics::createGaugesForResource(
+    const HierarchicalAllocatorProcess& allocator, const string& resourceName)
+{
+  // We check only `total` since `total` and `allocated` are kept in sync.
+  if (total.contains(resourceName)) {
+    return;
+  }
+
+  // Install a gauge for the total amount of resource kind `resourceName`.
+  total.put(
+      resourceName,
+      process::metrics::Gauge(
+          strings::join("/", "allocator/total", resourceName),
+          process::defer(allocator.self(), [&allocator, resourceName]() {
+            return allocator._total(resourceName);
+          })));
+  process::metrics::add(total.get(resourceName).get());
+
+  // Install a gauge for the allocated amount of resource kind `resourceName`.
+  allocated.put(
+      resourceName,
+      process::metrics::Gauge(
+          strings::join("/", "allocator/allocated", resourceName),
+          process::defer(allocator.self(), [&allocator, resourceName]() {
+            return allocator._allocated(resourceName);
+          })));
+  process::metrics::add(allocated.get(resourceName).get());
 }
 
 } // namespace internal {

@@ -29,6 +29,8 @@
 
 #include <stout/check.hpp>
 #include <stout/hashset.hpp>
+#include <stout/lambda.hpp>
+#include <stout/option.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/stringify.hpp>
 
@@ -410,6 +412,13 @@ void HierarchicalAllocatorProcess::addSlave(
   CHECK(!slaves.contains(slaveId));
   CHECK(!paused || expectedAgentCount.isSome());
 
+  // Add global gauges for total and allocated value of newly
+  // appearing resource types.
+  // TODO(bbannier) Add support for more than just scalar resources.
+  foreach (const string& name, total.scalars().names()) {
+    metrics.createGaugesForResource(*this, name);
+  }
+
   roleSorter->add(slaveId, total);
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
@@ -516,6 +525,18 @@ void HierarchicalAllocatorProcess::updateSlave(
   // Check that all the oversubscribed resources are revocable.
   CHECK_EQ(oversubscribed, oversubscribed.revocable());
 
+  // Add global gauges for total and allocated value of newly
+  // appearing resource types.
+  // TODO(bbannier) Add support for more than just scalar resources.
+  foreach (const string& name, oversubscribed.scalars().names()) {
+    metrics.createGaugesForResource(*this, name);
+  }
+
+  LOG(INFO) << "Slave " << slaveId << " (" << slaves[slaveId].hostname << ")"
+            << " updated with oversubscribed resources " << oversubscribed
+            << " (total: " << slaves[slaveId].total
+            << ", allocated: " << slaves[slaveId].allocated << ")";
+
   // Update the total resources.
 
   // Remove the old oversubscribed resources from the total and then
@@ -527,11 +548,6 @@ void HierarchicalAllocatorProcess::updateSlave(
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->update(slaveId, slaves[slaveId].total.nonRevocable());
-
-  LOG(INFO) << "Slave " << slaveId << " (" << slaves[slaveId].hostname << ")"
-            << " updated with oversubscribed resources " << oversubscribed
-            << " (total: " << slaves[slaveId].total
-            << ", allocated: " << slaves[slaveId].allocated << ")";
 
   allocate(slaveId);
 }
@@ -1683,6 +1699,34 @@ bool HierarchicalAllocatorProcess::allocatable(
 
   return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
          (mem.isSome() && mem.get() >= MIN_MEM);
+}
+
+
+double HierarchicalAllocatorProcess::_allocated(
+    const std::string& resourceName) const
+{
+  double allocated = 0;
+
+  foreachvalue (const Slave& slave, slaves) {
+    Option<Value::Scalar> value =
+      slave.allocated.get<Value::Scalar>(resourceName);
+
+    if (value.isSome()) {
+      allocated += value.get().value();
+    }
+  }
+
+  return allocated;
+}
+
+
+double HierarchicalAllocatorProcess::_total(
+    const std::string& resourceName) const
+{
+  Option<Value::Scalar> total =
+    roleSorter->totalScalarQuantities().get<Value::Scalar>(resourceName);
+
+  return total.isSome() ? total.get().value() : 0;
 }
 
 } // namespace internal {
