@@ -518,6 +518,12 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   allocation = allocations.get();
   ASSERT_TRUE(allocation.isPending());
 
+  string filterCountEndpoint =
+    strings::join("/", "allocator/framework_offer_filters", framework1.id());
+
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(1, metrics.values[filterCountEndpoint]);
+
   // Ensure the offer filter times out (2x the allocation interval)
   // and the next batch allocation occurs.
   Clock::advance(flags.allocation_interval);
@@ -527,6 +533,9 @@ TEST_F(HierarchicalAllocatorTest, OfferFilter)
   AWAIT_READY(allocation);
   EXPECT_EQ(framework1.id(), allocation.get().frameworkId);
   EXPECT_EQ(agent1.resources(), Resources::sum(allocation.get().resources));
+
+  metrics = Metrics();
+  EXPECT_EQ(0.0, metrics.values[filterCountEndpoint]);
 }
 
 
@@ -2558,6 +2567,9 @@ TEST_F(HierarchicalAllocatorTest, AllocatorMetrics)
   metrics = Metrics();
   metricKey =
     strings::join("/", "allocator/framework_allocations", framework1.id());
+  EXPECT_EQ(0u, metrics.values.count(metricKey));
+  metricKey =
+    strings::join("/", "allocator/framework_offer_filters", framework1.id());
   EXPECT_EQ(0u, metrics.values.count(metricKey));
 }
 

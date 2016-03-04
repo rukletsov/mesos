@@ -28,6 +28,7 @@
 #include <process/timeout.hpp>
 
 #include <process/metrics/counter.hpp>
+#include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/timer.hpp>
 
@@ -48,6 +49,7 @@ using process::Future;
 using process::Timeout;
 
 using process::metrics::Counter;
+using process::metrics::Gauge;
 using process::metrics::TimerGuard;
 
 namespace mesos {
@@ -281,6 +283,19 @@ void HierarchicalAllocatorProcess::addFramework(
               "/", "allocator/framework_allocations", frameworkId.value())));
   process::metrics::add(metrics.framework_allocations.get(frameworkId).get());
 
+  // Install a metrics endpoint reporting offer filters per framework.
+  CHECK_NONE(metrics.framework_offer_filters.get(frameworkId));
+  metrics.framework_offer_filters.put(
+      frameworkId,
+      Gauge(
+          strings::join(
+              "/", "allocator/framework_offer_filters", frameworkId.value()),
+          process::defer(this, [this, frameworkId]() {
+            return this->_offer_filters(frameworkId);
+          })));
+
+  process::metrics::add(metrics.framework_offer_filters.get(frameworkId).get());
+
   LOG(INFO) << "Added framework " << frameworkId;
 
   allocate();
@@ -347,6 +362,11 @@ void HierarchicalAllocatorProcess::removeFramework(
   CHECK_SOME(counter);
   process::metrics::remove(counter.get());
   metrics.framework_allocations.erase(frameworkId);
+
+  Option<Gauge> gauge = metrics.framework_offer_filters.get(frameworkId);
+  CHECK_SOME(gauge);
+  process::metrics::remove(gauge.get());
+  metrics.framework_offer_filters.erase(frameworkId);
 
   LOG(INFO) << "Removed framework " << frameworkId;
 }
@@ -1758,6 +1778,15 @@ double HierarchicalAllocatorProcess::_total(
     roleSorter->totalScalarQuantities().get<Value::Scalar>(resourceName);
 
   return total.isSome() ? total.get().value() : 0;
+}
+
+
+double HierarchicalAllocatorProcess::_offer_filters(
+    const FrameworkID& frameworkId) const
+{
+  Option<Framework> framework = frameworks.get(frameworkId);
+
+  return framework.isSome() ? framework.get().offerFilters.size() : 0;
 }
 
 } // namespace internal {

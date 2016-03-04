@@ -895,6 +895,13 @@ and resource allocations in the hierarchical allocator.
 </tr>
 <tr>
   <td>
+  <code>allocator/framework_offer_filters/ID</code>
+  </td>
+  <td>Number of active offer filters for framework <code>ID</code></td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>allocator/total/KIND</code>
   </td>
   <td>Total resources of kind <code>KIND</code></td>

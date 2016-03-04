@@ -64,6 +64,10 @@ Metrics::~Metrics()
   }
 
   process::metrics::remove(allocation_time);
+
+  foreachvalue (const process::metrics::Gauge& gauge, framework_offer_filters) {
+    process::metrics::remove(gauge);
+  }
 }
 
 

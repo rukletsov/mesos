@@ -293,6 +293,8 @@ protected:
   // Allocated amount of a resource kind in the cluster.
   double _allocated(const std::string& resourceName) const;
 
+  double _offer_filters(const FrameworkID& frameworkId) const;
+
   hashmap<FrameworkID, Framework> frameworks;
 
   struct Slave
