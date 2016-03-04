@@ -36,10 +36,12 @@ Metrics::Metrics(const HierarchicalAllocatorProcess& allocator)
         process::defer(
             allocator.self(),
             &HierarchicalAllocatorProcess::_event_queue_dispatches)),
-    allocation_runs("allocator/allocation_runs")
+    allocation_runs("allocator/allocation_runs"),
+    allocation_time("allocator/allocation_time")
 {
   process::metrics::add(event_queue_dispatches);
   process::metrics::add(allocation_runs);
+  process::metrics::add(allocation_time);
 }
 
 
@@ -60,6 +62,8 @@ Metrics::~Metrics()
       const process::metrics::Counter& counter, framework_allocations) {
     process::metrics::remove(counter);
   }
+
+  process::metrics::remove(allocation_time);
 }
 
 

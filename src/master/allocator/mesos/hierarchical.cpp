@@ -29,6 +29,7 @@
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/metrics.hpp>
+#include <process/metrics/timer.hpp>
 
 #include <stout/check.hpp>
 #include <stout/hashset.hpp>
@@ -47,6 +48,7 @@ using process::Future;
 using process::Timeout;
 
 using process::metrics::Counter;
+using process::metrics::TimerGuard;
 
 namespace mesos {
 namespace internal {
@@ -1193,6 +1195,11 @@ void HierarchicalAllocatorProcess::allocate(
 void HierarchicalAllocatorProcess::allocate(
     const hashset<SlaveID>& slaveIds_)
 {
+  // `allocation_timer` is a RAII helper starting and stopping the
+  // wrapped `Timer`, and intentionally not explicitly used after
+  // creation.
+  TimerGuard<Milliseconds> allocation_timer(metrics.allocation_time);
+
   ++metrics.allocation_runs;
 
   // Compute the offerable resources, per framework:
