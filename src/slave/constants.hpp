@@ -38,7 +38,10 @@ namespace slave {
 extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
 
-extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+// The default amount of time to wait for the executor to
+// shut down before destroying the container.
+extern const Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+
 extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
 
 extern const Duration RECOVERY_TIMEOUT;
