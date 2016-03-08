@@ -36,14 +36,15 @@ namespace slave {
 // details in MESOS-1023.
 
 extern const Duration EXECUTOR_REGISTRATION_TIMEOUT;
-extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
+
+extern const Duration EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
+
 extern const Duration RECOVERY_TIMEOUT;
+
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MAX;
-extern const Duration GC_DELAY;
-extern const Duration DISK_WATCH_INTERVAL;
 
 // Default backoff interval used by the slave to wait before registration.
 extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
@@ -54,6 +55,9 @@ extern const Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR;
 // (re-)registration multiple times between when the master finishes
 // recovery and when it times out slave re-registration.
 extern const Duration REGISTER_RETRY_INTERVAL_MAX;
+
+extern const Duration GC_DELAY;
+extern const Duration DISK_WATCH_INTERVAL;
 
 // Minimum free disk capacity enforced by the garbage collector.
 extern const double GC_DISK_HEADROOM;
@@ -80,10 +84,10 @@ extern const Bytes DEFAULT_DISK;
 extern const std::string DEFAULT_PORTS;
 
 // Default cpu resource given to a command executor.
-const double DEFAULT_EXECUTOR_CPUS = 0.1;
+extern const double DEFAULT_EXECUTOR_CPUS;
 
 // Default memory resource given to a command executor.
-const Bytes DEFAULT_EXECUTOR_MEM = Megabytes(32);
+extern const Bytes DEFAULT_EXECUTOR_MEM;
 
 #ifdef WITH_NETWORK_ISOLATOR
 // Default number of ephemeral ports allocated to a container by the
@@ -98,6 +102,10 @@ extern const Duration DOCKER_REMOVE_DELAY;
 // container.
 extern const Duration DOCKER_INSPECT_DELAY;
 
+// Default maximum number of docker inspect calls docker ps will invoke
+// in parallel to prevent hitting system's open file descriptor limit.
+extern const int DOCKER_PS_MAX_INSPECT_CALLS;
+
 // Default duration that docker containerizer will wait to check
 // docker version.
 extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
@@ -106,11 +114,7 @@ extern const Duration DOCKER_VERSION_WAIT_TIMEOUT;
 extern const std::string DEFAULT_AUTHENTICATEE;
 
 // Default maximum storage space to be used by the fetcher cache.
-const Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
-
-// Default maximum number of docker inspect calls docker ps will invoke
-// in parallel to prevent hitting system's open file descriptor limit.
-const int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+extern const Bytes DEFAULT_FETCHER_CACHE_SIZE;
 
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
