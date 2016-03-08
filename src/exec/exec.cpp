@@ -203,7 +203,7 @@ protected:
   }
 
   void registered(const ExecutorInfo& executorInfo,
-                  const FrameworkID& frameworkId,
+                  const FrameworkID& /*frameworkId*/,
                   const FrameworkInfo& frameworkInfo,
                   const SlaveID& slaveId,
                   const SlaveInfo& slaveInfo)
@@ -334,7 +334,7 @@ protected:
   }
 
   void statusUpdateAcknowledgement(
-      const SlaveID& slaveId,
+      const SlaveID& /*slaveId*/,
       const FrameworkID& frameworkId,
       const TaskID& taskId,
       const string& uuid)
@@ -358,9 +358,9 @@ protected:
     tasks.erase(taskId);
   }
 
-  void frameworkMessage(const SlaveID& slaveId,
-                        const FrameworkID& frameworkId,
-                        const ExecutorID& executorId,
+  void frameworkMessage(const SlaveID& /*slaveId*/,
+                        const FrameworkID& /*frameworkId*/,
+                        const ExecutorID& /*executorId*/,
                         const string& data)
   {
     if (aborted.load()) {
@@ -447,7 +447,7 @@ protected:
     }
   }
 
-  virtual void exited(const UPID& pid)
+  virtual void exited(const UPID& /*pid*/)
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring exited event because the driver is aborted!";
