@@ -226,7 +226,8 @@ public:
       }
     }
 
-    // Get shutdown grace period from environment.
+    // Get executor shutdown grace period from the environment. If set,
+    // `shutdown_grace_period` in `ExecutorInfo` will override this default.
     value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
     if (value.isSome()) {
       Try<Duration> _shutdownGracePeriod = Duration::parse(value.get());
@@ -609,6 +610,16 @@ protected:
       mutex.lock()
         .then(defer(self(), &Self::_receive))
         .onAny(lambda::bind(&Mutex::unlock, mutex));
+    }
+
+    // Capture the executor's desired shutdown grace period.
+    if (event.type() == Event::SUBSCRIBED) {
+      ExecutorInfo executorInfo = event.subscribed().executor_info();
+
+      if (executorInfo.has_shutdown_grace_period()) {
+        shutdownGracePeriod =
+          Nanoseconds(executorInfo.shutdown_grace_period().nanoseconds());
+      }
     }
 
     if (event.type() == Event::SHUTDOWN) {
