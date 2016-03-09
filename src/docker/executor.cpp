@@ -41,6 +41,8 @@
 
 #include "messages/messages.hpp"
 
+#include "slave/constants.hpp"
+
 using namespace mesos;
 using namespace process;
 
@@ -70,7 +72,7 @@ public:
       const string& containerName,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout,
+      const Duration& shutdownGracePeriod,
       const string& healthCheckDir)
     : killed(false),
       killedByHealthCheck(false),
@@ -80,7 +82,7 @@ public:
       containerName(containerName),
       sandboxDirectory(sandboxDirectory),
       mappedDirectory(mappedDirectory),
-      stopTimeout(stopTimeout),
+      shutdownGracePeriod(shutdownGracePeriod),
       stop(Nothing()),
       inspect(Nothing()) {}
 
@@ -95,6 +97,12 @@ public:
     cout << "Registered docker executor on " << slaveInfo.hostname() << endl;
     driver = _driver;
     frameworkInfo = _frameworkInfo;
+
+    // Overwrite the default shutdown grace period, if applicable.
+    if (executorInfo.has_shutdown_grace_period()) {
+      shutdownGracePeriod =
+        Nanoseconds(executorInfo.shutdown_grace_period().nanoseconds());
+    }
   }
 
   void reregistered(
@@ -124,6 +132,11 @@ public:
 
     // Capture the TaskID.
     taskId = task.task_id();
+
+    // Capture the kill policy.
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
+    }
 
     cout << "Starting task " << taskId.get() << endl;
 
@@ -190,14 +203,56 @@ public:
   {
     cout << "Received killTask" << endl;
 
+    // If the kill policy is not specified, we use the shutdown
+    // grace period. Note that we leave a small buffer of time
+    // to do the forced kill, otherwise the agent may destroy
+    // the container before we can send `TASK_KILLED`.
+    Duration gracePeriod = shutdownGracePeriod - Seconds(1);
+    if (killPolicy.isSome() &&
+        killPolicy->has_grace_period() &&
+        Nanoseconds(killPolicy->grace_period().nanoseconds()) >=
+          Duration::zero()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
     // Since the docker executor manages a single task, we
     // shutdown completely when we receive a killTask.
-    shutdown(driver);
+    shutdown(driver, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
 
   void shutdown(ExecutorDriver* driver)
+  {
+    Option<Duration> killPolicyGracePeriod = None();
+    if (killPolicy.isSome() &&
+        killPolicy->has_grace_period() &&
+        Nanoseconds(killPolicy->grace_period().nanoseconds()) >=
+          Duration::zero()) {
+      killPolicyGracePeriod =
+        Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    // We choose the stop timeout for docker daemon based on the smaller
+    // of the shutdown grace period and the kill policy grace period.
+    //
+    // Note: We leave a small buffer of time to do the forced kill, otherwise
+    // the agent may destroy the container before we can send `TASK_KILLED`.
+    Option<Duration> gracePeriod = min(
+        shutdownGracePeriod - process::MAX_REAP_INTERVAL(),
+        killPolicyGracePeriod);
+
+    CHECK_SOME(gracePeriod);
+
+    // TODO(bmahler): If a shutdown arrives during the grace
+    // period of the KillPolicy, we may need to escalate more
+    // quickly (e.g. the shutdown grace period allotted by the
+    // agent is smaller than the kill grace period).
+
+    shutdown(driver, gracePeriod.get());
+  }
+
+  void shutdown(ExecutorDriver* driver, const Duration& gracePeriod)
   {
     cout << "Shutting down" << endl;
 
@@ -221,7 +276,7 @@ public:
       // container, therefore we kill both the docker run process
       // and also ask the daemon to stop the container.
       run->discard();
-      stop = docker->stop(containerName, stopTimeout);
+      stop = docker->stop(containerName, gracePeriod);
       killed = true;
     }
 
@@ -429,7 +484,8 @@ private:
   string containerName;
   string sandboxDirectory;
   string mappedDirectory;
-  Duration stopTimeout;
+  Duration shutdownGracePeriod;
+  Option<KillPolicy> killPolicy;
   Option<Future<Nothing>> run;
   Future<Nothing> stop;
   Future<Nothing> inspect;
@@ -447,7 +503,7 @@ public:
       const string& container,
       const string& sandboxDirectory,
       const string& mappedDirectory,
-      const Duration& stopTimeout,
+      const Duration& shutdownGracePeriod,
       const string& healthCheckDir)
   {
     process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
@@ -455,7 +511,7 @@ public:
         container,
         sandboxDirectory,
         mappedDirectory,
-        stopTimeout,
+        shutdownGracePeriod,
         healthCheckDir));
 
     spawn(process.get());
@@ -579,9 +635,27 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.stop_timeout.isNone()) {
-    cerr << flags.usage("Missing required option --stop_timeout") << endl;
-    return EXIT_FAILURE;
+  // Get executor shutdown grace period from environment.
+  Duration shutdownGracePeriod =
+    mesos::internal::slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+  if (value.isSome()) {
+    Try<Duration> parse = Duration::parse(value.get());
+    if (parse.isError()) {
+      cerr << "Failed to parse value '" << value.get() << "' of "
+           << "'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
+      return EXIT_FAILURE;
+    }
+
+    shutdownGracePeriod = parse.get();
+  }
+
+  // If the deprecated flag is set, respect it and choose the bigger value.
+  //
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
+  if (flags.stop_timeout.isSome() &&
+      flags.stop_timeout.get() > shutdownGracePeriod) {
+    shutdownGracePeriod = flags.stop_timeout.get();
   }
 
   if (flags.launcher_dir.isNone()) {
@@ -607,7 +681,7 @@ int main(int argc, char** argv)
       flags.container.get(),
       flags.sandbox_directory.get(),
       flags.mapped_directory.get(),
-      flags.stop_timeout.get(),
+      shutdownGracePeriod,
       flags.launcher_dir.get());
 
   mesos::MesosExecutorDriver driver(&executor);
