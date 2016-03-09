@@ -121,7 +121,7 @@ public:
   }
 
   void reregistered(
-      ExecutorDriver* driver,
+      ExecutorDriver* /*driver*/,
       const SlaveInfo& slaveInfo)
   {
     CHECK(state == REGISTERED || state == REGISTERING) << state;
@@ -131,7 +131,7 @@ public:
     state = REGISTERED;
   }
 
-  void disconnected(ExecutorDriver* driver) {}
+  void disconnected(ExecutorDriver* /*driver*/) {}
 
   void launchTask(ExecutorDriver* driver, const TaskInfo& task)
   {
@@ -457,7 +457,7 @@ public:
     launched = true;
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(ExecutorDriver* driver, const TaskID& /*taskId*/)
   {
     cout << "Received killTask" << endl;
 
@@ -466,7 +466,7 @@ public:
     shutdown(driver);
   }
 
-  void frameworkMessage(ExecutorDriver* driver, const string& data) {}
+  void frameworkMessage(ExecutorDriver* /*driver*/, const string& /*data*/) {}
 
   void shutdown(ExecutorDriver* driver)
   {
@@ -529,7 +529,7 @@ public:
     }
   }
 
-  virtual void error(ExecutorDriver* driver, const string& message) {}
+  virtual void error(ExecutorDriver* /*driver*/, const string& /*message*/) {}
 
 protected:
   virtual void initialize()
