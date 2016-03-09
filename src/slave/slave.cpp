@@ -3677,6 +3677,19 @@ ExecutorInfo Slave::getExecutorInfo(
           task.command().environment());
     }
 
+    // Adjust the executor shutdown grace period if the kill policy is set.
+    // We add a small buffer of time to avoid destroying the container
+    // before `TASK_KILLED` is sent by the executor.
+    if (task.has_kill_policy() &&
+        task.kill_policy().has_grace_period()) {
+      Duration gracePeriod =
+        Nanoseconds(task.kill_policy().grace_period().nanoseconds()) +
+        Seconds(1);
+
+      executor.mutable_shutdown_grace_period()->set_nanoseconds(
+          gracePeriod.ns());
+    }
+
     // We skip setting the user for the command executor that has
     // a rootfs image since we need root permissions to chroot.
     // We assume command executor will change to the correct user

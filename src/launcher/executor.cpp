@@ -84,14 +84,15 @@ public:
       const Option<string>& _sandboxDirectory,
       const Option<string>& _workingDirectory,
       const Option<string>& _user,
-      const Option<string>& _taskCommand)
+      const Option<string>& _taskCommand,
+      const Duration& _shutdownGracePeriod)
     : state(REGISTERING),
       launched(false),
       killed(false),
       killedByHealthCheck(false),
       pid(-1),
       healthPid(-1),
-      escalationTimeout(slave::EXECUTOR_SIGNAL_ESCALATION_TIMEOUT),
+      shutdownGracePeriod(_shutdownGracePeriod),
       driver(None()),
       frameworkInfo(None()),
       taskId(None()),
@@ -116,6 +117,12 @@ public:
 
     driver = _driver;
     frameworkInfo = _frameworkInfo;
+
+    // Overwrite the default shutdown grace period, if applicable.
+    if (_executorInfo.has_shutdown_grace_period()) {
+      shutdownGracePeriod =
+        Nanoseconds(_executorInfo.shutdown_grace_period().nanoseconds());
+    }
 
     state = REGISTERED;
   }
@@ -148,6 +155,11 @@ public:
 
     // Capture the TaskID.
     taskId = task.task_id();
+
+    // Capture the kill policy.
+    if (task.has_kill_policy()) {
+      killPolicy = task.kill_policy();
+    }
 
     // Determine the command to launch the task.
     CommandInfo command;
@@ -458,6 +470,10 @@ public:
   {
     cout << "Received killTask" << endl;
 
+    // If the kill policy is not specified, the shutdown grace period
+    // will be used. If the kill policy is specified, it is guaranteed
+    // that the shutdown grace period is adjusted accordingly.
+
     // Since the command executor manages a single task, we
     // shutdown completely when we receive a killTask.
     shutdown(driver);
@@ -466,6 +482,34 @@ public:
   void frameworkMessage(ExecutorDriver* /*driver*/, const string& /*data*/) {}
 
   void shutdown(ExecutorDriver* driver)
+  {
+    Option<Duration> killPolicyGracePeriod = None();
+    if (killPolicy.isSome() &&
+        killPolicy->has_grace_period()) {
+      killPolicyGracePeriod =
+        Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
+    // We will escalate to SIGKILL based on the smaller of the shutdown
+    // grace period and the kill policy grace period.
+    //
+    // Note: We leave a small buffer of time to do the forced kill, otherwise
+    // the agent may destroy the container before we can send `TASK_KILLED`.
+    Option<Duration> gracePeriod = min(
+        shutdownGracePeriod - process::MAX_REAP_INTERVAL(),
+        killPolicyGracePeriod);
+
+    CHECK_SOME(gracePeriod);
+
+    // TODO(bmahler): If a shutdown arrives during the grace
+    // period of the KillPolicy, we may need to escalate more
+    // quickly (e.g. the shutdown grace period allotted by the
+    // agent is smaller than the kill grace period).
+
+    shutdown(driver, gracePeriod.get());
+  }
+
+  void shutdown(ExecutorDriver* driver, const Duration& gracePeriod)
   {
     cout << "Shutting down" << endl;
 
@@ -505,12 +549,8 @@ public:
              << stringify(trees.get()) << endl;
       }
 
-      // TODO(nnielsen): Make escalationTimeout configurable through
-      // slave flags and/or per-framework/executor.
-      escalationTimer = delay(
-          escalationTimeout,
-          self(),
-          &Self::escalated);
+      escalationTimer =
+        delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
       killed = true;
     }
@@ -621,11 +661,10 @@ private:
     driver->stop();
   }
 
-  void escalated()
+  void escalated(Duration timeout)
   {
-    cout << "Process " << pid << " did not terminate after "
-         << escalationTimeout << ", sending SIGKILL to "
-         << "process tree at " << pid << endl;
+    cout << "Process " << pid << " did not terminate after " << timeout
+         << ", sending SIGKILL to " << "process tree at " << pid << endl;
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
     // shutdown may leave orphan processes hanging off init. This
@@ -697,7 +736,8 @@ private:
   bool killedByHealthCheck;
   pid_t pid;
   pid_t healthPid;
-  Duration escalationTimeout;
+  Duration shutdownGracePeriod;
+  Option<KillPolicy> killPolicy;
   Timer escalationTimer;
   Option<ExecutorDriver*> driver;
   Option<FrameworkInfo> frameworkInfo;
@@ -720,7 +760,8 @@ public:
       const Option<string>& sandboxDirectory,
       const Option<string>& workingDirectory,
       const Option<string>& user,
-      const Option<string>& taskCommand)
+      const Option<string>& taskCommand,
+      const Duration& shutdownGracePeriod)
   {
     process = new CommandExecutorProcess(
         override,
@@ -728,7 +769,8 @@ public:
         sandboxDirectory,
         workingDirectory,
         user,
-        taskCommand);
+        taskCommand,
+        shutdownGracePeriod);
 
     spawn(process);
   }
@@ -884,13 +926,36 @@ int main(int argc, char** argv)
     ? envPath.get()
     : os::realpath(Path(argv[0]).dirname()).get();
 
+  // Get executor shutdown grace period from the environment.
+  //
+  // NOTE: We do not follow the pattern here and not use flags for the
+  // following reasons:
+  //  * If a new version of the agent that sets the flag, launches
+  //    the old version of the executor that does not know the flag,
+  //    the executor will crash.
+  //  * The environment variable is set anyway, hence introducing an
+  //    extra path to propagate the value seems unreasonable.
+  Duration shutdownGracePeriod = DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
+  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
+  if (value.isSome()) {
+    Try<Duration> parse = Duration::parse(value.get());
+    if (parse.isError()) {
+      cerr << "Failed to parse value '" << value.get() << "' of "
+           << "'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
+      return EXIT_FAILURE;
+    }
+
+    shutdownGracePeriod = parse.get();
+  }
+
   mesos::internal::CommandExecutor executor(
       override,
       path,
       flags.sandbox_directory,
       flags.working_directory,
       flags.user,
-      flags.task_command);
+      flags.task_command,
+      shutdownGracePeriod);
 
   mesos::MesosExecutorDriver driver(&executor);
 
