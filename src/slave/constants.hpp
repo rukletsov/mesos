@@ -42,8 +42,6 @@ extern const Duration EXECUTOR_REREGISTER_TIMEOUT;
 // shut down before destroying the container.
 extern const Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
 
-extern const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT;
-
 extern const Duration RECOVERY_TIMEOUT;
 
 extern const Duration STATUS_UPDATE_RETRY_INTERVAL_MIN;
