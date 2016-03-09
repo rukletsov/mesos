@@ -120,9 +120,7 @@ public:
     state = REGISTERED;
   }
 
-  void reregistered(
-      ExecutorDriver*,
-      const SlaveInfo& slaveInfo)
+  void reregistered(ExecutorDriver*, const SlaveInfo& slaveInfo)
   {
     CHECK(state == REGISTERED || state == REGISTERING) << state;
 
@@ -493,7 +491,7 @@ public:
 
       cout << "Sending SIGTERM to process tree at pid " << pid << endl;
 
-      Try<std::list<os::ProcessTree> > trees =
+      Try<std::list<os::ProcessTree>> trees =
         os::killtree(pid, SIGTERM, true, true);
 
       if (trees.isError()) {
@@ -570,7 +568,7 @@ private:
   void reaped(
       ExecutorDriver* driver,
       pid_t pid,
-      const Future<Option<int> >& status_)
+      const Future<Option<int>>& status_)
   {
     TaskState taskState;
     string message;
@@ -634,7 +632,7 @@ private:
     // shutdown may leave orphan processes hanging off init. This
     // scenario will be handled when PID namespace encapsulated
     // execution is in place.
-    Try<std::list<os::ProcessTree> > trees =
+    Try<std::list<os::ProcessTree>> trees =
       os::killtree(pid, SIGKILL, true, true);
 
     if (trees.isError()) {
@@ -725,12 +723,13 @@ public:
       const Option<string>& user,
       const Option<string>& taskCommand)
   {
-    process = new CommandExecutorProcess(override,
-                                         healthCheckDir,
-                                         sandboxDirectory,
-                                         workingDirectory,
-                                         user,
-                                         taskCommand);
+    process = new CommandExecutorProcess(
+        override,
+        healthCheckDir,
+        sandboxDirectory,
+        workingDirectory,
+        user,
+        taskCommand);
 
     spawn(process);
   }
