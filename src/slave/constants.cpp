@@ -28,7 +28,6 @@ const Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
 const Duration EXECUTOR_REREGISTER_TIMEOUT = Seconds(2);
 
 const Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
-const Duration EXECUTOR_SIGNAL_ESCALATION_TIMEOUT = Seconds(3);
 
 const Duration RECOVERY_TIMEOUT = Minutes(15);
 
