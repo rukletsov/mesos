@@ -22,6 +22,7 @@ This release contains the following new features:
     flexibility around how to clean up tasks and executors.
 
 Deprecations:
+  * [MESOS-4910] - Deprecate the --docker_stop_timeout agent flag.
   * [MESOS-5001] - The 'allocator/event_queue_dispatches' metric is now
     deprecated in favor 'of allocator/mesos/event_queue_dispatches'.
 
