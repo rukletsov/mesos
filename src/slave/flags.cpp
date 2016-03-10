@@ -524,10 +524,11 @@ mesos::internal::slave::Flags::Flags()
       "  ]\n"
       "}");
 
+  // TODO(alexr): Remove this after the deprecation cycle (started in 0.29).
   add(&Flags::docker_stop_timeout,
       "docker_stop_timeout",
-      "The time as a duration for docker to wait after stopping an instance\n"
-      "before it kills that instance.",
+      "DEPRECATED if favor of task kill policy. The time docker daemon\n"
+      "waits after stopping a container before killing that container.",
       Seconds(0));
 
 #ifdef WITH_NETWORK_ISOLATOR
