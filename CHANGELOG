@@ -1,5 +1,29 @@
+Release Notes - Mesos - Version 0.29.0
+--------------------------------------
+This release contains the following new features:
+  * [MESOS-4909] - Tasks can now specify a kill policy. They are best-effort,
+    because machine failures or forcible terminations may occur. Currently, the
+    only available kill policy is how log to wait between SIGTERM and SIGKILL.
+    Note that it is up to the executor whether to respect kill policies.
+
+  * [MESOS-1571] - The executor shutdown grace period can now be configured
+    in `ExecutorInfo`, which overrides the agent flag. Together with kill
+    policies this gives frameworks flexibility around how to clean up tasks
+    and executors.
+
+All Issues:
+
+** Bug
+    * [MESOS-1571] - Signal escalation timeout is not configurable.
+    * [MESOS-4911] - Executor library does not respect executor shutdown grace period.
+
+** Improvement
+    * [MESOS-4909] - Introduce kill policy for tasks.
+    * [MESOS-4910] - Deprecate the --docker_stop_timeout agent flag.
+
+
 Release Notes - Mesos - Version 0.28.0
---------------------------------------------
+--------------------------------------
 This release contains the following new features:
   * [MESOS-4343] - A new cgroups isolator for enabling the net_cls subsystem in
     Linux. The cgroups/net_cls isolator allows operators to provide network
