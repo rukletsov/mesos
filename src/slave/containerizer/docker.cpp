@@ -209,7 +209,6 @@ docker::Flags dockerFlags(
   dockerFlags.docker = flags.docker;
   dockerFlags.sandbox_directory = directory;
   dockerFlags.mapped_directory = flags.sandbox_directory;
-  dockerFlags.stop_timeout = flags.docker_stop_timeout;
   dockerFlags.docker_socket = flags.docker_socket;
   dockerFlags.launcher_dir = flags.launcher_dir;
   return dockerFlags;
@@ -958,11 +957,12 @@ Future<Nothing> DockerContainerizerProcess::__recover(
     // Check if we're watching an executor for this container ID and
     // if not, rm -f the Docker container.
     if (!containers_.contains(id.get())) {
-      // TODO(tnachen): Consider using executor_shutdown_grace_period.
+      // TODO(alexr): Consider using shutdown grace period from the
+      // corresponding `ExecutorInfo`.
       futures.push_back(
           docker->stop(
               container.id,
-              flags.docker_stop_timeout,
+              flags.executor_shutdown_grace_period,
               true));
       containerIds.push_back(id.get());
     }
@@ -1824,7 +1824,9 @@ void DockerContainerizerProcess::_destroy(
   LOG(INFO) << "Running docker stop on container '" << containerId << "'";
 
   if (killed) {
-    docker->stop(container->name(), flags.docker_stop_timeout)
+    // TODO(alexr): Consider using shutdown grace period from the
+    // corresponding `ExecutorInfo`.
+    docker->stop(container->name(), flags.executor_shutdown_grace_period)
       .onAny(defer(self(), &Self::__destroy, containerId, killed, lambda::_1));
   } else {
     __destroy(containerId, killed, Nothing());
