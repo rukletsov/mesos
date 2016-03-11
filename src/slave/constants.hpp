@@ -105,7 +105,7 @@ extern const Duration DOCKER_INSPECT_DELAY;
 
 // Default maximum number of docker inspect calls docker ps will invoke
 // in parallel to prevent hitting system's open file descriptor limit.
-extern const int DOCKER_PS_MAX_INSPECT_CALLS;
+extern const uint32_t DOCKER_PS_MAX_INSPECT_CALLS;
 
 // Default duration that docker containerizer will wait to check
 // docker version.

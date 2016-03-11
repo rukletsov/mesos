@@ -58,7 +58,7 @@ const uint16_t DEFAULT_EPHEMERAL_PORTS_PER_CONTAINER = 1024;
 
 const Duration DOCKER_REMOVE_DELAY = Hours(6);
 const Duration DOCKER_INSPECT_DELAY = Seconds(1);
-const int DOCKER_PS_MAX_INSPECT_CALLS = 100;
+const uint32_t DOCKER_PS_MAX_INSPECT_CALLS = 100;
 
 // TODO(tnachen): Make this a flag.
 const Duration DOCKER_VERSION_WAIT_TIMEOUT = Seconds(5);
