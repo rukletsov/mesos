@@ -592,8 +592,10 @@ int main(int argc, char** argv)
 
   mesos::internal::docker::Flags flags;
 
-  // Load flags from environment and command line.
-  Try<Nothing> load = flags.load(None(), &argc, &argv);
+  // Load flags from command line. We allow unknown flags to ensure that
+  // when a new flag is added in version N, agent of version N works with
+  // the executor of version N-1.
+  Try<Nothing> load = flags.load(None(), &argc, &argv, true);
 
   if (load.isError()) {
     cerr << flags.usage(load.error()) << endl;
