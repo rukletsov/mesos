@@ -105,7 +105,8 @@ Example:
     --[no-]help
   </td>
   <td>
-Show the help message and exit. (default: false)
+Show the help message and exit.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -127,7 +128,8 @@ Currently there is no support for multiple HTTP authenticators. (default: basic)
   </td>
   <td>
 IP address to listen on. This cannot be used in conjunction
-with <code>--ip_discovery_command</code>. (master default: 5050; slave default: 5051)
+with <code>--ip_discovery_command</code>.
+(master default: 5050; slave default: 5051)
   </td>
 </tr>
 <tr>
@@ -153,7 +155,8 @@ Port to listen on.
     --[no-]version
   </td>
   <td>
-Show version and exit. (default: false)
+Show version and exit.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -185,7 +188,8 @@ is used.
 Whether we should execute a lookup to find out the server's hostname,
 if not explicitly set (via, e.g., <code>--hostname</code>).
 True by default; if set to <code>false</code> it will cause Mesos
-to use the IP address, unless the hostname is explicitly set. (default: true)
+to use the IP address, unless the hostname is explicitly set.
+(default: true)
   </td>
 </tr>
 <tr>
@@ -255,7 +259,8 @@ For more about logging, see the [logging documentation](logging.md).
     --[no-]quiet
   </td>
   <td>
-Disable logging to stderr (default: false)
+Disable logging to stderr.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -276,7 +281,8 @@ only written to stderr!
   </td>
   <td>
 Maximum number of seconds that logs may be buffered for.
-By default, logs are flushed immediately. (default: 0)
+By default, logs are flushed immediately.
+(default: 0)
   </td>
 </tr>
 <tr>
@@ -287,7 +293,8 @@ By default, logs are flushed immediately. (default: 0)
 Log message at or above this level.
 Possible values: <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>.
 If <code>--quiet</code> is specified, this will only affect the logs
-written to <code>--log_dir</code>, if specified. (default: INFO)
+written to <code>--log_dir</code>, if specified.
+(default: INFO)
   </td>
 </tr>
 <tr>
@@ -443,7 +450,8 @@ Example:
   </td>
   <td>
 Amount of time to wait between performing
-(batch) allocations (e.g., 500ms, 1sec, etc). (default: 1secs)
+(batch) allocations (e.g., 500ms, 1sec, etc).
+(default: 1secs)
   </td>
 </tr>
 <tr>
@@ -463,7 +471,8 @@ load an alternate allocator module using <code>--modules</code>.
   </td>
   <td>
 If <code>true</code>, only authenticated frameworks are allowed to register. If
-<code>false</code>, unauthenticated frameworks are also allowed to register. (default: false)
+<code>false</code>, unauthenticated frameworks are also allowed to register.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -472,7 +481,8 @@ If <code>true</code>, only authenticated frameworks are allowed to register. If
   </td>
   <td>
 If <code>true</code> only authenticated slaves are allowed to register.
-If <code>false</code> unauthenticated slaves are also allowed to register. (default: false)
+If <code>false</code> unauthenticated slaves are also allowed to register.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -482,7 +492,8 @@ If <code>false</code> unauthenticated slaves are also allowed to register. (defa
   <td>
 Authenticator implementation to use when authenticating frameworks
 and/or slaves. Use the default <code>crammd5</code>, or
-load an alternate authenticator module using <code>--modules</code>. (default: crammd5)
+load an alternate authenticator module using <code>--modules</code>.
+(default: crammd5)
   </td>
 </tr>
 <tr>
@@ -499,7 +510,8 @@ Note that if the flag <code>--authorizers</code> is provided with a value
 different than the default <code>local</code>, the ACLs
 passed through the <code>--acls</code> flag will be ignored.
 <p/>
-Currently there's no support for multiple authorizers. (default: local)
+Currently there's no support for multiple authorizers.
+(default: local)
   </td>
 </tr>
 <tr>
@@ -535,17 +547,20 @@ Example:
   <td>
 Policy to use for allocating resources
 between a given user's frameworks. Options
-are the same as for user_allocator. (default: drf)
+are the same as for user_allocator.
+(default: drf)
   </td>
 </tr>
 <tr>
   <td>
+(default: basic)
     --[no-]log_auto_initialize
   </td>
   <td>
 Whether to automatically initialize the [replicated log](replicated-log-internals.md)
 used for the registry. If this is set to false, the log has to be manually
-initialized when used for the very first time. (default: true)
+initialized when used for the very first time.
+(default: true)
   </td>
 </tr>
 <tr>
@@ -553,7 +568,8 @@ initialized when used for the very first time. (default: true)
     --max_completed_frameworks=VALUE
   </td>
   <td>
-Maximum number of completed frameworks to store in memory. (default: 50)
+Maximum number of completed frameworks to store in memory.
+(default: 50)
   </td>
 </tr>
 <tr>
@@ -562,7 +578,8 @@ Maximum number of completed frameworks to store in memory. (default: 50)
 =VALUE
   </td>
   <td>
-Maximum number of completed tasks per framework to store in memory. (default: 1000)
+Maximum number of completed tasks per framework to store in memory.
+(default: 1000)
   </td>
 </tr>
 <tr>
@@ -640,7 +657,8 @@ Values: [0%-100%] (default: 100%)
   </td>
   <td>
 Persistence strategy for the registry; available options are
-<code>replicated_log</code>, <code>in_memory</code> (for testing). (default: replicated_log)
+<code>replicated_log</code>, <code>in_memory</code> (for testing).
+(default: replicated_log)
   </td>
 </tr>
 <tr>
@@ -649,7 +667,8 @@ Persistence strategy for the registry; available options are
   </td>
   <td>
 Duration of time to wait in order to fetch data from the registry
-after which the operation is considered a failure. (default: 1mins)
+after which the operation is considered a failure.
+(default: 1mins)
   </td>
 </tr>
 <tr>
@@ -658,7 +677,8 @@ after which the operation is considered a failure. (default: 1mins)
   </td>
   <td>
 Duration of time to wait in order to store data in the registry
-after which the operation is considered a failure. (default: 20secs)
+after which the operation is considered a failure.
+(default: 20secs)
   </td>
 </tr>
 <tr>
@@ -672,7 +692,8 @@ that the Registrar will never reject the admission, readmission,
 or removal of a slave. Consequently, <code>false</code> can be used to
 bootstrap the persistent state on a running cluster.
 <b>NOTE</b>: This flag is *experimental* and should not be used in
-production yet. (default: false)
+production yet.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -690,7 +711,8 @@ if it is not specified, any role name can be used.
     --[no-]root_submissions
   </td>
   <td>
-Can root submit frameworks? (default: true)
+Can root submit frameworks?
+(default: true)
   </td>
 </tr>
 <tr>
@@ -727,7 +749,8 @@ The timeout within which all slaves are expected to re-register
 when a new master is elected as the leader. Slaves that do not
 re-register within the timeout will be removed from the registry
 and will be shutdown if they attempt to communicate with master.
-<b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
+<b>NOTE</b>: This value has to be at least 10mins.
+(default: 10mins)
   </td>
 </tr>
 <tr>
@@ -737,7 +760,8 @@ and will be shutdown if they attempt to communicate with master.
   <td>
 Policy to use for allocating resources
 between users. May be one of:
-  dominant_resource_fairness (drf) (default: drf)
+  dominant_resource_fairness (drf)
+(default: drf)
   </td>
 </tr>
 <tr>
@@ -745,7 +769,8 @@ between users. May be one of:
     --webui_dir=VALUE
   </td>
   <td>
-Directory path of the webui files/assets (default: /usr/local/share/mesos/webui)
+Directory path of the webui files/assets.
+(default: /usr/local/share/mesos/webui)
   </td>
 </tr>
 <tr>
@@ -777,7 +802,8 @@ machines are accepted. Path could be of the form
     --zk_session_timeout=VALUE
   </td>
   <td>
-ZooKeeper session timeout. (default: 10secs)
+ZooKeeper session timeout.
+(default: 10secs)
   </td>
 </tr>
 </table>
@@ -875,7 +901,8 @@ Attributes of the slave machine, in the form:
   <td>
 Authenticatee implementation to use when authenticating against the
 master. Use the default <code>crammd5</code>, or
-load an alternate authenticatee module using <code>--modules</code>. (default: crammd5)
+load an alternate authenticatee module using <code>--modules</code>.
+(default: crammd5)
   </td>
 </tr>
 <tr>
@@ -884,7 +911,8 @@ load an alternate authenticatee module using <code>--modules</code>. (default: c
   </td>
   <td>
 Cgroups feature flag to enable counting of processes and threads
-inside a container. (default: false)
+inside a container.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -893,7 +921,8 @@ inside a container. (default: false)
   </td>
   <td>
 Cgroups feature flag to enable hard limits on CPU resources
-via the CFS bandwidth limiting subfeature. (default: false)
+via the CFS bandwidth limiting subfeature.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -901,7 +930,8 @@ via the CFS bandwidth limiting subfeature. (default: false)
     --cgroups_hierarchy=VALUE
   </td>
   <td>
-The path to the cgroups hierarchy root. (default: /sys/fs/cgroup)
+The path to the cgroups hierarchy root.
+(default: /sys/fs/cgroup)
   </td>
 </tr>
 <tr>
@@ -910,7 +940,8 @@ The path to the cgroups hierarchy root. (default: /sys/fs/cgroup)
   </td>
   <td>
 Cgroups feature flag to enable memory limits on both memory and
-swap instead of just memory. (default: false)
+swap instead of just memory.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -937,7 +968,8 @@ effect only when the <code>--cgroups_net_cls_primary_handle</code> is set.
     --cgroups_root=VALUE
   </td>
   <td>
-Name of the root cgroup. (default: mesos)
+Name of the root cgroup.
+(default: mesos)
   </td>
 </tr>
 <tr>
@@ -946,7 +978,8 @@ Name of the root cgroup. (default: mesos)
   </td>
   <td>
 The interval between disk quota checks for containers. This flag is
-used for the <code>posix/disk</code> isolator. (default: 15secs)
+used for the <code>posix/disk</code> isolator.
+(default: 15secs)
   </td>
 </tr>
 <tr>
@@ -1039,7 +1072,8 @@ Any resources in the <code>--resources</code> flag that
 omit a role, as well as any resources that
 are not present in <code>--resources</code> but that are
 automatically detected, will be assigned to
-this role. (default: *)
+this role.
+(default: *)
   </td>
 </tr>
 <tr>
@@ -1050,7 +1084,8 @@ this role. (default: *)
 Periodic time interval (e.g., 10secs, 2mins, etc)
 to check the overall disk usage managed by the slave.
 This drives the garbage collection of archived
-information and sandboxes. (default: 1mins)
+information and sandboxes.
+(default: 1mins)
   </td>
 </tr>
 <tr>
@@ -1095,7 +1130,8 @@ recovers.
 The default url for pulling Docker images. It could either be a Docker
 registry server url (i.e: <code>https://registry.docker.io</code>), or a local
 path (i.e: <code>/tmp/docker/images</code>) in which Docker image archives
-(result of <code>docker save</code>) are stored. (default: https://registry-1.docker.io)
+(result of <code>docker save</code>) are stored.
+(default: https://registry-1.docker.io)
   </td>
 </tr>
 <tr>
@@ -1125,7 +1161,8 @@ path used by the slave's docker image.
   </td>
   <td>
 The time as a duration for docker to wait after stopping an instance
-before it kills that instance. (default: 0ns)
+before it kills that instance.
+(default: 0ns)
   </td>
 </tr>
 <tr>
@@ -1133,7 +1170,8 @@ before it kills that instance. (default: 0ns)
     --docker_store_dir=VALUE
   </td>
   <td>
-Directory the Docker provisioner will store images in (default: /tmp/mesos/store/docker)
+Directory the Docker provisioner will store images in.
+(default: /tmp/mesos/store/docker)
   </td>
 </tr>
 <tr>
@@ -1142,7 +1180,8 @@ Directory the Docker provisioner will store images in (default: /tmp/mesos/store
   </td>
   <td>
 Whether to enable disk quota enforcement for containers. This flag
-is used for the <code>posix/disk</code> isolator. (default: false)
+is used for the <code>posix/disk</code> isolator.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -1167,7 +1206,8 @@ Example:
   <td>
 Amount of time to wait for an executor
 to register with the slave before considering it hung and
-shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
+shutting it down (e.g., 60secs, 3mins, etc).
+(default: 1mins)
   </td>
 </tr>
 <tr>
@@ -1190,7 +1230,8 @@ terminations may occur.
   </td>
   <td>
 Parent directory for fetcher cache directories
-(one subdirectory per slave). (default: /tmp/mesos/fetch)
+(one subdirectory per slave).
+(default: /tmp/mesos/fetch)
   </td>
 </tr>
 <tr>
@@ -1198,7 +1239,8 @@ Parent directory for fetcher cache directories
     --fetcher_cache_size=VALUE
   </td>
   <td>
-Size of the fetcher cache in Bytes. (default: 2GB)
+Size of the fetcher cache in Bytes.
+(default: 2GB)
   </td>
 </tr>
 <tr>
@@ -1206,7 +1248,8 @@ Size of the fetcher cache in Bytes. (default: 2GB)
     --frameworks_home=VALUE
   </td>
   <td>
-Directory path prepended to relative executor URIs (default: )
+Directory path prepended to relative executor URIs.
+(default: )
   </td>
 </tr>
 <tr>
@@ -1217,7 +1260,8 @@ Directory path prepended to relative executor URIs (default: )
 Maximum amount of time to wait before cleaning up
 executor directories (e.g., 3days, 2weeks, etc).
 Note that this delay may be shorter depending on
-the available disk usage. (default: 1weeks)
+the available disk usage.
+(default: 1weeks)
   </td>
 </tr>
 <tr>
@@ -1230,7 +1274,8 @@ Adjust disk headroom used to calculate maximum executor
 directory age. Age is calculated by:
 <code>gc_delay * max(0.0, (1.0 - gc_disk_headroom - disk usage))</code>
 every <code>--disk_watch_interval</code> duration. <code>gc_disk_headroom</code> must
-be a value between 0.0 and 1.0 (default: 0.1)
+be a value between 0.0 and 1.0.
+(default: 0.1)
   </td>
 </tr>
 <tr>
@@ -1241,7 +1286,7 @@ be a value between 0.0 and 1.0 (default: 0.1)
 Path to find Hadoop installed (for
 fetching framework executors from HDFS)
 (no default, look for <code>HADOOP_HOME</code> in
-environment or find hadoop on <code>PATH</code>) (default: )
+environment or find hadoop on <code>PATH</code>).
   </td>
 </tr>
 <tr>
@@ -1280,7 +1325,8 @@ e.g., <code>APPC,DOCKER</code>.
   </td>
   <td>
 Strategy for provisioning container rootfs from images,
-e.g., <code>bind</code>, <code>copy</code>. (default: copy)
+e.g., <code>bind</code>, <code>copy</code>.
+(default: copy)
   </td>
 </tr>
 <tr>
@@ -1293,7 +1339,8 @@ Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
 (configure with flag: <code>--with-network-isolator</code> to enable),
 or <code>external</code>, or load an alternate isolator module using
 the <code>--modules</code> flag. Note that this flag is only relevant
-for the Mesos Containerizer. (default: posix/cpu,posix/mem)
+for the Mesos Containerizer.
+(default: posix/cpu,posix/mem)
   </td>
 </tr>
 <tr>
@@ -1315,8 +1362,8 @@ launcher if it's running as root on Linux.
   <td>
 Directory path of Mesos binaries. Mesos looks for the health-check,
 fetcher, containerizer, and executor binary files under this
-directory. (default: /usr/local/libexec/mesos)
-  </td>
+directory.
+(default: /usr/local/libexec/mesos)
 </tr>
 <tr>
   <td>
@@ -1356,7 +1403,8 @@ and available. The interval between updates is controlled by this flag.
   </td>
   <td>
 Duration of a perf stat sample. The duration must be less
-than the <code>perf_interval</code>. (default: 10secs)
+than the <code>perf_interval</code>.
+(default: 10secs)
   </td>
 </tr>
 <tr>
@@ -1381,7 +1429,8 @@ Interval between the start of perf stat samples. Perf samples are
 obtained periodically according to <code>perf_interval</code> and the most
 recently obtained sample is returned rather than sampling on
 demand. For this reason, <code>perf_interval</code> is independent of the
-resource monitoring interval. (default: 60secs)
+resource monitoring interval.
+(default: 60secs)
   </td>
 </tr>
 <tr>
@@ -1400,7 +1449,8 @@ The name of the QoS Controller to use for oversubscription.
 The slave polls and carries out QoS corrections from the QoS
 Controller based on its observed performance of running tasks.
 The smallest interval between these corrections is controlled by
-this flag. (default: 0secs)
+this flag.
+(default: 0secs)
   </td>
 </tr>
 <tr>
@@ -1413,7 +1463,8 @@ Valid values for <code>recover</code> are
 reconnect: Reconnect with any old live executors.
 cleanup  : Kill any old live executors and exit.
            Use this option when doing an incompatible slave
-           or executor upgrade!). (default: reconnect)
+           or executor upgrade!).
+(default: reconnect)
   </td>
 </tr>
 <tr>
@@ -1437,7 +1488,8 @@ Slave initially picks a random amount of time between <code>[0, b]</code>, where
 Subsequent retries are exponentially backed off based on this
 interval (e.g., 1st retry uses a random value between <code>[0, b * 2^1]</code>,
 2nd retry between <code>[0, b * 2^2]</code>, 3rd retry between <code>[0, b * 2^3]</code>,
-etc) up to a maximum of 1mins (default: 1secs)
+etc) up to a maximum of 1mins.
+(default: 1secs)
   </td>
 </tr>
 <tr>
@@ -1491,7 +1543,8 @@ Example JSON:
   <td>
 Run containers with revocable CPU at a lower priority than
 normal containers (non-revocable cpu). Currently only
-supported by the cgroups/cpu isolator. (default: true)
+supported by the cgroups/cpu isolator.
+(default: true)
   </td>
 </tr>
 <tr>
@@ -1542,7 +1595,8 @@ If the user does not exist, an error occurs and the task will fail.
 If set to <code>false</code>, tasks will be run as the same user as the Mesos
 slave process.
 <b>NOTE</b>: This feature is not yet supported on Windows slave, and
-therefore the flag currently does not exist on that platform. (default: true)
+therefore the flag currently does not exist on that platform.
+(default: true)
   </td>
 </tr>
 <tr>
@@ -1571,7 +1625,7 @@ The path to the systemd system run time directory.
     --work_dir=VALUE
   </td>
   <td>
-Directory path to place framework work directories
+Directory path to place framework work directories.
 (default: /tmp/mesos)
   </td>
 </tr>
@@ -1597,7 +1651,8 @@ Directory path to place framework work directories
   <td>
 Number of ephemeral ports allocated to a container by the network
 isolator. This number has to be a power of 2. This flag is used
-for the <code>network/port_mapping</code> isolator. (default: 1024)
+for the <code>network/port_mapping</code> isolator.
+(default: 1024)
   </td>
 </tr>
 <tr>
@@ -1640,7 +1695,8 @@ the <code>network/port_mapping</code> isolator.
   <td>
 Whether to assign an individual flow for each container for the
 egress traffic. This flag is used for the <code>network/port_mapping</code>
-isolator. (default: false)
+isolator.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -1670,7 +1726,8 @@ This flag is used for the <code>network/port_mapping</code> isolator.
   <td>
 Whether to collect socket statistics details (e.g., TCP RTT) for
 each container. This flag is used for the <code>network/port_mapping</code>
-isolator. (default: false)
+isolator.
+(default: false)
   </td>
 </tr>
 <tr>
@@ -1680,7 +1737,8 @@ isolator. (default: false)
   <td>
 Whether to collect SNMP statistics details (e.g., TCPRetransSegs) for
 each container. This flag is used for the 'network/port_mapping'
-isolator. (default: false)
+isolator.
+(default: false)
   </td>
 </tr>
 </table>
