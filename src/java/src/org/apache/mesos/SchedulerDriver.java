@@ -115,14 +115,15 @@ public interface SchedulerDriver {
   Status requestResources(Collection<Request> requests);
 
   /**
-   * Launches the given set of tasks on a set of offers. Resources
-   * from offers are aggregated when more then one is provided.
-   * Note that all offers must belong to same slave. Any resources
-   * remaining (i.e., not used by the tasks or their executors) will
-   * be considered declined. The specified filters are applied on all
-   * unused resources (see mesos.proto for a description of Filters).
+   * Launches the given set of tasks. Any resources remaining (i.e.,
+   * not used by the tasks or their executors, including those which
+   * a malformed task was attempted to run on) will be considered
+   * declined. The specified filters are applied on all unused
+   * resources (see mesos.proto for a description of Filters).
+   * Available resources are aggregated when multiple offers are
+   * provided. Note that all offers must belong to the same slave.
    * Invoking this function with an empty collection of tasks declines
-   * offers in their entirety (see {@link #declineOffer}).
+   * offers in their entirety (see Scheduler::declineOffer).
    *
    * @param offerIds    The collection of offer IDs.
    * @param tasks       The collection of tasks to be launched.
@@ -195,11 +196,13 @@ public interface SchedulerDriver {
   /**
    * Accepts the given offers and performs a sequence of operations on
    * those accepted offers. See Offer.Operation in mesos.proto for the
-   * set of available operations. Available resources are aggregated
-   * when multiple offers are provided. Note that all offers must
-   * belong to the same slave. Any unused resources will be considered
+   * set of available operations. Any resources remaining (i.e., not
+   * used by the tasks or their executors, including those which
+   * a malformed task was attempted to run on) will be considered
    * declined. The specified filters are applied on all unused
    * resources (see mesos.proto for a description of Filters).
+   * Available resources are aggregated when multiple offers are
+   * provided. Note that all offers must belong to the same slave.
    *
    * @param offerIds    The collection of offer IDs.
    * @param operations  The collection of offer operations to perform.

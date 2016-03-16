@@ -217,7 +217,8 @@ public:
   virtual Status requestResources(const std::vector<Request>& requests) = 0;
 
   // Launches the given set of tasks. Any resources remaining (i.e.,
-  // not used by the tasks or their executors) will be considered
+  // not used by the tasks or their executors, including those which
+  // a malformed task was attempted to run on) will be considered
   // declined. The specified filters are applied on all unused
   // resources (see mesos.proto for a description of Filters).
   // Available resources are aggregated when multiple offers are
@@ -244,11 +245,13 @@ public:
 
   // Accepts the given offers and performs a sequence of operations on
   // those accepted offers. See Offer.Operation in mesos.proto for the
-  // set of available operations. Available resources are aggregated
-  // when multiple offers are provided. Note that all offers must
-  // belong to the same slave. Any unused resources will be considered
+  // set of available operations. Any resources remaining (i.e., not
+  // used by the tasks or their executors, including those which
+  // a malformed task was attempted to run on) will be considered
   // declined. The specified filters are applied on all unused
   // resources (see mesos.proto for a description of Filters).
+  // Available resources are aggregated when multiple offers are
+  // provided. Note that all offers must belong to the same slave.
   virtual Status acceptOffers(
       const std::vector<OfferID>& offerIds,
       const std::vector<Offer::Operation>& operations,
