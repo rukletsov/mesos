@@ -217,7 +217,8 @@ public:
   virtual Status requestResources(const std::vector<Request>& requests) = 0;
 
   // Launches the given set of tasks. Any resources remaining (i.e.,
-  // not used by the tasks or their executors) will be considered
+  // not used by the tasks or their executors, including those which
+  // a malformed task was attempted to run on) will be considered
   // declined. The specified filters are applied on all unused
   // resources (see mesos.proto for a description of Filters).
   // Available resources are aggregated when multiple offers are
