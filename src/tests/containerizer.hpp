@@ -54,6 +54,11 @@ namespace tests {
 // Forward declaration.
 class MockExecutor;
 
+ACTION_P(InvokeDestroy, containerizer)
+{
+  containerizer->_destroy(arg0);
+}
+
 class TestContainerizer : public slave::Containerizer
 {
 public:
@@ -96,8 +101,6 @@ public:
   // ContainerID created for each container.
   void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
 
-  virtual void destroy(const ContainerID& containerId);
-
   virtual process::Future<hashset<ContainerID> > containers();
 
   MOCK_METHOD1(
@@ -116,7 +119,11 @@ public:
       wait,
       process::Future<containerizer::Termination>(const ContainerID&));
 
-private:
+  MOCK_METHOD1(
+      destroy,
+      void(const ContainerID&));
+
+public:
   void setup();
 
   // Default 'launch' implementation.
@@ -131,6 +138,9 @@ private:
 
   process::Future<containerizer::Termination> _wait(
       const ContainerID& containerId);
+
+  void _destroy(
+      const ContainerID& containerID);
 
   hashmap<ExecutorID, Executor*> executors;
   hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
