@@ -23,6 +23,8 @@
 #include <memory>
 #include <string>
 
+#include <gmock/gmock.h>
+
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -53,6 +55,48 @@ namespace tests {
 
 // Forward declaration.
 class MockExecutor;
+
+// The following actions make up for the fact that `DoDefault`
+// cannot be used inside a `DoAll`, for example:
+// EXPECT_CALL(containerizer, destroy(_))
+//   .WillOnce(DoAll(InvokeDestroy(&containerizer),
+//                   FutureSatisfy(&containerDestroyed)));
+
+ACTION(InvokeContainerizerRecover)
+{
+  return Nothing();
+}
+
+
+ACTION_P(InvokeContainerizerLaunch, containerizer)
+{
+  return containerizer->_launch(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+
+ACTION(InvokeContainerizerUpdate)
+{
+  return Nothing();
+}
+
+
+ACTION(InvokeContainerizerUsage)
+{
+  return ResourceStatistics();
+}
+
+
+ACTION_P(InvokeContainerizerWait, containerizer)
+{
+  return containerizer->_wait(arg0);
+}
+
+
+ACTION_P(InvokeContainerizerDestroy, containerizer)
+{
+  containerizer->_destroy(arg0);
+}
+
 
 class TestContainerizer : public slave::Containerizer
 {
@@ -119,9 +163,6 @@ public:
   // ContainerID created for each container.
   void destroy(const FrameworkID& frameworkId, const ExecutorID& executorId);
 
-private:
-  void setup();
-
   // Default implementations of mock methods.
   process::Future<bool> _launch(
       const ContainerID& containerId,
@@ -136,6 +177,9 @@ private:
       const ContainerID& containerId);
 
   void _destroy(const ContainerID& containerID);
+
+private:
+  void setup();
 
   hashmap<ExecutorID, Executor*> executors;
   hashmap<ExecutorID, std::shared_ptr<MockV1HTTPExecutor>> v1Executors;
