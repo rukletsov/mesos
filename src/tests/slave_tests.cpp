@@ -3174,6 +3174,192 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   driver.join();
 }
 
+
+// Ensures that the executor shutdown grace period in `ExecutorInfo` is
+// validated, delivered to an executor, and is enforced by the agent.
+TEST_F(SlaveTest, ExecutorShutdownGracePeriod)
+{
+  // Pausing the clock is not necessary, but ensures that
+  // batch allocation does not kick in unpredictably.
+  Clock::pause();
+
+  // NOTE: We don't use `StartMaster()` because we need to access these flags.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  ExecutorInfo executorInfo(DEFAULT_EXECUTOR_INFO);
+
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), &containerizer, agentFlags);
+  ASSERT_SOME(agent);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We need framework's ID to shutdown the executor later on.
+  FrameworkID frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(SaveArg<1>(&frameworkId));
+
+  // Negative durations are not allowed for the shutdown grace period.
+  {
+    Duration invalidGracePeriod = Seconds(-1);
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers));
+
+    driver.start();
+
+    AWAIT_READY(offers);
+    EXPECT_NE(0u, offers.get().size());
+    Offer offer = offers.get()[0];
+
+    executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+        invalidGracePeriod.ns());
+
+    TaskInfo task;
+    task.set_name("");
+    task.mutable_task_id()->set_value("1");
+    task.mutable_slave_id()->MergeFrom(offer.slave_id());
+    task.mutable_resources()->MergeFrom(offer.resources());
+    task.mutable_executor()->MergeFrom(executorInfo);
+
+    Future<TaskStatus> status;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status));
+
+    // Because the task is malformed and will be rejected by the
+    // master, we set the filter explicitly so that the task's
+    // resources will not be filtered for 5 seconds (the default).
+    Filters filters;
+    filters.set_refuse_seconds(0);
+
+    driver.launchTasks(offer.id(), {task}, filters);
+
+    AWAIT_READY(status);
+    EXPECT_EQ(TASK_ERROR, status.get().state());
+    EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  }
+
+  // If `ExecutorInfo.shutdown_grace_period` is set, it should be observed
+  // by the executor and override the default value from the agent flag.
+  {
+    Duration gracePeriod = agentFlags.executor_shutdown_grace_period * 2;
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers));
+
+    // Trigger a batch allocation.
+    Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+
+    AWAIT_READY(offers);
+    EXPECT_NE(0u, offers.get().size());
+    Offer offer = offers.get()[0];
+
+    executorInfo.mutable_shutdown_grace_period()->set_nanoseconds(
+        gracePeriod.ns());
+
+    TaskInfo task;
+    task.set_name("");
+    task.mutable_task_id()->set_value("2");
+    task.mutable_slave_id()->MergeFrom(offer.slave_id());
+    task.mutable_resources()->MergeFrom(offer.resources());
+    task.mutable_executor()->MergeFrom(executorInfo);
+
+    Future<TaskStatus> status;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status));
+
+    EXPECT_CALL(exec, registered(_, _, _, _))
+      .Times(1);
+
+    TaskInfo receivedTask;
+    EXPECT_CALL(exec, launchTask(_, _))
+      .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                      SaveArg<1>(&receivedTask)));
+
+    driver.launchTasks(offer.id(), {task});
+
+    AWAIT_READY(status);
+    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(gracePeriod.ns(),
+              receivedTask.executor().shutdown_grace_period().nanoseconds());
+  }
+
+  // If executor is asked to shutdown but fails to do so within the grace
+  // shutdown period, the shutdown is enforced by the agent. The agent
+  // adjusts its timeout according to `ExecutorInfo.shutdown_grace_period`.
+  //
+  // NOTE: Executors relying on the executor driver have a built-in suicide
+  // mechanism (`ShutdownProcess`), that kills the OS process where the
+  // executor is running after the grace period ends. This mechanism is
+  // disabled in tests, hence we do not observe crashes induced by this test.
+  {
+    // When the mock executor receives the shutdown request and reacts to
+    // it by returning from the `shutdown()` callback, here it does *not*
+    // mean that it exits and hence comply to the request. This is due to
+    // how `TestContainerizer::_wait()` is implemented.
+    EXPECT_CALL(exec, shutdown(_))
+      .Times(AtMost(1))
+      .WillOnce(Return());
+
+    // Once the grace period ends, the agent asks
+    // the containerizer to destroy the executor.
+    Future<Nothing> containerDestroyed;
+    EXPECT_CALL(containerizer, destroy(_))
+      .WillOnce(DoAll(InvokeContainerizerDestroy(&containerizer),
+                      FutureSatisfy(&containerDestroyed)))
+      .WillRepeatedly(Return());
+
+    Future<TaskStatus> status;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status));
+
+    EXPECT_CALL(sched, executorLost(&driver, DEFAULT_EXECUTOR_ID, _, _));
+
+    // Ask executor to shutdown.
+    ShutdownExecutorMessage shutdownMessage;
+    shutdownMessage.mutable_executor_id()->CopyFrom(DEFAULT_EXECUTOR_ID);
+    shutdownMessage.mutable_framework_id()->CopyFrom(frameworkId);
+    post(master.get()->pid, agent.get()->pid, shutdownMessage);
+
+    Clock::settle();
+    Clock::advance(agentFlags.executor_shutdown_grace_period);
+    Clock::settle();
+
+    // If `ExecutorInfo.shutdown_grace_period` is set, it
+    // overrides the default value from the agent flag.
+    EXPECT_TRUE(containerDestroyed.isPending());
+
+    // Force shutdown by the agent will now be triggered because
+    // `ExecutorInfo.shutdown_grace_period` is twice as big as
+    // `agentFlags.executor_shutdown_grace_period`.
+    Clock::advance(agentFlags.executor_shutdown_grace_period);
+
+    AWAIT_READY(containerDestroyed);
+
+    AWAIT_READY(status);
+    EXPECT_EQ(TASK_FAILED, status.get().state());
+    EXPECT_EQ(TaskStatus::REASON_EXECUTOR_TERMINATED, status.get().reason());
+  }
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
