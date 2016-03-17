@@ -280,34 +280,43 @@ Future<hashset<ContainerID> > TestContainerizer::containers()
 
 void TestContainerizer::setup()
 {
-  // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-  // 'ON_CALL' and 'WillByDefault' because the latter gives the gmock
-  // warning "Uninteresting mock function call" unless each tests puts
-  // the expectations in place which would make the tests much more
-  // verbose.
-  //
-  // TODO(bmahler): Update this to use the same style as the
-  // TestAllocator, which allows us to have default actions
-  // 'DoDefault', without requiring each test to put expectations in
-  // place.
+  // We use `ON_CALL` and `WillByDefault` here to specify the default
+  // actions. This allows the tests to leverage the `DoDefault` action.
+  // However, `ON_CALL` results in a "Uninteresting mock function call"
+  // warning unless each test puts expectations in place. As a result,
+  // we also use `EXPECT_CALL` and `WillRepeatedly` to get the best of
+  // both worlds: the ability to use `DoDefault` and no warnings when
+  // expectations are not explicit.
 
+  ON_CALL(*this, recover(_))
+    .WillByDefault(Return(Nothing()));
   EXPECT_CALL(*this, recover(_))
-    .WillRepeatedly(Return(Nothing()));
+    .WillRepeatedly(DoDefault());
 
-  EXPECT_CALL(*this, usage(_))
-    .WillRepeatedly(Return(ResourceStatistics()));
-
-  EXPECT_CALL(*this, update(_, _))
-    .WillRepeatedly(Return(Nothing()));
-
+  ON_CALL(*this, launch(_, _, _, _, _, _, _))
+    .WillByDefault(Invoke(this, &TestContainerizer::_launch));
   EXPECT_CALL(*this, launch(_, _, _, _, _, _, _))
-    .WillRepeatedly(Invoke(this, &TestContainerizer::_launch));
+    .WillRepeatedly(DoDefault());
 
+  ON_CALL(*this, update(_, _))
+    .WillByDefault(Return(Nothing()));
+  EXPECT_CALL(*this, update(_, _))
+    .WillRepeatedly(DoDefault());
+
+  ON_CALL(*this, usage(_))
+    .WillByDefault(Return(ResourceStatistics()));
+  EXPECT_CALL(*this, usage(_))
+    .WillRepeatedly(DoDefault());
+
+  ON_CALL(*this, wait(_))
+    .WillByDefault(Invoke(this, &TestContainerizer::_wait));
   EXPECT_CALL(*this, wait(_))
-    .WillRepeatedly(Invoke(this, &TestContainerizer::_wait));
+    .WillRepeatedly(DoDefault());
 
+  ON_CALL(*this, destroy(_))
+    .WillByDefault(Invoke(this, &TestContainerizer::_destroy));
   EXPECT_CALL(*this, destroy(_))
-    .WillRepeatedly(Invoke(this, &TestContainerizer::_destroy));
+    .WillRepeatedly(DoDefault());
 }
 
 } // namespace tests {
