@@ -3360,6 +3360,131 @@ TEST_F(SlaveTest, ExecutorShutdownGracePeriod)
   driver.join();
 }
 
+
+// Ensures that the grace period in task's `KillPolicy` is validated
+// and delivered to an executor.
+TEST_F(SlaveTest, TaskKillPolicy)
+{
+  // Pausing the clock is not necessary, but ensures that
+  // batch allocation does not kick in unpredictably.
+  Clock::pause();
+
+  // NOTE: We don't use `StartMaster()` because we need to access these flags.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), &containerizer);
+  ASSERT_SOME(agent);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .Times(1);
+
+  // Negative durations are not allowed for the kill policy grace period.
+  {
+    Duration invalidGracePeriod = Seconds(-1);
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers));
+
+    driver.start();
+
+    AWAIT_READY(offers);
+    EXPECT_NE(0u, offers.get().size());
+    Offer offer = offers.get()[0];
+
+    TaskInfo task;
+    task.set_name("");
+    task.mutable_task_id()->set_value("1");
+    task.mutable_slave_id()->MergeFrom(offer.slave_id());
+    task.mutable_resources()->MergeFrom(offer.resources());
+    task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+    task.mutable_kill_policy()->mutable_grace_period()->set_nanoseconds(
+        invalidGracePeriod.ns());
+
+    Future<TaskStatus> status;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status));
+
+    // Because the task is malformed and will be rejected by the
+    // master, we set the filter explicitly so that the task's
+    // resources will not be filtered for 5 seconds (the default).
+    Filters filters;
+    filters.set_refuse_seconds(0);
+
+    driver.launchTasks(offer.id(), {task}, filters);
+
+    AWAIT_READY(status);
+    EXPECT_EQ(TASK_ERROR, status.get().state());
+    EXPECT_EQ(TaskStatus::REASON_TASK_INVALID, status.get().reason());
+  }
+
+  // If `TaskInfo.kill_policy.grace_period` is,
+  // set it should be observed by the executor.
+  {
+    Duration gracePeriod = Seconds(10);
+
+    Future<vector<Offer>> offers;
+    EXPECT_CALL(sched, resourceOffers(&driver, _))
+      .WillOnce(FutureArg<1>(&offers));
+
+    // Trigger a batch allocation.
+    Clock::advance(masterFlags.allocation_interval);
+    Clock::settle();
+
+    AWAIT_READY(offers);
+    EXPECT_NE(0u, offers.get().size());
+    Offer offer = offers.get()[0];
+
+    TaskInfo task;
+    task.set_name("");
+    task.mutable_task_id()->set_value("2");
+    task.mutable_slave_id()->MergeFrom(offer.slave_id());
+    task.mutable_resources()->MergeFrom(offer.resources());
+    task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+    task.mutable_kill_policy()->mutable_grace_period()->set_nanoseconds(
+        gracePeriod.ns());
+
+    Future<TaskStatus> status;
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&status));
+
+    EXPECT_CALL(exec, registered(_, _, _, _))
+      .Times(1);
+
+    TaskInfo receivedTask;
+    EXPECT_CALL(exec, launchTask(_, _))
+      .WillOnce(DoAll(SendStatusUpdateFromTask(TASK_RUNNING),
+                      SaveArg<1>(&receivedTask)));
+
+    driver.launchTasks(offer.id(), {task});
+
+    AWAIT_READY(status);
+    EXPECT_EQ(TASK_RUNNING, status.get().state());
+    EXPECT_EQ(gracePeriod.ns(),
+              receivedTask.kill_policy().grace_period().nanoseconds());
+  }
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
