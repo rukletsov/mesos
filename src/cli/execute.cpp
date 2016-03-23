@@ -203,6 +203,14 @@ public:
         task.mutable_slave_id()->MergeFrom(offer.slave_id());
         task.mutable_resources()->CopyFrom(TASK_RESOURCES.get());
 
+
+
+        // Inject `KillPolicy` for testing.
+        task.mutable_kill_policy()->mutable_grace_period()->
+            set_nanoseconds(Seconds(11).ns());
+
+
+
         CommandInfo* commandInfo = task.mutable_command();
 
         if (shell) {
@@ -212,7 +220,10 @@ public:
           commandInfo->set_value(command.get());
         } else {
           // TODO(gilbert): Treat 'command' as executable value and arguments.
+          // TODO(alexr): Add support for arguments.
           commandInfo->set_shell(false);
+          commandInfo->set_value(command.get());
+          commandInfo->add_arguments()->assign(command.get());
         }
 
         if (environment.isSome()) {
@@ -287,6 +298,13 @@ public:
     CHECK_EQ(name, status.task_id().value());
     cout << "Received status update " << status.state()
          << " for task " << status.task_id() << endl;
+
+
+    if (TASK_RUNNING == status.state()) {
+      driver->killTask(status.task_id());
+    }
+
+
     if (mesos::internal::protobuf::isTerminalState(status.state())) {
       driver->stop();
     }
