@@ -629,7 +629,7 @@ int main(int argc, char** argv)
   //
   // NOTE: We avoided introducing a docker executor flag for this
   // because the docker executor exits if it sees an unknown flag.
-  // This makes it difficult to add or remove dcoker executor flags
+  // This makes it difficult to add or remove docker executor flags
   // that are unconditionally set by the agent.
   Duration shutdownGracePeriod =
     mesos::internal::slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
