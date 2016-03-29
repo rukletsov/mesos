@@ -468,9 +468,17 @@ public:
   {
     cout << "Received killTask" << endl;
 
+    // backwards compatible
+    // TODO(alexr): add a more reasonable default.
+    Duration gracePeriod = Seconds(3);
+
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    }
+
     // Since the command executor manages a single task, we
     // shutdown completely when we receive a killTask.
-    shutdown(driver);
+    shutdown(driver, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -491,9 +499,9 @@ public:
     Duration gracePeriod =
       shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
-      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
-    }
+//    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+//      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+//    }
 
     // TODO(bmahler): If a shutdown arrives after a kill task within
     // the grace period of the `KillPolicy`, we may need to escalate
