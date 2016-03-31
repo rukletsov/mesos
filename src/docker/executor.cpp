@@ -195,89 +195,47 @@ public:
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
   {
-    cout << "Received killTask" << endl;
+    cout << "Received killTask for task " << taskId.value() << endl;
 
-    // If the kill policy's grace period is not set, we use the
-    // executor's shutdown grace period as shutdown timeout.
+    // Using shutdown grace period as a default is backwards compatible
+    // with the `stop_timeout` flag, deprecated in 0.29.
     Duration gracePeriod = shutdownGracePeriod;
+
     if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    // Since the docker executor manages a single task, we
-    // shutdown completely when we receive a killTask.
-    shutdown(driver, gracePeriod);
+    killTask(driver, taskId, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
 
   void shutdown(ExecutorDriver* driver)
   {
-    Option<Duration> killPolicyGracePeriod = None();
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
-      killPolicyGracePeriod =
-        Nanoseconds(killPolicy->grace_period().nanoseconds());
-    }
+    cout << "Shutting down" << endl;
 
-    // Choose the 'docker stop --time' based on the smaller of the executor's
-    // shutdown grace period and the kill policy's grace period. Currently,
-    // 'docker->run' uses the reaper internally, hence we need to account
-    // for the reap interval. We also leave a small buffer of time to do
-    // the forced kill, otherwise the agent may destroy the container
-    // before we can send `TASK_KILLED`.
+    // Currently, 'docker->run' uses the reaper internally, hence we need
+    // to account for the reap interval. We also leave a small buffer of
+    // time to do the forced kill, otherwise the agent may destroy the
+    // container before we can send `TASK_KILLED`.
     //
     // TODO(alexr): Remove `MAX_REAP_INTERVAL` once the reaper signals
     // immediately after the watched process has exited.
-    Option<Duration> gracePeriod = min(
-        shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1),
-        killPolicyGracePeriod);
+    Duration gracePeriod =
+      shutdownGracePeriod - process::MAX_REAP_INTERVAL() - Seconds(1);
 
-    CHECK_SOME(gracePeriod);
-
+    // Since the docker executor manages a single task,
+    // shutdown boils down to killing this task.
+    //
     // TODO(bmahler): If a shutdown arrives after a kill task within
     // the grace period of the `KillPolicy`, we may need to escalate
     // more quickly (e.g. the shutdown grace period allotted by the
     // agent is smaller than the kill grace period).
-
-    shutdown(driver, gracePeriod.get());
-  }
-
-  void shutdown(ExecutorDriver* driver, const Duration& gracePeriod)
-  {
-    cout << "Shutting down" << endl;
-
-    if (run.isSome() && !killed) {
-      // Send TASK_KILLING if the framework can handle it.
-      CHECK_SOME(frameworkInfo);
+    if (run.isSome()) {
       CHECK_SOME(taskId);
-
-      foreach (const FrameworkInfo::Capability& c,
-               frameworkInfo->capabilities()) {
-        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
-          TaskStatus status;
-          status.mutable_task_id()->CopyFrom(taskId.get());
-          status.set_state(TASK_KILLING);
-          driver->sendStatusUpdate(status);
-          break;
-        }
-      }
-
-      // The docker daemon might still be in progress starting the
-      // container, therefore we kill both the docker run process
-      // and also ask the daemon to stop the container.
-      run->discard();
-      stop = docker->stop(containerName, gracePeriod);
-      killed = true;
-    }
-
-    // Cleanup health check process.
-    //
-    // TODO(bmahler): Consider doing this after the task has been
-    // reaped, since a framework may be interested in health
-    // information while the task is being killed (consider a
-    // task that takes 30 minutes to be cleanly killed).
-    if (healthPid != -1) {
-      os::killtree(healthPid, SIGKILL);
+      killTask(driver, taskId.get(), gracePeriod);
+    } else {
+      driver->stop();
     }
   }
 
@@ -318,6 +276,47 @@ protected:
   }
 
 private:
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& _taskId,
+      const Duration& gracePeriod)
+  {
+    if (run.isSome() && !killed) {
+      // Send TASK_KILLING if the framework can handle it.
+      CHECK_SOME(frameworkInfo);
+      CHECK_SOME(taskId);
+      CHECK(taskId.get() == _taskId);
+
+      foreach (const FrameworkInfo::Capability& c,
+               frameworkInfo->capabilities()) {
+        if (c.type() == FrameworkInfo::Capability::TASK_KILLING_STATE) {
+          TaskStatus status;
+          status.mutable_task_id()->CopyFrom(taskId.get());
+          status.set_state(TASK_KILLING);
+          driver->sendStatusUpdate(status);
+          break;
+        }
+      }
+
+      // The docker daemon might still be in progress starting the
+      // container, therefore we kill both the docker run process
+      // and also ask the daemon to stop the container.
+      run->discard();
+      stop = docker->stop(containerName, gracePeriod);
+      killed = true;
+    }
+
+    // Cleanup health check process.
+    //
+    // TODO(bmahler): Consider doing this after the task has been
+    // reaped, since a framework may be interested in health
+    // information while the task is being killed (consider a
+    // task that takes 30 minutes to be cleanly killed).
+    if (healthPid != -1) {
+      os::killtree(healthPid, SIGKILL);
+    }
+  }
+
   void reaped(
       ExecutorDriver* _driver,
       const Future<Nothing>& run)
