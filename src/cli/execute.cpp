@@ -82,11 +82,11 @@ public:
   {
     add(&master,
         "master",
-        "Mesos master (e.g., IP1:PORT1)");
+        "Mesos master (e.g., IP1:PORT1).");
 
     add(&name,
         "name",
-        "Name for the command");
+        "Name for the command.");
 
     add(&shell,
         "shell",
@@ -96,55 +96,55 @@ public:
 
     add(&command,
         "command",
-        "Shell command to launch");
+        "Command to launch. Can be an executable, a shell command, an\n"
+        "entrypoint for a container.");
 
     add(&environment,
         "env",
         "Shell command environment variables.\n"
-        "The value could be a JSON formatted string of environment variables"
-        "(ie: {\"name1\": \"value1\"} )\n"
-        "or a file path containing the JSON formatted environment variables.\n"
-        "Path could be of the form 'file:///path/to/file' "
-        "or '/path/to/file'.\n");
+        "The value could be a JSON formatted string of environment variables\n"
+        "(i.e., {\"name1\": \"value1\"}) or a file path containing the JSON\n"
+        "formatted environment variables. Path could be of the form\n"
+        "'file:///path/to/file' or '/path/to/file'.");
 
     add(&resources,
         "resources",
-        "Resources for the command",
+        "Resources for the command.",
         "cpus:1;mem:128");
 
     add(&hadoop,
         "hadoop",
-        "Path to `hadoop' script (used for copying packages)",
+        "Path to 'hadoop' script (used for copying packages).",
         "hadoop");
 
     add(&hdfs,
         "hdfs",
-        "The ip:port of the NameNode service",
+        "The ip:port of the NameNode service.",
         "localhost:9000");
 
     add(&package,
         "package",
         "Package to upload into HDFS and copy into command's\n"
-        "working directory (requires `hadoop', see --hadoop)");
+        "working directory (requires 'hadoop', see --hadoop).");
 
     add(&overwrite,
         "overwrite",
-        "Overwrite the package in HDFS if it already exists",
+        "Overwrite the package in HDFS if it already exists.",
         false);
 
     add(&checkpoint,
         "checkpoint",
-        "Enable checkpointing for the framework",
+        "Enable checkpointing for the framework.",
         false);
 
     add(&docker_image,
         "docker_image",
-        "Docker image that follows the Docker CLI naming <image>:<tag>."
-        "(ie: ubuntu, busybox:latest).");
+        "Docker image that follows the Docker CLI naming <image>:<tag>\n"
+        "(i.e., ubuntu, busybox:latest).");
 
     add(&containerizer,
         "containerizer",
-        "Containerizer to be used (ie: docker, mesos)",
+        "Containerizer to be used (i.e., docker, mesos).",
         "mesos");
   }
 
