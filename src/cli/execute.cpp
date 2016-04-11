@@ -194,30 +194,12 @@ class CommandScheduler : public process::Process<CommandScheduler>
 public:
   CommandScheduler(
       const FrameworkInfo& _frameworkInfo,
-      const string& _master,
-      const string& _name,
-      const bool _shell,
-      const Option<string>& _command,
-      const Option<hashmap<string, string>>& _environment,
-      const string& _resources,
       const Option<string>& _uri,
-      const Option<string>& _appcImage,
-      const Option<string>& _dockerImage,
-      const string& _containerizer,
-      const Option<Duration>& _killAfter)
+      const Flags& _flags)
     : state(DISCONNECTED),
       frameworkInfo(_frameworkInfo),
-      master(_master),
-      name(_name),
-      shell(_shell),
-      command(_command),
-      environment(_environment),
-      resources(_resources),
       uri(_uri),
-      appcImage(_appcImage),
-      dockerImage(_dockerImage),
-      containerizer(_containerizer),
-      killAfter(_killAfter),
+      flags(_flags),
       launched(false) {}
 
   virtual ~CommandScheduler() {}
@@ -227,8 +209,9 @@ protected:
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
+    CHECK_SOME(flags.master);
     mesos.reset(new Mesos(
-      master,
+      flags.master.get(),
       mesos::ContentType::PROTOBUF,
       process::defer(self(), &Self::connected),
       process::defer(self(), &Self::disconnected),
@@ -290,11 +273,12 @@ protected:
   {
     CHECK_EQ(SUBSCRIBED, state);
 
-    static const Try<Resources> TASK_RESOURCES = Resources::parse(resources);
+    static const Try<Resources> TASK_RESOURCES =
+      Resources::parse(flags.resources);
 
     if (TASK_RESOURCES.isError()) {
       EXIT(EXIT_FAILURE)
-        << "Failed to parse resources '" << resources << "': "
+        << "Failed to parse resources '" << flags.resources << "': "
         << TASK_RESOURCES.error();
 
       return;
@@ -305,8 +289,11 @@ protected:
 
       if (!launched && offered.flatten().contains(TASK_RESOURCES.get())) {
         TaskInfo task;
-        task.set_name(name);
-        task.mutable_task_id()->set_value(name);
+
+        CHECK_SOME(flags.name);
+        task.set_name(flags.name.get());
+        task.mutable_task_id()->set_value(flags.name.get());
+
         task.mutable_agent_id()->MergeFrom(offer.agent_id());
 
         // Takes resources first from the specified role, then from '*'.
@@ -319,20 +306,22 @@ protected:
 
         CommandInfo* commandInfo = task.mutable_command();
 
-        if (shell) {
-          CHECK_SOME(command);
+        if (flags.shell) {
+          CHECK_SOME(flags.command);
 
           commandInfo->set_shell(true);
-          commandInfo->set_value(command.get());
+          commandInfo->set_value(flags.command.get());
         } else {
           // TODO(gilbert): Treat 'command' as executable value and arguments.
           commandInfo->set_shell(false);
         }
 
-        if (environment.isSome()) {
+        if (flags.environment.isSome()) {
           Environment* environment_ = commandInfo->mutable_environment();
-          foreachpair (
-              const string& name, const string& value, environment.get()) {
+          foreachpair(
+              const string& name,
+              const string& value,
+              flags.environment.get()) {
             Environment::Variable* environmentVariable =
               environment_->add_variables();
 
@@ -372,7 +361,7 @@ protected:
 
         mesos->send(call);
 
-        cout << "Submitted task '" << name << "' to agent '"
+        cout << "Submitted task '" << flags.name.get() << "' to agent '"
              << offer.agent_id() << "'" << endl;
 
         launched = true;
@@ -442,7 +431,8 @@ protected:
   void update(const TaskStatus& status)
   {
     CHECK_EQ(SUBSCRIBED, state);
-    CHECK_EQ(name, status.task_id().value());
+    CHECK_SOME(flags.name);
+    CHECK_EQ(flags.name.get(), status.task_id().value());
 
     cout << "Received status update " << status.state()
          << " for task '" << status.task_id() << "'" << endl;
@@ -475,8 +465,9 @@ protected:
     }
 
     // If a task kill delay has been specified, schedule task kill.
-    if (killAfter.isSome() && TaskState::TASK_RUNNING == status.state()) {
-      delay(killAfter.get(),
+    if (flags.kill_after.isSome() &&
+        TaskState::TASK_RUNNING == status.state()) {
+      delay(flags.kill_after.get(),
             self(),
             &Self::killTask,
             status.task_id(),
@@ -499,15 +490,15 @@ private:
   // TODO(jojy): Consider breaking down the method for each 'containerizer'.
   Result<ContainerInfo> getContainerInfo() const
   {
-    if (containerizer.empty()) {
+    if (flags.containerizer.empty()) {
       return None();
     }
 
     ContainerInfo containerInfo;
 
     // Mesos containerizer supports 'appc' and 'docker' images.
-    if (containerizer == "mesos") {
-      if (dockerImage.isNone() && appcImage.isNone()) {
+    if (flags.containerizer == "mesos") {
+      if (flags.docker_image.isNone() && flags.appc_image.isNone()) {
         return None();
       }
 
@@ -515,13 +506,13 @@ private:
 
       Image* image = containerInfo.mutable_mesos()->mutable_image();
 
-      if (dockerImage.isSome()) {
+      if (flags.docker_image.isSome()) {
         image->set_type(Image::DOCKER);
-        image->mutable_docker()->set_name(dockerImage.get());
-      } else if (appcImage.isSome()) {
+        image->mutable_docker()->set_name(flags.docker_image.get());
+      } else if (flags.appc_image.isSome()) {
         Image::Appc appc;
 
-        appc.set_name(appcImage.get());
+        appc.set_name(flags.appc_image.get());
 
         // TODO(jojy): Labels are hard coded right now. Consider
         // adding label flags for customization.
@@ -544,33 +535,25 @@ private:
       }
 
       return containerInfo;
-    } else if (containerizer == "docker") {
+    } else if (flags.containerizer == "docker") {
       // 'docker' containerizer only supports 'docker' images.
-      if (dockerImage.isNone()) {
+      if (flags.docker_image.isNone()) {
         return Error("'Docker' containerizer requires docker image name");
       }
 
       containerInfo.set_type(ContainerInfo::DOCKER);
-      containerInfo.mutable_docker()->set_image(dockerImage.get());
+      containerInfo.mutable_docker()->set_image(flags.docker_image.get());
 
       return containerInfo;
     }
 
-    return Error("Unsupported containerizer: " + containerizer);
+    return Error("Unsupported containerizer: " + flags.containerizer);
   }
 
   FrameworkInfo frameworkInfo;
-  const string master;
-  const string name;
-  bool shell;
-  const Option<string> command;
-  const Option<hashmap<string, string>> environment;
-  const string resources;
   const Option<string> uri;
-  const Option<string> appcImage;
-  const Option<string> dockerImage;
-  const string containerizer;
-  const Option<Duration> killAfter;
+
+  const Flags flags;
 
   bool launched;
   Owned<Mesos> mesos;
@@ -630,12 +613,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  Option<hashmap<string, string>> environment = None();
-
-  if (flags.environment.isSome()) {
-    environment = flags.environment.get();
-  }
-
   // Copy the package to HDFS if requested save it's location as a URI
   // for passing to the command (in CommandInfo).
   Option<string> uri = None();
@@ -692,17 +669,7 @@ int main(int argc, char** argv)
     uri = "hdfs://" + flags.hdfs + path;
   }
 
-  Option<string> appcImage;
-  if (flags.appc_image.isSome()) {
-    appcImage = flags.appc_image.get();
-  }
-
-  Option<string> dockerImage;
-  if (flags.docker_image.isSome()) {
-    dockerImage = flags.docker_image.get();
-  }
-
-  if (appcImage.isSome() && dockerImage.isSome()) {
+  if (flags.appc_image.isSome() && flags.docker_image.isSome()) {
     cerr << "Flags '--docker-image' and '--appc-image' are both set" << endl;
     return EXIT_FAILURE;
   }
@@ -716,19 +683,7 @@ int main(int argc, char** argv)
       FrameworkInfo::Capability::TASK_KILLING_STATE);
 
   Owned<CommandScheduler> scheduler(
-      new CommandScheduler(
-        frameworkInfo,
-        flags.master.get(),
-        flags.name.get(),
-        flags.shell,
-        flags.command,
-        environment,
-        flags.resources,
-        uri,
-        appcImage,
-        dockerImage,
-        flags.containerizer,
-        flags.kill_after));
+      new CommandScheduler(frameworkInfo, uri, flags));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
