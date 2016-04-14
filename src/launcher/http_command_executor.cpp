@@ -114,8 +114,9 @@ public:
       const Duration& _shutdownGracePeriod)
     : state(DISCONNECTED),
       launched(false),
-      killed(false),
-      killedByHealthCheck(false),
+      killing(false),
+      killingByHealthCheck(false),
+      terminated(false),
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -236,7 +237,7 @@ protected:
     update(evolve(taskID), TASK_RUNNING, healthy);
 
     if (initiateTaskKill) {
-      killedByHealthCheck = true;
+      killingByHealthCheck = true;
       kill(evolve(taskID));
     }
   }
@@ -593,7 +594,7 @@ protected:
 private:
   void kill(const TaskID& _taskId, const Duration& gracePeriod)
   {
-    if (launched && !killed) {
+    if (launched && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
       CHECK_SOME(taskId);
@@ -630,7 +631,7 @@ private:
       escalationTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
-      killed = true;
+      killing = true;
     }
 
     // Cleanup health check process.
@@ -650,6 +651,7 @@ private:
     string message;
 
     Clock::cancel(escalationTimer);
+    terminated = true;
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -665,7 +667,7 @@ private:
 
       if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         taskState = TASK_FINISHED;
-      } else if (killed) {
+      } else if (killing) {
         // Send TASK_KILLED if the task was killed as a result of
         // kill() or shutdown().
         taskState = TASK_KILLED;
@@ -680,7 +682,7 @@ private:
 
     CHECK_SOME(taskId);
 
-    if (killed && killedByHealthCheck) {
+    if (killing && killingByHealthCheck) {
       update(taskId.get(), taskState, false, message);
     } else {
       update(taskId.get(), taskState, None(), message);
@@ -803,9 +805,13 @@ private:
     SUBSCRIBED
   } state;
 
+  // TODO(alexr): Introduce a state enum and document transitions,
+  // see MESOS-5252.
   bool launched;
-  bool killed;
-  bool killedByHealthCheck;
+  bool killing;
+  bool killingByHealthCheck;
+  bool terminated;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
