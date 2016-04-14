@@ -74,8 +74,9 @@ public:
       const string& mappedDirectory,
       const Duration& shutdownGracePeriod,
       const string& healthCheckDir)
-    : killed(false),
-      killedByHealthCheck(false),
+    : killing(false),
+      killingByHealthCheck(false),
+      terminated(false),
       healthPid(-1),
       healthCheckDir(healthCheckDir),
       docker(docker),
@@ -162,7 +163,7 @@ public:
     // inspect output.
     inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
       .then(defer(self(), [=](const Docker::Container& container) {
-        if (!killed) {
+        if (!killing) {
           TaskStatus status;
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
@@ -270,7 +271,7 @@ protected:
     driver.get()->sendStatusUpdate(status);
 
     if (initiateTaskKill) {
-      killedByHealthCheck = true;
+      killingByHealthCheck = true;
       killTask(driver.get(), taskID);
     }
   }
@@ -281,7 +282,7 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
-    if (run.isSome() && !killed) {
+    if (run.isSome() && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
       CHECK_SOME(taskId);
@@ -303,7 +304,7 @@ private:
       // and also ask the daemon to stop the container.
       run->discard();
       stop = docker->stop(containerName, gracePeriod);
-      killed = true;
+      killing = true;
     }
 
     // Cleanup health check process.
@@ -337,7 +338,7 @@ private:
             state = TASK_FAILED;
             message = "Unable to stop docker container, error: " +
                       (stop.isFailed() ? stop.failure() : "future discarded");
-          } else if (killed) {
+          } else if (killing) {
             state = TASK_KILLED;
           } else if (!run.isReady()) {
             state = TASK_FAILED;
@@ -354,10 +355,11 @@ private:
           taskStatus.mutable_task_id()->CopyFrom(taskId.get());
           taskStatus.set_state(state);
           taskStatus.set_message(message);
-          if (killed && killedByHealthCheck) {
+          if (killing && killingByHealthCheck) {
             taskStatus.set_healthy(false);
           }
 
+          terminated = true;
           driver.get()->sendStatusUpdate(taskStatus);
 
           // A hack for now ... but we need to wait until the status update
@@ -375,7 +377,9 @@ private:
   {
     // Bail out early if we have been already killed or if the task has no
     // associated health checks.
-    if (killed || !task.has_health_check()) {
+    // TODO(alexr): Consider performing health checks when the task is being
+    // killed but not yet terminated.
+    if (killing || !task.has_health_check()) {
       return;
     }
 
@@ -465,8 +469,12 @@ private:
          << stringify(healthPid) << endl;
   }
 
-  bool killed;
-  bool killedByHealthCheck;
+  // TODO(alexr): Introduce a state enum and document transitions,
+  // see MESOS-5252.
+  bool killing;
+  bool killingByHealthCheck;
+  bool terminated;
+
   pid_t healthPid;
   string healthCheckDir;
   Owned<Docker> docker;
