@@ -89,8 +89,9 @@ public:
       const Duration& _shutdownGracePeriod)
     : state(REGISTERING),
       launched(false),
-      killed(false),
-      killedByHealthCheck(false),
+      killing(false),
+      killingByHealthCheck(false),
+      terminated(false),
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -494,7 +495,7 @@ protected:
     driver.get()->sendStatusUpdate(status);
 
     if (initiateTaskKill) {
-      killedByHealthCheck = true;
+      killingByHealthCheck = true;
       killTask(driver.get(), taskID);
     }
   }
@@ -505,7 +506,7 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
-    if (launched && !killed) {
+    if (launched && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
       CHECK_SOME(taskId);
@@ -545,7 +546,7 @@ private:
       escalationTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
-      killed = true;
+      killing = true;
     }
 
     // Cleanup health check process.
@@ -568,6 +569,7 @@ private:
     string message;
 
     Clock::cancel(escalationTimer);
+    terminated = true;
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -583,7 +585,7 @@ private:
 
       if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
         taskState = TASK_FINISHED;
-      } else if (killed) {
+      } else if (killing) {
         // Send TASK_KILLED if the task was killed as a result of
         // killTask() or shutdown().
         taskState = TASK_KILLED;
@@ -602,7 +604,7 @@ private:
     taskStatus.mutable_task_id()->MergeFrom(taskId.get());
     taskStatus.set_state(taskState);
     taskStatus.set_message(message);
-    if (killed && killedByHealthCheck) {
+    if (killing && killingByHealthCheck) {
       taskStatus.set_healthy(false);
     }
 
@@ -687,9 +689,13 @@ private:
     REGISTERED,  // Executor has (re-)registered.
   } state;
 
+  // TODO(alexr): Introduce a state enum and document transitions,
+  // see MESOS-5252.
   bool launched;
-  bool killed;
-  bool killedByHealthCheck;
+  bool killing;
+  bool killingByHealthCheck;
+  bool terminated;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
