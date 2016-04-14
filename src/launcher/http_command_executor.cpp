@@ -115,6 +115,7 @@ public:
       launched(false),
       killing(false),
       killingByHealthCheck(false),
+      killed(false),
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -168,7 +169,11 @@ public:
         }
 
         case Event::KILL: {
-          kill(event.kill().task_id());
+          kill(
+              event.kill().task_id(),
+              event.kill().has_kill_policy()
+                ? Option<KillPolicy>(event.kill().kill_policy())
+                : None());
           break;
         }
 
@@ -595,7 +600,9 @@ protected:
     launched = true;
   }
 
-  void kill(const TaskID& taskId)
+  void kill(
+      const TaskID& taskId,
+      const Option<KillPolicy>& overridingKillPolicy = None())
   {
     cout << "Received kill for task " << taskId.value() << endl;
 
@@ -605,7 +612,13 @@ protected:
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the Kill event takes precedence
+    // over kill policy specified when the task was launched.
+    if (overridingKillPolicy.isSome() &&
+        overridingKillPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(
+          overridingKillPolicy->grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
@@ -640,6 +653,27 @@ protected:
 private:
   void kill(const TaskID& _taskId, const Duration& gracePeriod)
   {
+    // NOTE: `kill()` may be called after the task has already been killed
+    // (i.e. reaped), but before the status update has been acknowledged.
+    // Such call is ignored.
+    if (killed) {
+      return;
+    }
+
+    // The task has already been asked to shutdown but has not been reaped yet.
+    if (killing && !killed) {
+      // TODO(alexr): Allow increasing grace period as well.
+      if (gracePeriod < escalationTimer.timeout().remaining()) {
+        cout << "Rescheduling escalation to SIGKILL in " << gracePeriod
+             << " from now" << endl;
+
+        Clock::cancel(escalationTimer);
+        escalationTimer =
+          delay(gracePeriod, self(), &Self::escalated, gracePeriod);
+      }
+    }
+
+    // The task has been launched and has not been asked to shut down yet.
     if (launched && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
@@ -674,6 +708,9 @@ private:
              << stringify(trees.get()) << endl;
       }
 
+      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
+
       escalationTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
@@ -697,6 +734,7 @@ private:
     string message;
 
     Clock::cancel(escalationTimer);
+    killed = true;
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -742,6 +780,12 @@ private:
 
   void escalated(Duration timeout)
   {
+    // NOTE: `escalated()` may be scheduled before the task has been killed
+    // (i.e. reaped), but called after `reaped()`. This should be a no-op.
+    if (killed) {
+      return;
+    }
+
     cout << "Process " << pid << " did not terminate after " << timeout
          << ", sending SIGKILL to process tree at " << pid << endl;
 
@@ -850,9 +894,12 @@ private:
     SUBSCRIBED
   } state;
 
+  // TODO(alexr): Introduce a state enum and document transitions.
   bool launched;
   bool killing;
   bool killingByHealthCheck;
+  bool killed;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
