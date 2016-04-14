@@ -144,8 +144,7 @@ public:
   // Made 'virtual' for Slave mocking.
   virtual void killTask(
       const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId);
+      const KillTaskMessage& killTaskMessage);
 
   void shutdownExecutor(
       const process::UPID& from,

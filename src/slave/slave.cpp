@@ -633,9 +633,7 @@ void Slave::initialize()
       &RunTaskMessage::task);
 
   install<KillTaskMessage>(
-      &Slave::killTask,
-      &KillTaskMessage::framework_id,
-      &KillTaskMessage::task_id);
+      &Slave::killTask);
 
   install<ShutdownExecutorMessage>(
       &Slave::shutdownExecutor,
@@ -2037,8 +2035,7 @@ void Slave::runTasks(
 
 void Slave::killTask(
     const UPID& from,
-    const FrameworkID& frameworkId,
-    const TaskID& taskId)
+    const KillTaskMessage& killTaskMessage)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring kill task message from " << from
@@ -2046,6 +2043,9 @@ void Slave::killTask(
                  << (master.isSome() ? stringify(master.get()) : "None");
     return;
   }
+
+  FrameworkID frameworkId = killTaskMessage.framework_id();
+  TaskID taskId = killTaskMessage.task_id();
 
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
@@ -2203,6 +2203,11 @@ void Slave::killTask(
         KillTaskMessage message;
         message.mutable_framework_id()->MergeFrom(frameworkId);
         message.mutable_task_id()->MergeFrom(taskId);
+        if (killTaskMessage.has_kill_policy()) {
+          message.mutable_kill_policy()->MergeFrom(
+              killTaskMessage.kill_policy());
+        }
+
         executor->send(message);
       }
       break;
