@@ -90,6 +90,7 @@ public:
       launched(false),
       killing(false),
       killingByHealthCheck(false),
+      killed(false),
       pid(-1),
       healthPid(-1),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -553,6 +554,14 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
+    // NOTE: `kill()` may be called after the task has already been killed
+    // (i.e. reaped), but before the status update has been acknowledged.
+    // Such call is ignored.
+    if (killed) {
+      return;
+    }
+
+    // The task has been launched and has not been asked to shut down yet.
     if (launched && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
@@ -616,6 +625,7 @@ private:
     string message;
 
     Clock::cancel(escalationTimer);
+    killed = true;
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -666,6 +676,12 @@ private:
 
   void escalated(Duration timeout)
   {
+    // NOTE: `escalated()` may be scheduled before the task has been killed
+    // (i.e. reaped), but called after `reaped()`. This should be a no-op.
+    if (killed) {
+      return;
+    }
+
     cout << "Process " << pid << " did not terminate after " << timeout
          << ", sending SIGKILL to process tree at " << pid << endl;
 
@@ -738,6 +754,7 @@ private:
   bool launched;
   bool killing;
   bool killingByHealthCheck;
+  bool killed;
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
