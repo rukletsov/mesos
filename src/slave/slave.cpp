@@ -2044,8 +2044,8 @@ void Slave::killTask(
     return;
   }
 
-  FrameworkID frameworkId = killTaskMessage.framework_id();
-  TaskID taskId = killTaskMessage.task_id();
+  const FrameworkID& frameworkId = killTaskMessage.framework_id();
+  const TaskID& taskId = killTaskMessage.task_id();
 
   LOG(INFO) << "Asked to kill task " << taskId
             << " of framework " << frameworkId;
