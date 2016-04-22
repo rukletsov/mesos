@@ -282,6 +282,18 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
+    // NOTE: `killTask()` may be called after the container has already
+    // been terminated (i.e. reaped), but before the status update has
+    // been acknowledged. Such call should be ignored.
+    if (terminated) {
+      return;
+    }
+
+    // TODO(alexr): When the container had already been asked to shutdown
+    // but has not been reaped yet, a `killTask()` may mean a forcible kill.
+    // We should not ignore such call, but rather adjust the grace period.
+
+    // The container had been launched but has not been asked to shut down yet.
     if (run.isSome() && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);

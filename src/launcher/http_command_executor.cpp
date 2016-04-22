@@ -594,6 +594,18 @@ protected:
 private:
   void kill(const TaskID& _taskId, const Duration& gracePeriod)
   {
+    // NOTE: `kill()` may be called after the task has already been
+    // terminated (i.e. reaped), but before the status update has been
+    // acknowledged. Such call should be ignored.
+    if (terminated) {
+      return;
+    }
+
+    // TODO(alexr): When the task had already been asked to shutdown but
+    // has not been reaped yet, a `kill()` may mean a forcible kill.
+    // We should not ignore such call, but rather adjust the grace period.
+
+    // The task had been launched but has not been asked to shut down yet.
     if (launched && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
@@ -697,6 +709,12 @@ private:
 
   void escalated(const Duration& timeout)
   {
+    // NOTE: `escalated()` may be scheduled before the task terminates (i.e.
+    // is reaped), but called after `reaped()`. This should be a no-op.
+    if (terminated) {
+      return;
+    }
+
     cout << "Process " << pid << " did not terminate after " << timeout
          << ", sending SIGKILL to process tree at " << pid << endl;
 
