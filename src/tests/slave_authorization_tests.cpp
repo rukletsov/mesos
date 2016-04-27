@@ -172,86 +172,93 @@ TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpointWithoutPrincipal)
 }
 
 
-class SlaveEndpointAuthorizationTest : public MesosTest {};
+// Parameterized fixture for endpoint-specific tests. The path of the
+// tested endpoint is passed as the only parameter.
+class EndpointAuthorization :
+    public MesosTest,
+    public ::testing::WithParamInterface<string> {};
 
 
-// This test checks that an agent's statistics endpoint is authorized.
-TEST_F(SlaveEndpointAuthorizationTest, Statistics)
+// This test checks that the specified agent endpoint is authorized.
+TEST_P(EndpointAuthorization, Endpoint)
 {
   StandaloneMasterDetector detector;
 
-  const string statisticsEndpoints[] =
-    {"monitor/statistics", "monitor/statistics.json"};
+  const string endpoint = GetParam();
 
-  foreach (const string& statisticsEndpoint, statisticsEndpoints) {
-    // Test that the endpoint handler forms correct queries against
-    // the authorizer.
-    {
-      MockAuthorizer mockAuthorizer;
+  // Test that the endpoint handler forms correct queries against
+  // the authorizer.
+  {
+    MockAuthorizer mockAuthorizer;
 
-      Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
-      ASSERT_SOME(agent);
+    Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
+    ASSERT_SOME(agent);
 
-      Future<authorization::Request> request;
-      EXPECT_CALL(mockAuthorizer, authorized(_))
+    Future<authorization::Request> request;
+    EXPECT_CALL(mockAuthorizer, authorized(_))
         .WillOnce(DoAll(FutureArg<0>(&request), Return(true)));
 
-      Future<Response> response = process::http::get(
-          agent.get()->pid,
-          statisticsEndpoint,
-          None(),
-          createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = process::http::get(
+        agent.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-      AWAIT_READY(request);
+    AWAIT_READY(request);
 
-      const string principal = DEFAULT_CREDENTIAL.principal();
-      EXPECT_EQ(principal, request.get().subject().value());
+    const string principal = DEFAULT_CREDENTIAL.principal();
+    EXPECT_EQ(principal, request.get().subject().value());
 
-      EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
+    EXPECT_EQ(authorization::GET_ENDPOINT_WITH_PATH, request.get().action());
 
-      EXPECT_EQ("/" + statisticsEndpoint, request.get().object().value());
+    EXPECT_EQ("/" + endpoint, request.get().object().value());
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-          << response.get().body;
-    }
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+        << response.get().body;
+  }
 
-    // Test that unauthorized requests are properly rejected.
-    {
-      MockAuthorizer mockAuthorizer;
+  // Test that unauthorized requests are properly rejected.
+  {
+    MockAuthorizer mockAuthorizer;
 
-      Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
-      ASSERT_SOME(agent);
+    Try<Owned<cluster::Slave>> agent = StartSlave(&detector, &mockAuthorizer);
+    ASSERT_SOME(agent);
 
-      EXPECT_CALL(mockAuthorizer, authorized(_))
+    EXPECT_CALL(mockAuthorizer, authorized(_))
         .WillOnce(Return(false));
 
-      Future<Response> response = process::http::get(
-          agent.get()->pid,
-          statisticsEndpoint,
-          None(),
-          createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = process::http::get(
+        agent.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-          << response.get().body;
-    }
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+        << response.get().body;
+  }
 
-    // Test that without an active authorizer authorizations always succeed.
-    {
-      Try<Owned<cluster::Slave>> agent =
-        cluster::Slave::start(&detector, CreateSlaveFlags());
-      ASSERT_SOME(agent);
+  // Test that without an active authorizer authorizations always succeed.
+  {
+    Try<Owned<cluster::Slave>> agent =
+      cluster::Slave::start(&detector, CreateSlaveFlags());
+    ASSERT_SOME(agent);
 
-      Future<Response> response = process::http::get(
-          agent.get()->pid,
-          statisticsEndpoint,
-          None(),
-          createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = process::http::get(
+        agent.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-          << response.get().body;
-    }
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
   }
 }
+
+
+INSTANTIATE_TEST_CASE_P(
+    SlaveAuthorizationTest,
+    EndpointAuthorization,
+    ::testing::Values("monitor/statistics", "monitor/statistics.json"));
 
 } // namespace tests {
 } // namespace internal {
