@@ -1195,7 +1195,7 @@ protected:
     }
   }
 
-  void killTask(const TaskID& taskId)
+  void killTask(const TaskID& taskId, const KillPolicy& killPolicy)
   {
     if (!connected) {
       VLOG(1) << "Ignoring kill task message as master is disconnected";
@@ -1210,6 +1210,7 @@ protected:
 
     Call::Kill* kill = call.mutable_kill();
     kill->mutable_task_id()->CopyFrom(taskId);
+    kill->mutable_kill_policy()->CopyFrom(killPolicy);
 
     CHECK_SOME(master);
     send(master.get().pid(), call);
@@ -1994,7 +1995,9 @@ Status MesosSchedulerDriver::run()
 }
 
 
-Status MesosSchedulerDriver::killTask(const TaskID& taskId)
+Status MesosSchedulerDriver::killTask(
+    const TaskID& taskId,
+    const KillPolicy& killPolicy)
 {
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
@@ -2003,7 +2006,7 @@ Status MesosSchedulerDriver::killTask(const TaskID& taskId)
 
     CHECK(process != NULL);
 
-    dispatch(process, &SchedulerProcess::killTask, taskId);
+    dispatch(process, &SchedulerProcess::killTask, taskId, killPolicy);
 
     return status;
   }

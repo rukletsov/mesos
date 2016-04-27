@@ -112,7 +112,8 @@ public:
   // invoking ExecutorDriver::sendStatusUpdate.
   virtual void killTask(
       ExecutorDriver* driver,
-      const TaskID& taskId) = 0;
+      const TaskID& taskId,
+      const KillPolicy& killPolicy) = 0;
 
   // Invoked when a framework message has arrived for this executor.
   // These messages are best effort; do not expect a framework message

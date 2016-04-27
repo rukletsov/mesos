@@ -417,7 +417,10 @@ public:
     launched = true;
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& override)
   {
     cout << "Received killTask for task " << taskId.value() << endl;
 
@@ -427,7 +430,11 @@ public:
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `killTask` callback takes precedence
+    // over kill policy specified when the task was launched.
+    if (override->has_grace_period()) {
+      gracePeriod = Nanoseconds(override.grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
@@ -496,7 +503,7 @@ protected:
 
     if (initiateTaskKill) {
       killingByHealthCheck = true;
-      killTask(driver.get(), taskID);
+      killTask(driver.get(), taskID, KillPolicy());
     }
   }
 
@@ -795,9 +802,16 @@ public:
     dispatch(process, &CommandExecutorProcess::launchTask, driver, task);
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  virtual void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& killPolicy)
   {
-    dispatch(process, &CommandExecutorProcess::killTask, driver, taskId);
+    dispatch(process,
+             &CommandExecutorProcess::killTask,
+             driver,
+             taskId,
+             killPolicy);
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data)

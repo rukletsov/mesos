@@ -247,7 +247,9 @@ public:
   // while it was attempting to kill a task it will need to retry in
   // the future. Likewise, if unregistered / disconnected, the request
   // will be dropped (these semantics may be changed in the future).
-  virtual Status killTask(const TaskID& taskId) = 0;
+  virtual Status killTask(
+      const TaskID& taskId,
+      const KillPolicy& killPolicy = KillPolicy()) = 0;
 
   // Accepts the given offers and performs a sequence of operations on
   // those accepted offers. See Offer.Operation in mesos.proto for the
@@ -418,7 +420,9 @@ public:
       const std::vector<TaskInfo>& tasks,
       const Filters& filters = Filters());
 
-  virtual Status killTask(const TaskID& taskId);
+  virtual Status killTask(
+      const TaskID& taskId,
+      const KillPolicy& killPolicy = KillPolicy());
 
   virtual Status acceptOffers(
       const std::vector<OfferID>& offerIds,

@@ -729,10 +729,13 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_sendFramewo
  * Signature: (Lorg/apache/mesos/Protos/TaskID;)Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_killTask
-  (JNIEnv* env, jobject thiz, jobject jtaskId)
+  (JNIEnv* env, jobject thiz, jobject jtaskId, jobject jkillPolicy)
 {
   // Construct a C++ TaskID from the Java TaskId.
   const TaskID& taskId = construct<TaskID>(env, jtaskId);
+
+  // Construct a C++ KillPolicy from the Java KillPolicy.
+  const Filters& killPolicy = construct<Filters>(env, jkillPolicy);
 
   // Now invoke the underlying driver.
   jclass clazz = env->GetObjectClass(thiz);
@@ -741,7 +744,7 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosSchedulerDriver_killTask
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  Status status = driver->killTask(taskId);
+  Status status = driver->killTask(taskId, killPolicy);
 
   return convert<Status>(env, status);
 }

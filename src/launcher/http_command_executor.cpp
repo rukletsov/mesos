@@ -616,7 +616,8 @@ private:
 
       Clock::cancel(escalationTimer);
       escalationTimer =
-        delay(gracePeriod, self(), &Self::escalated, gracePeriod);
+        delay(gracePeriod - escalationTimer.timeout(), self(),
+              &Self::escalated, gracePeriod);
     }
 
     // The task had been launched but has not been asked to shut down yet.

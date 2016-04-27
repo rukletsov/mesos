@@ -399,3 +399,24 @@ Offer::Operation construct(JNIEnv* env, jobject jobj)
 
   return operation;
 }
+
+
+template <>
+KillPolicy construct(JNIEnv* env, jobject jobj)
+{
+  jclass clazz = env->GetObjectClass(jobj);
+
+  // byte[] data = obj.toByteArray();
+  jmethodID toByteArray = env->GetMethodID(clazz, "toByteArray", "()[B");
+
+  jbyteArray jdata = (jbyteArray) env->CallObjectMethod(jobj, toByteArray);
+
+  jbyte* data = env->GetByteArrayElements(jdata, NULL);
+  jsize length = env->GetArrayLength(jdata);
+
+  const KillPolicy& filters = parse<KillPolicy>(data, length);
+
+  env->ReleaseByteArrayElements(jdata, data, 0);
+
+  return filters;
+}

@@ -172,7 +172,8 @@ public:
 
     install<KillTaskMessage>(
         &ExecutorProcess::killTask,
-        &KillTaskMessage::task_id);
+        &KillTaskMessage::task_id,
+        &killTaskMessage::kill_policy);
 
     install<StatusUpdateAcknowledgementMessage>(
         &ExecutorProcess::statusUpdateAcknowledgement,
@@ -321,7 +322,7 @@ protected:
     VLOG(1) << "Executor::launchTask took " << stopwatch.elapsed();
   }
 
-  void killTask(const TaskID& taskId)
+  void killTask(const TaskID& taskId, const KillPolicy& killPolicy)
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring kill task message for task " << taskId
@@ -336,7 +337,7 @@ protected:
       stopwatch.start();
     }
 
-    executor->killTask(driver, taskId);
+    executor->killTask(driver, taskId, killPolicy);
 
     VLOG(1) << "Executor::killTask took " << stopwatch.elapsed();
   }
