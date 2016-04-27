@@ -19,6 +19,9 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <vector>
+
+#include <mesos/authorizer/authorizer.hpp>
 
 #include <mesos/executor/executor.hpp>
 
@@ -80,6 +83,7 @@ using process::metrics::internal::MetricsProcess;
 using std::list;
 using std::string;
 using std::tuple;
+using std::vector;
 
 
 namespace mesos {
@@ -351,22 +355,36 @@ string Slave::Http::FLAGS_HELP()
 
 Future<Response> Slave::Http::flags(
     const Request& request,
-    const Option<string>& /* principal */) const
+    const Option<string>& principal) const
 {
-  JSON::Object object;
+  const Flags slaveFlags = slave->flags;
 
-  {
-    JSON::Object flags;
-    foreachpair (const string& name, const flags::Flag& flag, slave->flags) {
-      Option<string> value = flag.stringify(slave->flags);
-      if (value.isSome()) {
-        flags.values[name] = value.get();
-      }
-    }
-    object.values["flags"] = std::move(flags);
-  }
+  return authorizeEndpoint(request, principal)
+    .then(defer(
+          slave->self(),
+          [slaveFlags, request](bool authorized) -> Future<Response> {
+            if (!authorized) {
+              return Forbidden();
+            }
 
-  return OK(object, request.url.query.get("jsonp"));
+            JSON::Object object;
+
+            {
+              JSON::Object flags;
+              foreachpair (
+                  const string& name,
+                  const flags::Flag& flag,
+                  slaveFlags) {
+                Option<string> value = flag.stringify(slaveFlags);
+                if (value.isSome()) {
+                  flags.values[name] = value.get();
+                }
+              }
+              object.values["flags"] = std::move(flags);
+            }
+
+            return OK(object, request.url.query.get("jsonp"));
+          }));
 }
 
 
@@ -760,6 +778,50 @@ Future<Response> Slave::Http::containers(const Request& request) const
 
         return process::http::InternalServerError();
       });
+}
+
+
+Future<bool> Slave::Http::authorizeEndpoint(
+    const Request& request_,
+    const Option<string>& principal) const
+{
+  if (slave->authorizer.isNone()) {
+    return true;
+  }
+
+  // Paths are of the form "/slave(n)/endpoint". We're only interested
+  // in the part after "/slave(n)" and tokenize the path accordingly.
+  const vector<string> pathComponents =
+    strings::tokenize(request_.url.path, "/", 2);
+
+  if (!(pathComponents.size() == 2u &&
+        strings::startsWith(pathComponents[0], "slave("))) {
+    return Failure("Unexpected path '" + request_.url.path + "'");
+  }
+  const string endpoint = "/" + pathComponents[1];
+
+  authorization::Request request;
+
+  // TODO(nfnt): Add an additional case when POST requests need to be
+  // authorized separately from GET requests.
+  if (request_.method == "GET") {
+    request.set_action(authorization::GET_ENDPOINT_WITH_PATH);
+  } else {
+    return Failure("Unexpected request method '" + request_.method + "'");
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? principal.get() : "ANY")
+            << "' to " <<  request_.method
+            << " the '" << endpoint << "' endpoint";
+
+  if (principal.isSome()) {
+    request.mutable_subject()->set_value(principal.get());
+  }
+
+  request.mutable_object()->set_value(endpoint);
+
+  return slave->authorizer.get()->authorized(request);
 }
 
 } // namespace slave {
