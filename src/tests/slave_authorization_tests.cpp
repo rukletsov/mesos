@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -52,6 +53,7 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+using std::vector;
 
 using testing::DoAll;
 
@@ -70,59 +72,90 @@ static Parameters parameterize(const ACLs& acls)
 }
 
 
-template <typename T>
-class SlaveAuthorizationTest : public MesosTest {};
+// Unfortunately, gtest does not allow us to parametrize a test fixture
+// by both type and value. We have to do it manually for the typed test.
+static std::vector<string> ENDPOINTS()
+{
+  return {"monitor/statistics", "monitor/statistics.json", "flags"};
+}
 
+
+//
+template <typename T>
+struct SlaveAuthorizationTest : public MesosTest {};
 
 typedef ::testing::Types<
   LocalAuthorizer,
   tests::Module<Authorizer, TestLocalAuthorizer>>
   AuthorizerTypes;
 
-
 TYPED_TEST_CASE(SlaveAuthorizationTest, AuthorizerTypes);
+
+
+// Parameterized fixture for endpoint-specific tests. The path of the
+// tested endpoint is passed as the only parameter.
+// FIXME: does not rely on particular authorizer.
+class SlaveEndpointAuthorizationTest :
+    public MesosTest,
+    public ::testing::WithParamInterface<string> {};
+
+// FIXME: is it possible and desirable to declare the list of values once?
+INSTANTIATE_TEST_CASE_P(
+    Endpoint,
+    SlaveEndpointAuthorizationTest,
+    ::testing::ValuesIn(ENDPOINTS()));
+
+
+
+
 
 
 // This test verifies that only authorized principals can access the
 // '/flags' endpoint.
-TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpoint)
+TYPED_TEST(SlaveAuthorizationTest, AuthorizeEndpoint)
 {
-  // Setup ACLs so that only the default principal can access the '/flags'
-  // endpoint.
-  ACLs acls;
-  acls.set_permissive(false);
+  auto testCaseBody = [this](string endpoint){
+    // Setup ACLs so that only the default principal can access the '/flags'
+    // endpoint.
+    ACLs acls;
+    acls.set_permissive(false);
 
-  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
-  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_paths()->add_values("/flags");
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_paths()->add_values("/" + endpoint);
 
-  // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-  ASSERT_SOME(create);
-  Owned<Authorizer> authorizer(create.get());
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    ASSERT_SOME(create);
+    Owned<Authorizer> authorizer(create.get());
 
-  StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> slave =
-    this->StartSlave(&detector, authorizer.get());
-  ASSERT_SOME(slave);
+    StandaloneMasterDetector detector;
+    Try<Owned<cluster::Slave>> slave =
+      this->StartSlave(&detector, authorizer.get());
+    ASSERT_SOME(slave);
 
-  Future<Response> response = http::get(
-      slave.get()->pid,
-      "flags",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    Future<Response> response = http::get(
+        slave.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
 
-  response = http::get(
-      slave.get()->pid,
-      "flags",
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+    response = http::get(
+        slave.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
+  };
+
+  foreach (const string& endpoint, ENDPOINTS()) {
+    testCaseBody(endpoint);
+  }
 }
 
 
@@ -172,15 +205,8 @@ TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpointWithoutPrincipal)
 }
 
 
-// Parameterized fixture for endpoint-specific tests. The path of the
-// tested endpoint is passed as the only parameter.
-class EndpointAuthorization :
-    public MesosTest,
-    public ::testing::WithParamInterface<string> {};
-
-
 // This test checks that the specified agent endpoint is authorized.
-TEST_P(EndpointAuthorization, Endpoint)
+TEST_P(SlaveEndpointAuthorizationTest, Endpoint)
 {
   StandaloneMasterDetector detector;
 
@@ -240,7 +266,7 @@ TEST_P(EndpointAuthorization, Endpoint)
   // Test that without an active authorizer authorizations always succeed.
   {
     Try<Owned<cluster::Slave>> agent =
-      cluster::Slave::start(&detector, CreateSlaveFlags());
+      StartSlave(&detector, CreateSlaveFlags());
     ASSERT_SOME(agent);
 
     Future<Response> response = process::http::get(
@@ -254,11 +280,6 @@ TEST_P(EndpointAuthorization, Endpoint)
   }
 }
 
-
-INSTANTIATE_TEST_CASE_P(
-    SlaveAuthorizationTest,
-    EndpointAuthorization,
-    ::testing::Values("monitor/statistics", "monitor/statistics.json"));
 
 } // namespace tests {
 } // namespace internal {
