@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <vector>
 
 #include <gmock/gmock.h>
 
@@ -52,6 +53,7 @@ using process::http::OK;
 using process::http::Response;
 
 using std::string;
+using std::vector;
 
 using testing::DoAll;
 
@@ -59,6 +61,34 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// Returns a list of endpoints we run the tests against.
+static vector<string> ENDPOINTS()
+{
+  return {"monitor/statistics", "monitor/statistics.json", "flags"};
+}
+
+
+// Causes all TYPED_TEST(SlaveAuthorizationTest, ...) to be run for each
+// of the specified Authorizer classes. Currently, we also run each test
+// for each endpoint that supports coarse-grained authorization. This
+// seems redundant, because in order to ensure all components (agent
+// endpoint handlers, authorizer, ACLs) are configured correctly, we need
+// to run this test suite *once* against _any_ suitable endpoint. In
+// order to check whether an endpoint supports coarse-grained authorization
+// (or, more precisely, forwards authorization requests to the authorizer
+// in an expected way), we do not need to write an integration test and
+// instantiate a real authorizer, e.g. see `SlaveEndpointTest` fixture.
+//
+// TODO(alexr): Split responsibilities between `SlaveAuthorizationTest`
+// and SlaveEndpointTest`. We want to test that:
+//   * _each_ endpoint reacts correctly to certain authorization requests
+//     (authorizer can be mocked in this case);
+//   * the whole pipeline (endpoint handlers, authorizer, ACLs) works for
+//     _any_ of such endpoints.
+//
+// NOTE: Ideally, we would also parameterize this test fixture by endpoint
+// being queried. Unfortunately, gtest does not allow to parametrize a test
+// fixture by both type and value. Hence we have to do it manually.
 template <typename T>
 class SlaveAuthorizationTest : public MesosTest {};
 
@@ -73,92 +103,101 @@ TYPED_TEST_CASE(SlaveAuthorizationTest, AuthorizerTypes);
 
 
 // This test verifies that only authorized principals
-// can access the '/flags' endpoint.
-TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpoint)
+// can access the specified endpoint.
+TYPED_TEST(SlaveAuthorizationTest, AuthorizeEndpoint)
 {
-  const string endpoint = "flags";
+  auto testCaseBody = [this](const string& endpoint) {
+    // Setup ACLs so that only the default principal
+    // can access the specified endpoint.
+    ACLs acls;
+    acls.set_permissive(false);
 
-  // Setup ACLs so that only the default principal
-  // can access the '/flags' endpoint.
-  ACLs acls;
-  acls.set_permissive(false);
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
+    acl->mutable_paths()->add_values("/" + endpoint);
 
-  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
-  acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-  acl->mutable_paths()->add_values("/" + endpoint);
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    ASSERT_SOME(create);
+    Owned<Authorizer> authorizer(create.get());
 
-  // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-  ASSERT_SOME(create);
-  Owned<Authorizer> authorizer(create.get());
+    StandaloneMasterDetector detector;
+    Try<Owned<cluster::Slave>> agent =
+      this->StartSlave(&detector, authorizer.get());
+    ASSERT_SOME(agent);
 
-  StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> agent =
-    this->StartSlave(&detector, authorizer.get());
-  ASSERT_SOME(agent);
+    Future<Response> response = http::get(
+        agent.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
-  Future<Response> response = http::get(
-      agent.get()->pid,
-      endpoint,
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+    response = http::get(
+        agent.get()->pid,
+        endpoint,
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
 
-  response = http::get(
-      agent.get()->pid,
-      endpoint,
-      None(),
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL_2));
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
+      << response.get().body;
+  };
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response)
-    << response.get().body;
+  foreach (const string& endpoint, ENDPOINTS()) {
+    testCaseBody(endpoint);
+  }
 }
 
 
-// This test verifies that access to the '/flags' endpoint can be authorized
+// This test verifies that access to the specified endpoint can be authorized
 // without authentication if an authorization rule exists that applies to
 // anyone. The authorizer will map the absence of a principal to "ANY".
-TYPED_TEST(SlaveAuthorizationTest, AuthorizeFlagsEndpointWithoutPrincipal)
+TYPED_TEST(SlaveAuthorizationTest, AuthorizeEndpointWithoutPrincipal)
 {
-  const string endpoint = "flags";
+  auto testCaseBody = [this](const string& endpoint) {
+    // Because the authenticators' lifetime is tied to libprocess's lifetime,
+    // it may have already been set by other tests. We have to unset it here
+    // to disable HTTP authentication.
+    //
+    // TODO(nfnt): Fix this behavior. The authenticator should be unset by
+    // every test case that sets it, similar to how it's done for the master.
+    http::authentication::unsetAuthenticator(
+        slave::DEFAULT_HTTP_AUTHENTICATION_REALM);
 
-  // Because the authenticators' lifetime is tied to libprocess's lifetime,
-  // it may already be set by other tests. We have to unset it here to disable
-  // HTTP authentication.
-  // TODO(nfnt): Fix this behavior. The authenticator should be unset by
-  // every test case that sets it, similar to how it's done for the master.
-  http::authentication::unsetAuthenticator(
-      slave::DEFAULT_HTTP_AUTHENTICATION_REALM);
+    // Setup ACLs so that any principal can access the specified endpoint.
+    ACLs acls;
+    acls.set_permissive(false);
 
-  // Setup ACLs so that any principal can access the '/flags' endpoint.
-  ACLs acls;
-  acls.set_permissive(false);
+    mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_paths()->add_values("/" + endpoint);
 
-  mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
-  acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
-  acl->mutable_paths()->add_values("/" + endpoint);
+    slave::Flags agentFlags = this->CreateSlaveFlags();
+    agentFlags.acls = acls;
+    agentFlags.authenticate_http = false;
+    agentFlags.http_credentials = None();
 
-  slave::Flags agentFlags = this->CreateSlaveFlags();
-  agentFlags.acls = acls;
-  agentFlags.authenticate_http = false;
-  agentFlags.http_credentials = None();
+    // Create an `Authorizer` with the ACLs.
+    Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+    ASSERT_SOME(create);
+    Owned<Authorizer> authorizer(create.get());
 
-  // Create an `Authorizer` with the ACLs.
-  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
-  ASSERT_SOME(create);
-  Owned<Authorizer> authorizer(create.get());
+    StandaloneMasterDetector detector;
+    Try<Owned<cluster::Slave>> agent = this->StartSlave(
+        &detector, authorizer.get(), agentFlags);
+    ASSERT_SOME(agent);
 
-  StandaloneMasterDetector detector;
-  Try<Owned<cluster::Slave>> agent = this->StartSlave(
-      &detector, authorizer.get(), agentFlags);
-  ASSERT_SOME(agent);
+    Future<Response> response = http::get(agent.get()->pid, endpoint);
 
-  Future<Response> response = http::get(agent.get()->pid, endpoint);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
+      << response.get().body;
+  };
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response)
-    << response.get().body;
+  foreach (const string& endpoint, ENDPOINTS()) {
+    testCaseBody(endpoint);
+  }
 }
 
 
@@ -170,6 +209,7 @@ class SlaveEndpointTest:
 
 
 // The tests are parameterized by the endpoint being queried.
+// See `ENDPOINTS()` for the list of target endpoints.
 //
 // TODO(bbannier): Once agent endpoint handlers use more than just
 // `GET_ENDPOINT_WITH_PATH`, we should consider parameterizing
@@ -177,8 +217,7 @@ class SlaveEndpointTest:
 INSTANTIATE_TEST_CASE_P(
     Endpoint,
     SlaveEndpointTest,
-    ::testing::Values(
-        "monitor/statistics", "monitor/statistics.json", "flags"));
+    ::testing::ValuesIn(ENDPOINTS()));
 
 
 // Tests that an agent endpoint handler form
