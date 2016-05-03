@@ -16,7 +16,9 @@
 #include <stdint.h>
 #include <stdlib.h> // For abort.
 
+#include <process/clock.hpp>
 #include <process/pid.hpp>
+#include <process/time.hpp>
 #include <process/timeout.hpp>
 
 #include <stout/duration.hpp>
@@ -30,7 +32,7 @@ namespace process {
 class Timer
 {
 public:
-  Timer() : id(0), pid(process::UPID()), thunk(&abort) {}
+  Timer() : id(0), t0(Clock::now()), pid(process::UPID()), thunk(&abort) {}
 
   bool operator==(const Timer& that) const
   {
@@ -49,6 +51,18 @@ public:
     return t;
   }
 
+  // Returns the time when the timer was started.
+  Time started() const
+  {
+    return t0;
+  }
+
+  // Returns the amount of time elapsed.
+  Duration elapsed() const
+  {
+    return Clock::now() - t0;
+  }
+
   // Returns the PID of the running process when this timer was
   // created (via timers::create) or an empty PID if no process was
   // running when this timer was created.
@@ -64,12 +78,13 @@ private:
         const Timeout& _t,
         const process::UPID& _pid,
         const lambda::function<void()>& _thunk)
-    : id(_id), t(_t), pid(_pid), thunk(_thunk)
+    : id(_id), t(_t), t0(Clock::now()), pid(_pid), thunk(_thunk)
   {}
 
   uint64_t id; // Used for equality.
 
   Timeout t;
+  Time t0;
 
   // We store the PID of the "issuing" (i.e., "running") process (if
   // there is one). We don't store a pointer to the process because we
