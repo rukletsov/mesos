@@ -194,7 +194,10 @@ public:
         defer(self(), &Self::launchHealthCheck, containerName, task));
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& override)
   {
     cout << "Received killTask for task " << taskId.value() << endl;
 
@@ -202,11 +205,15 @@ public:
     // with the `stop_timeout` flag, deprecated in 0.29.
     Duration gracePeriod = shutdownGracePeriod;
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `killTask` callback takes precedence
+    // over kill policy specified when the task was launched.
+    if (override.has_grace_period()) {
+      gracePeriod = Nanoseconds(override.grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    killTask(driver, taskId, gracePeriod);
+    killTask_(driver, taskId, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -234,7 +241,7 @@ public:
     // agent is smaller than the kill grace period).
     if (run.isSome()) {
       CHECK_SOME(taskId);
-      killTask(driver, taskId.get(), gracePeriod);
+      killTask_(driver, taskId.get(), gracePeriod);
     } else {
       driver->stop();
     }
@@ -282,12 +289,15 @@ private:
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
-    // NOTE: `killTask()` may be called after the task has been terminated
+    // NOTE: `killTask_()` may be called after the task has been terminated
     // (i.e. reaped), but before the status update has been acknowledged.
     // Such call should be ignored.
     if (terminated) {
       return;
     }
+
+    // FIXME: Call `docker->stop()` once more with adjusted timeout. Note
+    // that currently docker does not allow increasing the stop timeout.
 
     // The task had been launched but has not been asked to shut down yet.
     if (run.isSome() && !killing) {
@@ -562,9 +572,16 @@ public:
     dispatch(process.get(), &DockerExecutorProcess::launchTask, driver, task);
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  virtual void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& killPolicy)
   {
-    dispatch(process.get(), &DockerExecutorProcess::killTask, driver, taskId);
+    dispatch(process.get(),
+             &DockerExecutorProcess::killTask,
+             driver,
+             taskId,
+             killPolicy);
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
