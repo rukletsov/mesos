@@ -109,10 +109,15 @@ public:
   // (via SchedulerDriver::killTask). Note that no status update will
   // be sent on behalf of the executor, the executor is responsible
   // for creating a new TaskStatus (i.e., with TASK_KILLED) and
-  // invoking ExecutorDriver::sendStatusUpdate.
+  // invoking ExecutorDriver::sendStatusUpdate. If `KillPolicy` is set
+  // to a non-default instance, it overrides any previously specified
+  // kill policy for this task. This includes `TaskInfo.kill_policy`
+  // and `Executor.kill.kill_policy`. It can be used to forcefully
+  // kill a task which is already being killed.
   virtual void killTask(
       ExecutorDriver* driver,
-      const TaskID& taskId) = 0;
+      const TaskID& taskId,
+      const KillPolicy& killPolicy) = 0;
 
   // Invoked when a framework message has arrived for this executor.
   // These messages are best effort; do not expect a framework message

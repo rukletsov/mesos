@@ -214,7 +214,13 @@ virtual Status launchTasks(
 // while it was attempting to kill a task it will need to retry in
 // the future. Likewise, if unregistered / disconnected, the request
 // will be dropped (these semantics may be changed in the future).
-virtual Status killTask(const TaskID& taskId);
+// If `KillPolicy` is set, it overrides any previously specified
+// kill policy for this task. This includes `TaskInfo.kill_policy`
+// and `Executor.kill.kill_policy`. It can be used to forcefully
+// kill a task which is already being killed.
+virtual Status killTask(
+    const TaskID& taskId,
+    const KillPolicy& killPolicy = KillPolicy());
 
 // Accepts the given offers and performs a sequence of operations on
 // those accepted offers. See Offer.Operation in mesos.proto for the
@@ -352,9 +358,16 @@ virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
  * (via SchedulerDriver::killTask). Note that no status update will
  * be sent on behalf of the executor, the executor is responsible
  * for creating a new TaskStatus (i.e., with TASK_KILLED) and
- * invoking ExecutorDriver::sendStatusUpdate.
+ * invoking ExecutorDriver::sendStatusUpdate. If `KillPolicy` is set
+ * to a non-default instance, it overrides any previously specified
+ * kill policy for this task. This includes `TaskInfo.kill_policy`
+ * and `Executor.kill.kill_policy`. It can be used to forcefully
+ * kill a task which is already being killed.
  */
-virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
+virtual void killTask(
+    ExecutorDriver* driver,
+    const TaskID& taskId,
+    const KillPolicy& killPolicy);
 
 /*
  * Invoked when a framework message has arrived for this
