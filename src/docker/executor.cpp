@@ -272,16 +272,24 @@ protected:
 
     if (initiateTaskKill) {
       killingByHealthCheck = true;
-      killTask(driver.get(), taskID);
+      killTask(driver.get(), taskID, KillPolicy());
     }
   }
 
 private:
-  void killTask(
+  void killTask_(
       ExecutorDriver* driver,
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
+    // NOTE: `killTask()` may be called after the task has been terminated
+    // (i.e. reaped), but before the status update has been acknowledged.
+    // Such call should be ignored.
+    if (terminated) {
+      return;
+    }
+
+    // The task had been launched but has not been asked to shut down yet.
     if (run.isSome() && !killing) {
       // Send TASK_KILLING if the framework can handle it.
       CHECK_SOME(frameworkInfo);
