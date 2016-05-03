@@ -417,7 +417,10 @@ public:
     launched = true;
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& override)
   {
     cout << "Received killTask for task " << taskId.value() << endl;
 
@@ -427,11 +430,15 @@ public:
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `killTask` callback takes precedence
+    // over kill policy specified when the task was launched.
+    if (override.has_grace_period()) {
+      gracePeriod = Nanoseconds(override.grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
-    killTask(driver, taskId, gracePeriod);
+    killTask_(driver, taskId, gracePeriod);
   }
 
   void frameworkMessage(ExecutorDriver* driver, const string& data) {}
@@ -457,7 +464,7 @@ public:
     // agent is smaller than the kill grace period).
     if (launched) {
       CHECK_SOME(taskId);
-      killTask(driver, taskId.get(), gracePeriod);
+      killTask_(driver, taskId.get(), gracePeriod);
     } else {
       driver->stop();
     }
@@ -496,21 +503,37 @@ protected:
 
     if (initiateTaskKill) {
       killingByHealthCheck = true;
-      killTask(driver.get(), taskID);
+      killTask(driver.get(), taskID, KillPolicy());
     }
   }
 
 private:
-  void killTask(
+  void killTask_(
       ExecutorDriver* driver,
       const TaskID& _taskId,
       const Duration& gracePeriod)
   {
-    // NOTE: `killTask()` may be called after the task has been terminated
+    // NOTE: `killTask_()` may be called after the task has been terminated
     // (i.e. reaped), but before the status update has been acknowledged.
     // Such call should be ignored.
     if (terminated) {
       return;
+    }
+
+    // The task had already been asked to shutdown but has not been reaped yet.
+    if (killing && !terminated) {
+      cout << "Rescheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
+
+      // The timeout of the escalation delay
+      // can be both increased and decreased.
+      Duration overriddenGracePeriod = gracePeriod > escalationTimer.elapsed()
+          ? gracePeriod - escalationTimer.elapsed()
+          : Duration::zero();
+
+      Clock::cancel(escalationTimer);
+      escalationTimer = delay(
+          overriddenGracePeriod, self(), &Self::escalated, gracePeriod);
     }
 
     // The task had been launched but has not been asked to shut down yet.
@@ -550,6 +573,9 @@ private:
         cout << "Sent SIGTERM to the following process trees:\n"
              << stringify(trees.get()) << endl;
       }
+
+      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
 
       escalationTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
@@ -795,9 +821,16 @@ public:
     dispatch(process, &CommandExecutorProcess::launchTask, driver, task);
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  virtual void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const KillPolicy& killPolicy)
   {
-    dispatch(process, &CommandExecutorProcess::killTask, driver, taskId);
+    dispatch(process,
+             &CommandExecutorProcess::killTask,
+             driver,
+             taskId,
+             killPolicy);
   }
 
   virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
