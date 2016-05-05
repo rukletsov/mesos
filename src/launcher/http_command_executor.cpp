@@ -171,7 +171,11 @@ public:
         }
 
         case Event::KILL: {
-          kill(event.kill().task_id());
+          Option<KillPolicy> override = event.kill().has_kill_policy()
+            ? Option<KillPolicy>(event.kill().kill_policy())
+            : None();
+
+          kill(event.kill().task_id(), override);
           break;
         }
 
@@ -549,7 +553,7 @@ protected:
     launched = true;
   }
 
-  void kill(const TaskID& taskId)
+  void kill(const TaskID& taskId, const Option<KillPolicy>& override = None())
   {
     cout << "Received kill for task " << taskId.value() << endl;
 
@@ -559,7 +563,11 @@ protected:
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `Kill` event takes precedence
+    // over kill policy specified when the task was launched.
+    if (override.isSome() && override->has_grace_period()) {
+      gracePeriod = Nanoseconds(override->grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
@@ -601,9 +609,42 @@ private:
       return;
     }
 
-    // TODO(alexr): When the task had already been asked to shutdown but
-    // has not been reaped yet, a `kill()` may mean a forcible kill.
-    // We should not ignore such call, but rather adjust the grace period.
+    // The task had already been asked to shutdown but has not been reaped yet.
+    if (killing && !terminated) {
+      // The escalation timeout can be only decreased. We disallow increasing
+      // the total grace period for the terminating task in order to:
+      //   * Avoid possible confusion when a subsequent kill overrides the
+      //     previous one and gives the task _more_ time to clean up. Other
+      //     systems, e.g., docker, does not allow this.
+      //   * Support retries of kill requests. When a kill request arrives on
+      //     the executor, we cannot simply restart the escalation timer,
+      //     because the scheduler may retry for some reason and this must
+      //     be a no-op.
+      //
+      // Here are examples of kill task requests arriving on the executor.
+      // 20, 30 -> increase retires are a no-op, total grace period is 20;
+      // 20, 20 -> retries are a no-op, total grace period is 20;
+      // 20, 5  -> [`elapsed` >= 5]
+      //           SIGKILL immediately, total grace period is `elapsed`;
+      // 20, 5  -> [`elapsed` < 5]
+      //           SIGKILL in 5 - `elapsed`, total grace period is 5.
+
+      if (escalationTimer.timeout().time() <
+          escalationTimer.started() + gracePeriod) {
+        return;
+      }
+
+      Duration overriddenGracePeriod = gracePeriod > escalationTimer.elapsed()
+          ? gracePeriod - escalationTimer.elapsed()
+          : Duration::zero();
+
+      cout << "Rescheduling escalation to SIGKILL in " << overriddenGracePeriod
+           << " from now" << endl;
+
+      Clock::cancel(escalationTimer);
+      escalationTimer = delay(
+          overriddenGracePeriod, self(), &Self::escalated, gracePeriod);
+    }
 
     // The task had been launched but has not been asked to shut down yet.
     if (launched && !killing) {
@@ -639,6 +680,9 @@ private:
         cout << "Sent SIGTERM to the following process trees:\n"
              << stringify(trees.get()) << endl;
       }
+
+      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
 
       escalationTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
