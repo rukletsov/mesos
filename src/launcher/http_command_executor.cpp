@@ -29,6 +29,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/future.hpp>
@@ -37,6 +38,7 @@
 #include <process/protobuf.hpp>
 #include <process/subprocess.hpp>
 #include <process/reap.hpp>
+#include <process/time.hpp>
 #include <process/timer.hpp>
 
 #include <stout/duration.hpp>
@@ -82,6 +84,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::Subprocess;
+using process::Time;
 using process::Timer;
 
 using mesos::internal::evolve;
@@ -171,7 +174,11 @@ public:
         }
 
         case Event::KILL: {
-          kill(event.kill().task_id());
+          Option<KillPolicy> override = event.kill().has_kill_policy()
+            ? Option<KillPolicy>(event.kill().kill_policy())
+            : None();
+
+          kill(event.kill().task_id(), override);
           break;
         }
 
@@ -549,7 +556,7 @@ protected:
     launched = true;
   }
 
-  void kill(const TaskID& taskId)
+  void kill(const TaskID& taskId, const Option<KillPolicy>& override = None())
   {
     cout << "Received kill for task " << taskId.value() << endl;
 
@@ -559,7 +566,11 @@ protected:
     // `shutdownGracePeriod` after the deprecation cycle, started in 0.29.
     Duration gracePeriod = Seconds(3);
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    // Kill policy provided in the `Kill` event takes precedence
+    // over kill policy specified when the task was launched.
+    if (override.isSome() && override->has_grace_period()) {
+      gracePeriod = Nanoseconds(override->grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
@@ -601,9 +612,49 @@ private:
       return;
     }
 
-    // TODO(alexr): When the task had already been asked to shutdown but
-    // has not been reaped yet, a `kill()` may mean a forcible kill.
-    // We should not ignore such call, but rather adjust the grace period.
+    // If the task is being killed but has not terminated yet and
+    // we receive another kill request. Check if we need to adjust
+    // the remaining grace period.
+    if (killed && !terminated) {
+      // When a kill request arrives on the executor, we cannot simply restart
+      // the escalation timer, because the scheduler may retry for some reason
+      // and this must be a no-op.
+      //
+      // The escalation grace period can be only decreased. We disallow
+      // increasing the total grace period for the terminating task in
+      // order to avoid possible confusion when a subsequent kill overrides
+      // the previous one and gives the task _more_ time to clean up. Other
+      // systems, e.g., docker, do not allow this.
+      //
+      // Here are some examples to illustrate:
+      //
+      // 20, 30 -> Increased grace period is a no-op, grace period remains 20.
+      // 20, 20 -> Retries are a no-op, grace period remains 20.
+      // 20, 5  -> if `elapsed` >= 5:
+      //             SIGKILL immediately, total grace period is `elapsed`.
+      //           if `elapsed` < 5:
+      //             SIGKILL in (5 - `elapsed`), total grace period is 5.
+
+      CHECK_SOME(killGracePeriodStart);
+      CHECK_SOME(killGracePeriodTimer);
+
+      if (killGracePeriodStart.get() + gracePeriod >
+          killGracePeriodTimer->timeout().time()) {
+        return;
+      }
+
+      Duration elapsed = Clock::now() - killGracePeriodStart.get();
+      Duration remaining = gracePeriod > elapsed
+          ? gracePeriod - elapsed
+          : Duration::zero();
+
+      cout << "Rescheduling escalation to SIGKILL in " << remaining
+           << " from now" << endl;
+
+      Clock::cancel(killGracePeriodTimer.get());
+      killGracePeriodTimer = delay(
+          remaining, self(), &Self::escalated, gracePeriod);
+    }
 
     // The task had been launched but has not been asked to shut down yet.
     if (launched && !killed) {
@@ -640,9 +691,13 @@ private:
              << stringify(trees.get()) << endl;
       }
 
-      escalationTimer =
+      cout << "Scheduling escalation to SIGKILL in " << gracePeriod
+           << " from now" << endl;
+
+      killGracePeriodTimer =
         delay(gracePeriod, self(), &Self::escalated, gracePeriod);
 
+      killGracePeriodStart = Clock::now();
       killed = true;
     }
 
@@ -664,7 +719,8 @@ private:
     TaskState taskState;
     string message;
 
-    Clock::cancel(escalationTimer);
+    CHECK_SOME(killGracePeriodTimer);
+    Clock::cancel(killGracePeriodTimer.get());
 
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
@@ -829,11 +885,13 @@ private:
   bool killedByHealthCheck;
   bool terminated;
 
+  Option<Time> killGracePeriodStart;
+  Option<Timer> killGracePeriodTimer;
+
   pid_t pid;
   pid_t healthPid;
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
-  Timer escalationTimer;
   Option<FrameworkInfo> frameworkInfo;
   Option<TaskID> taskId;
   string healthCheckDir;
