@@ -413,6 +413,29 @@ Future<http::Response> Master::QuotaHandler::_remove(const string& role) const
 }
 
 
+template <class InputIterator, class OutputIterator>
+OutputIterator filter(
+    InputIterator first,
+    InputIterator last,
+    OutputIterator result,
+    const std::list<bool>& mask)
+{
+  // Size of `mask` should coincide with the size of the input container.
+  // Shall we use a more strict iterator type to enforce it?
+  auto maskElem = mask.cbegin();
+
+  auto current = first;
+  while (current != last) {
+    if (*maskElem) {
+      *result = *current;
+      ++result;
+    }
+    ++current;
+    ++maskElem;
+  }
+  return result;
+}
+
 Future<http::Response> Master::QuotaHandler::status(
     const http::Request& request) const
 {
@@ -423,6 +446,18 @@ Future<http::Response> Master::QuotaHandler::status(
 
   QuotaStatus status;
   status.mutable_infos()->Reserve(static_cast<int>(master->quotas.size()));
+
+
+  std::list<bool> mask;
+  mask.resize(master->quotas.size(), true);
+
+  std::vector<Quota> v;
+  filter(master->quotas.values().cbegin(),
+         master->quotas.values().cend(),
+         std::back_inserter(v),
+         mask);
+
+
 
   // Create an entry (including role and resources) for each quota.
   foreachvalue (const Quota& quota, master->quotas) {
