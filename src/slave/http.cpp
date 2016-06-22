@@ -857,10 +857,12 @@ Future<Response> Slave::Http::state(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then(defer(slave->self(),
+    .then(defer(
+        slave->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>>& approvers) -> Response {
+                                    Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>>& approvers)
+          -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
@@ -919,43 +921,43 @@ Future<Response> Slave::Http::state(
             "frameworks",
             [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
-          foreachvalue (Framework* framework, slave->frameworks) {
-            // Skip unauthorized frameworks.
-            if (!approveViewFrameworkInfo(
-                    frameworksApprover, framework->info)) {
-              continue;
-            }
+              foreachvalue (Framework* framework, slave->frameworks) {
+                // Skip unauthorized frameworks.
+                if (!approveViewFrameworkInfo(
+                        frameworksApprover, framework->info)) {
+                  continue;
+                }
 
-            FrameworkWriter frameworkWriter(
-                tasksApprover,
-                executorsApprover,
-                framework);
+                FrameworkWriter frameworkWriter(
+                    tasksApprover,
+                    executorsApprover,
+                    framework);
 
-            writer->element(frameworkWriter);
-          }
-        });
+                writer->element(frameworkWriter);
+              }
+            });
 
         // Model all of the completed frameworks.
         writer->field(
             "completed_frameworks",
             [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
-          foreach (const Owned<Framework>& framework,
-                   slave->completedFrameworks) {
-            // Skip unauthorized frameworks.
-            if (!approveViewFrameworkInfo(
-                    frameworksApprover, framework->info)) {
-              continue;
-            }
+              foreach (const Owned<Framework>& framework,
+                       slave->completedFrameworks) {
+                // Skip unauthorized frameworks.
+                if (!approveViewFrameworkInfo(
+                        frameworksApprover, framework->info)) {
+                  continue;
+                }
 
-            FrameworkWriter frameworkWriter(
-                tasksApprover,
-                executorsApprover,
-                framework.get());
+                FrameworkWriter frameworkWriter(
+                    tasksApprover,
+                    executorsApprover,
+                    framework.get());
 
-            writer->element(frameworkWriter);
-          }
-        });
+                writer->element(frameworkWriter);
+              }
+            });
 
         writer->field("flags", [this](JSON::ObjectWriter* writer) {
             foreachvalue (const flags::Flag& flag, slave->flags) {
