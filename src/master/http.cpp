@@ -1898,6 +1898,8 @@ Future<Response> Master::Http::state(
         [=](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
+      // This lambda is consumed before the outer lambda
+      // returns, hence capture by reference is fine here.
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
         // Get approver from tuple.
         Owned<ObjectApprover> frameworksApprover;
@@ -1970,7 +1972,7 @@ Future<Response> Master::Http::state(
         // Model all of the frameworks.
         writer->field(
             "frameworks",
-            [this, &frameworksApprover, executorsApprover, &tasksApprover](
+            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
               foreachvalue (
                   Framework* framework,
@@ -1993,7 +1995,7 @@ Future<Response> Master::Http::state(
         // Model all of the completed frameworks.
         writer->field(
             "completed_frameworks",
-            [this, &frameworksApprover, executorsApprover, &tasksApprover](
+            [this, &frameworksApprover, &executorsApprover, &tasksApprover](
                 JSON::ArrayWriter* writer) {
               foreach (
                   const std::shared_ptr<Framework>& framework,
