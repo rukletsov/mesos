@@ -2728,7 +2728,7 @@ Future<Response> Master::Http::tasks(
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
   return _tasks(limit, offset, _order, principal)
-    .then([=](const vector<const Task*>& tasks) -> Response {
+    .then([request](const vector<const Task*>& tasks) -> Response {
       auto tasksWriter = [&tasks](JSON::ObjectWriter* writer) {
         writer->field("tasks", [&tasks](JSON::ArrayWriter* writer) {
           foreach (const Task* task, tasks) {
