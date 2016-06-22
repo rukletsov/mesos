@@ -2243,8 +2243,6 @@ Future<Response> Master::Http::stateSummary(
         [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
       auto stateSummary =
           [this, &frameworksApprover](JSON::ObjectWriter* writer) {
-        Owned<ObjectApprover> frameworksApprover_ = frameworksApprover;
-
         writer->field("hostname", master->info().hostname());
 
         if (master->flags.cluster.isSome()) {
@@ -2310,13 +2308,13 @@ Future<Response> Master::Http::stateSummary(
                       [this,
                        &slaveFrameworkMapping,
                        &taskStateSummaries,
-                       &frameworksApprover_](JSON::ArrayWriter* writer) {
+                       &frameworksApprover](JSON::ArrayWriter* writer) {
           foreachpair (const FrameworkID& frameworkId,
                        Framework* framework,
                        master->frameworks.registered) {
             // Skip unauthorized frameworks.
             if (!approveViewFrameworkInfo(
-                frameworksApprover_,
+                frameworksApprover,
                 framework->info)) {
               continue;
             }
