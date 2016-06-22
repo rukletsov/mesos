@@ -1919,7 +1919,7 @@ Future<Response> Master::Http::state(
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
     .then(defer(master->self(),
-        [=](const tuple<Owned<ObjectApprover>,
+        [this, request](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
       // This lambda is consumed before the outer lambda
@@ -2266,7 +2266,8 @@ Future<Response> Master::Http::stateSummary(
 
   return frameworksApprover
     .then(defer(master->self(),
-        [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
+        [this, request](const Owned<ObjectApprover>& frameworksApprover)
+          -> Response {
       auto stateSummary =
           [this, &frameworksApprover](JSON::ObjectWriter* writer) {
         writer->field("hostname", master->info().hostname());
@@ -2752,7 +2753,7 @@ Future<Response> Master::Http::tasks(
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
   return _tasks(limit, offset, _order, principal)
-    .then([=](const vector<const Task*>& tasks) -> Response {
+    .then([request](const vector<const Task*>& tasks) -> Response {
       auto tasksWriter = [&tasks](JSON::ObjectWriter* writer) {
         writer->field("tasks", [&tasks](JSON::ArrayWriter* writer) {
           foreach (const Task* task, tasks) {
