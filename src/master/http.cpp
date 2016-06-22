@@ -1894,7 +1894,8 @@ Future<Response> Master::Http::state(
   }
 
   return collect(frameworksApprover, tasksApprover, executorsApprover)
-    .then(defer(master->self(),
+    .then(defer(
+        master->self(),
         [=](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
@@ -1984,9 +1985,7 @@ Future<Response> Master::Http::state(
                 }
 
                 auto frameworkWriter = FullFrameworkWriter(
-                    tasksApprover,
-                    executorsApprover,
-                    framework);
+                    tasksApprover, executorsApprover, framework);
 
                 writer->element(frameworkWriter);
               }
@@ -2241,7 +2240,8 @@ Future<Response> Master::Http::stateSummary(
   }
 
   return frameworksApprover
-    .then(defer(master->self(),
+    .then(defer(
+        master->self(),
         [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
       auto stateSummary =
           [this, &frameworksApprover](JSON::ObjectWriter* writer) {
@@ -2267,14 +2267,14 @@ Future<Response> Master::Http::stateSummary(
         TaskStateSummaries taskStateSummaries(master->frameworks.registered);
 
         // Model all of the slaves.
-        writer->field("slaves",
-                      [this,
-                       &slaveFrameworkMapping,
-                       &taskStateSummaries](JSON::ArrayWriter* writer) {
+        writer->field(
+            "slaves",
+            [this, &slaveFrameworkMapping, &taskStateSummaries](
+                JSON::ArrayWriter* writer) {
           foreachvalue (Slave* slave, master->slaves.registered) {
-            writer->element([&slave,
-                             &slaveFrameworkMapping,
-                             &taskStateSummaries](JSON::ObjectWriter* writer) {
+            writer->element(
+                [&slave, &slaveFrameworkMapping, &taskStateSummaries](
+                    JSON::ObjectWriter* writer) {
               json(writer, Summary<Slave>(*slave));
 
               // Add the 'TaskState' summary for this slave.
@@ -2295,8 +2295,9 @@ Future<Response> Master::Http::stateSummary(
               const hashset<FrameworkID>& frameworks =
                 slaveFrameworkMapping.frameworks(slave->id);
 
-              writer->field("framework_ids",
-                            [&frameworks](JSON::ArrayWriter* writer) {
+              writer->field(
+                  "framework_ids",
+                  [&frameworks](JSON::ArrayWriter* writer) {
                 foreach (const FrameworkID& frameworkId, frameworks) {
                   writer->element(frameworkId.value());
                 }
@@ -2306,25 +2307,27 @@ Future<Response> Master::Http::stateSummary(
         });
 
         // Model all of the frameworks.
-        writer->field("frameworks",
-                      [this,
-                       &slaveFrameworkMapping,
-                       &taskStateSummaries,
-                       &frameworksApprover](JSON::ArrayWriter* writer) {
+        writer->field(
+            "frameworks",
+            [this,
+             &slaveFrameworkMapping,
+             &taskStateSummaries,
+             &frameworksApprover](JSON::ArrayWriter* writer) {
           foreachpair (const FrameworkID& frameworkId,
                        Framework* framework,
                        master->frameworks.registered) {
             // Skip unauthorized frameworks.
             if (!approveViewFrameworkInfo(
-                frameworksApprover,
-                framework->info)) {
+                    frameworksApprover,
+                    framework->info)) {
               continue;
             }
 
-            writer->element([&frameworkId,
-                             &framework,
-                             &slaveFrameworkMapping,
-                             &taskStateSummaries](JSON::ObjectWriter* writer) {
+            writer->element(
+                [&frameworkId,
+                 &framework,
+                 &slaveFrameworkMapping,
+                 &taskStateSummaries](JSON::ObjectWriter* writer) {
               json(writer, Summary<Framework>(*framework));
 
               // Add the 'TaskState' summary for this framework.
@@ -2804,10 +2807,11 @@ Future<vector<const Task*>> Master::Http::_tasks(
   }
 
   return collect(frameworksApprover, tasksApprover)
-    .then(defer(master->self(),
-      [=](const tuple<Owned<ObjectApprover>,
-                      Owned<ObjectApprover>>& approvers)
-        -> vector<const Task*> {
+    .then(defer(
+        master->self(),
+        [=](const tuple<Owned<ObjectApprover>,
+                        Owned<ObjectApprover>>& approvers)
+          -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
       Owned<ObjectApprover> tasksApprover;
@@ -2826,6 +2830,7 @@ Future<vector<const Task*>> Master::Http::_tasks(
 
         frameworks.push_back(framework);
       }
+
       foreach (const std::shared_ptr<Framework>& framework,
                master->frameworks.completed) {
         // Skip unauthorized frameworks.
@@ -2848,6 +2853,7 @@ Future<vector<const Task*>> Master::Http::_tasks(
 
           tasks.push_back(task);
         }
+
         foreach (const std::shared_ptr<Task>& task, framework->completedTasks) {
           // Skip unauthorized tasks.
           if (!approveViewTask(tasksApprover, *task.get(), framework->info)) {
@@ -3389,8 +3395,7 @@ Future<mesos::maintenance::ClusterStatus>
   return master->allocator->getInverseOfferStatuses()
     .then(defer(
         master->self(),
-        [=](
-            hashmap<
+        [=](hashmap<
                 SlaveID,
                 hashmap<FrameworkID, mesos::master::InverseOfferStatus>> result)
           -> Future<mesos::maintenance::ClusterStatus> {
