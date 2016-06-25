@@ -2243,7 +2243,8 @@ Future<Response> Master::Http::stateSummary(
   return frameworksApprover
     .then(defer(
         master->self(),
-        [=](const Owned<ObjectApprover>& frameworksApprover) -> Response {
+        [this, request](const Owned<ObjectApprover>& frameworksApprover)
+          -> Response {
       auto stateSummary =
           [this, &frameworksApprover](JSON::ObjectWriter* writer) {
         writer->field("hostname", master->info().hostname());
@@ -2810,8 +2811,8 @@ Future<vector<const Task*>> Master::Http::_tasks(
   return collect(frameworksApprover, tasksApprover)
     .then(defer(
         master->self(),
-        [=](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers)
+        [this, request](const tuple<Owned<ObjectApprover>,
           -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
