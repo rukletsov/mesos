@@ -1897,8 +1897,9 @@ Future<Response> Master::Http::state(
     .then(defer(
         master->self(),
         [this, request](const tuple<Owned<ObjectApprover>,
-                        Owned<ObjectApprover>,
-                        Owned<ObjectApprover>>& approvers) -> Response {
+                                    Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>>& approvers)
+          -> Response {
       // This lambda is consumed before the outer lambda
       // returns, hence capture by reference is fine here.
       auto state = [this, &approvers](JSON::ObjectWriter* writer) {
@@ -1980,7 +1981,7 @@ Future<Response> Master::Http::state(
                   master->frameworks.registered) {
                 // Skip unauthorized frameworks.
                 if (!approveViewFrameworkInfo(
-                    frameworksApprover, framework->info)) {
+                        frameworksApprover, framework->info)) {
                   continue;
                 }
 
