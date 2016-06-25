@@ -2811,8 +2811,8 @@ Future<vector<const Task*>> Master::Http::_tasks(
   return collect(frameworksApprover, tasksApprover)
     .then(defer(
         master->self(),
-                        Owned<ObjectApprover>>& approvers)
         [this, request](const tuple<Owned<ObjectApprover>,
+                                    Owned<ObjectApprover>>& approvers)
           -> vector<const Task*> {
       // Get approver from tuple.
       Owned<ObjectApprover> frameworksApprover;
