@@ -1896,7 +1896,7 @@ Future<Response> Master::Http::state(
   return collect(frameworksApprover, tasksApprover, executorsApprover)
     .then(defer(
         master->self(),
-        [=](const tuple<Owned<ObjectApprover>,
+        [this, request](const tuple<Owned<ObjectApprover>,
                         Owned<ObjectApprover>,
                         Owned<ObjectApprover>>& approvers) -> Response {
       // This lambda is consumed before the outer lambda
