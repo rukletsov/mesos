@@ -1573,6 +1573,8 @@ ostream& operator<<(ostream& stream, const Resource& resource)
 
 ostream& operator<<(ostream& stream, const Resources& resources)
 {
+  stream << "{";
+
   Resources::const_iterator it = resources.begin();
 
   while (it != resources.end()) {
@@ -1581,6 +1583,8 @@ ostream& operator<<(ostream& stream, const Resources& resources)
       stream << "; ";
     }
   }
+
+  stream << "}";
 
   return stream;
 }
