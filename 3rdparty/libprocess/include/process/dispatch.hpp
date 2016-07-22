@@ -64,7 +64,8 @@ namespace internal {
 void dispatch(
     const UPID& pid,
     const std::shared_ptr<std::function<void(ProcessBase*)>>& f,
-    const Option<const std::type_info*>& functionType = None());
+    const Option<const std::type_info*>& functionType = None(),
+    const Option<std::string> annotation = None());
 
 
 // NOTE: This struct is used by the public `dispatch(const UPID& pid, F&& f)`
@@ -154,7 +155,10 @@ struct Dispatch
 // First, definitions of dispatch for methods returning void:
 
 template <typename T>
-void dispatch(const PID<T>& pid, void (T::*method)())
+void dispatch(
+    const PID<T>& pid,
+    void (T::*method)(),
+    Option<std::string> annotation = None())
 {
   std::shared_ptr<std::function<void(ProcessBase*)>> f(
       new std::function<void(ProcessBase*)>(
@@ -165,19 +169,25 @@ void dispatch(const PID<T>& pid, void (T::*method)())
             (t->*method)();
           }));
 
-  internal::dispatch(pid, f, &typeid(method));
+  internal::dispatch(pid, f, &typeid(method), annotation);
 }
 
 template <typename T>
-void dispatch(const Process<T>& process, void (T::*method)())
+void dispatch(
+    const Process<T>& process,
+    void (T::*method)(),
+    Option<std::string> annotation = None())
 {
-  dispatch(process.self(), method);
+  dispatch(process.self(), method, annotation);
 }
 
 template <typename T>
-void dispatch(const Process<T>* process, void (T::*method)())
+void dispatch(
+    const Process<T>* process,
+    void (T::*method)(),
+    Option<std::string> annotation = None())
 {
-  dispatch(process->self(), method);
+  dispatch(process->self(), method, annotation);
 }
 
 // Due to a bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=41933)

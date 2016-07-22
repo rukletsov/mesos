@@ -3744,11 +3744,12 @@ namespace internal {
 void dispatch(
     const UPID& pid,
     const std::shared_ptr<lambda::function<void(ProcessBase*)>>& f,
-    const Option<const std::type_info*>& functionType)
+    const Option<const std::type_info*>& functionType,
+    const Option<std::string> annotation)
 {
   process::initialize();
 
-  DispatchEvent* event = new DispatchEvent(pid, f, functionType);
+  DispatchEvent* event = new DispatchEvent(pid, f, functionType, annotation);
   process_manager->deliver(pid, event, __process__);
 }
 
