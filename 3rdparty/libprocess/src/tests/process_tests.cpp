@@ -148,6 +148,7 @@ class DispatchProcess : public Process<DispatchProcess>
 public:
   MOCK_METHOD0(func0, void());
   MOCK_METHOD1(func1, bool(bool));
+  MOCK_METHOD1(func1_same_but_different, bool(bool));
   MOCK_METHOD1(func2, Future<bool>(bool));
   MOCK_METHOD1(func3, int(int));
   MOCK_METHOD2(func4, Future<bool>(bool, int));
@@ -184,6 +185,28 @@ TEST(ProcessTest, Dispatch)
   future = dispatch(pid, &DispatchProcess::func2, true);
 
   EXPECT_TRUE(future.get());
+
+  terminate(pid);
+  wait(pid);
+}
+
+
+TEST(ProcessTest, DispatchMatch)
+{
+  DispatchProcess process;
+
+  PID<DispatchProcess> pid = spawn(&process);
+
+  Future<Nothing> future = FUTURE_DISPATCH(
+      pid,
+      &DispatchProcess::func1_same_but_different);
+
+  EXPECT_CALL(process, func1(_))
+    .WillOnce(ReturnArg<0>());
+
+  dispatch(pid, &DispatchProcess::func1, true);
+
+  AWAIT_READY(future);
 
   terminate(pid);
   wait(pid);
