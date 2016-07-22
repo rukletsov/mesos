@@ -3202,6 +3202,9 @@ Future<Response> ProcessManager::__processes__(const Request&)
           if (event.functionType.isSome()) {
             object.values["internal type"] = event.functionType.get()->name();
           }
+          if (event.annotation.isSome()) {
+            object.values["annotation"] = event.annotation.get();
+          }
 
           events->values.push_back(object);
         }
