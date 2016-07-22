@@ -385,6 +385,11 @@ void Master::initialize()
                  << "**************************************************";
   }
 
+  dispatch(self(), &Master::dummy, "Master::dummy");
+  dispatch(self(), &Master::lolzz, "Master::lolzz");
+  LOG(INFO) << " >> dummy equals lolzz " << std::boolalpha
+            << (typeid(&Master::lolzz) == typeid(&Master::dummy));
+
   // NOTE: We enforce a minimum slave re-register timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
   if (flags.agent_reregister_timeout < MIN_AGENT_REREGISTER_TIMEOUT) {

@@ -18,6 +18,7 @@
 #define __MASTER_HPP__
 
 #include <stdint.h>
+#include <stout/os.hpp>
 
 #include <list>
 #include <memory>
@@ -403,6 +404,22 @@ public:
          const Flags& flags = Flags());
 
   virtual ~Master();
+
+  void dummy()
+  {
+    LOG(INFO) << "  >>  dummy";
+    os::sleep(Microseconds(500));
+    dispatch(self(), &Master::dummy, "Master::dummy");
+    dispatch(self(), &Master::dummy, "Master::dummy");
+  }
+
+  void lolzz()
+  {
+    LOG(INFO) << "  >>  lolzz";
+    os::sleep(Microseconds(500));
+    dispatch(self(), &Master::lolzz, "Master::lolzz");
+    dispatch(self(), &Master::lolzz, "Master::lolzz");
+  }
 
   // Message handlers.
   void submitScheduler(
