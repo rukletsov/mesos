@@ -3199,6 +3199,10 @@ Future<Response> ProcessManager::__processes__(const Request&)
         {
           JSON::Object object;
           object.values["type"] = "DISPATCH";
+          if (event.functionType.isSome()) {
+            object.values["internal type"] = event.functionType.get()->name();
+          }
+
           events->values.push_back(object);
         }
 
