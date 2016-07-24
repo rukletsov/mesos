@@ -17,6 +17,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
+#include <process/id.hpp>
 #include <process/process.hpp>
 
 using namespace process;
@@ -28,7 +29,7 @@ using std::string;
 class MyProcess : public Process<MyProcess>
 {
 public:
-  MyProcess() {}
+  MyProcess() : ProcessBase(ID::generate("my-process")) {}
   virtual ~MyProcess() {}
 
   Future<int> func1()
