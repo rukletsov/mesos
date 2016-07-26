@@ -310,6 +310,93 @@ message FrameworkInfo {
 }
 
 
+message HealthInfo {
+  // This field is optional in MVP.
+  repeated HealthCheckInfo health_check = 1;
+
+  // This field is absent in MVP.
+  optional CombinePolicy combine_policy = 2;
+
+  // In the nearest future we may add support for custom kill policies,
+  // and later include them into more general unhealthy policy.
+  optional KillPolicy kill_policy = 3;
+  optional UnhealthyPolicy unhealthy_policy = 4;
+}
+
+
+message HealthCheckInfo {
+  enum Type {
+    UNKNOWN = 0;
+    COMMAND = 1;
+    HTTPX = 2;
+    TCP = 3;
+  }
+
+  // Describes an HTTP health check.
+  message HTTPx {
+    enum Protocol {
+      UNKNOWN = 0;
+      HTTP = 1;
+      HTTPS = 2;
+    }
+
+    required Protocol protocol;
+
+    // Port to send the HTTPx request.
+    required uint32 port = 1;
+
+    // HTTPx request path.
+    optional string path = 2 [default = "/"];
+
+    // This field is absent in MVP. While adding POST and PUT is simple,
+    // supporting payload is more involved.
+    optional Method method = 3 [default = GET];
+
+    // This field is absent in MVP. Additional HTTP headers that should
+    // be set when sending the health check request.
+    repeated HTTPHeader headers = 4;
+
+    // Expected response statuses. Not specifying any statuses implies
+    // that any returned status is acceptable.
+    repeated uint32 statuses = 5;
+
+    // TODO(benh): Include an 'optional bytes data' field for checking
+    // for specific data in the response.
+  }
+
+
+
+  // TODO(benh): Consider adding a URL health check strategy which
+  // allows doing something similar to the HTTP strategy but
+  // encapsulates all the details in a single string field.
+
+  // TODO(benh): Other possible health check strategies could include
+  // one for TCP/UDP.
+
+  // Amount of time to wait until starting the health checks.
+  optional double delay_seconds = 2 [default = 15.0];
+
+  // Interval between health checks.
+  optional double interval_seconds = 3 [default = 10.0];
+
+  // Amount of time to wait for the health check to complete.
+  optional double timeout_seconds = 4 [default = 20.0];
+
+  // Number of consecutive failures until signaling kill task.
+  optional uint32 consecutive_failures = 5 [default = 3];
+
+  // Amount of time to allow failed health checks since launch.
+  optional double grace_period_seconds = 6 [default = 10.0];
+
+  // TODO(alexr): Add an optional `KillPolicy` that should be used
+  // if the task is killed because of a health check failure.
+
+  required Type type = 1;
+  optional CommandInfo command = 2;
+  optional HTTPx http = 3;
+  optional Socket socket = 4;
+
+
 /**
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A "strategy" is picked by specifying one of the
