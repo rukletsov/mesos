@@ -310,9 +310,35 @@ message FrameworkInfo {
 }
 
 
+/**
+ * Describes the health state of a health checked entity, e.g. a task.
+ */
+enum HealthState {
+  UNKNOWN = 0;
+
+  // Alternative name: HEALTH_GREEN.
+  // Indicates that the corresponding entity is healthy in terms of the
+  // associated health check definition.
+  HEALTHY = 1;
+
+  // Alternative name: HEALTH_ORANGE.
+  // Indicates that the corresponding entity may be unhealthy. This may
+  // be triggered by a single failed health check, or a specific HTTP
+  // response returned by the entity.
+  SICKENING = 2;
+
+  // Alternative name: HEALTH_RED.
+  // Indicates that the corresponding entity is unhealthy. This may be
+  // triggered by consecutive health check failures, or a specific
+  // HTTP return code. This state usually means that the corresponding
+  // entity does not function as designed and an action should be taken.
+  UNHEALTHY = 3;
+}
+
+
 message HealthInfo {
   // This field is optional in MVP.
-  repeated HealthCheckInfo health_check = 1;
+  repeated HealthCheckInfo health_checks = 1;
 
   // This field is absent in MVP.
   optional CombinePolicy combine_policy = 2;
@@ -337,41 +363,60 @@ message HealthCheckInfo {
     enum Protocol {
       UNKNOWN = 0;
       HTTP = 1;
-      HTTPS = 2;
+      HTTPS = 2;  // This is post-MVP.
     }
 
-    required Protocol protocol;
+    required Protocol protocol = 1 [default = HTTP];
 
     // Port to send the HTTPx request.
-    required uint32 port = 1;
+    required uint32 port = 2;
 
     // HTTPx request path.
-    optional string path = 2 [default = "/"];
+    optional string path = 3 [default = "/"];
 
-    // This field is absent in MVP. While adding POST and PUT is simple,
+    // This field is post-MVP. While adding POST and PUT is simple,
     // supporting payload is more involved.
-    optional Method method = 3 [default = GET];
+    optional HTTPMethod method = 4 [default = GET];
 
-    // This field is absent in MVP. Additional HTTP headers that should
+    // This field is post-MVP. Additional HTTP headers that should
     // be set when sending the health check request.
-    repeated HTTPHeader headers = 4;
+    repeated HTTPHeader headers = 5;
 
     // Expected response statuses. Not specifying any statuses implies
     // that any returned status is acceptable.
-    repeated uint32 statuses = 5;
+    //
+    // NOTE: Nomad uses two sets of statuses: one considered warnings
+    // and other failures.
+    repeated uint32 statuses = 6;
 
     // TODO(benh): Include an 'optional bytes data' field for checking
     // for specific data in the response.
   }
 
-
-
   // TODO(benh): Consider adding a URL health check strategy which
   // allows doing something similar to the HTTP strategy but
   // encapsulates all the details in a single string field.
 
-  // TODO(benh): Other possible health check strategies could include
-  // one for TCP/UDP.
+  message Socket {
+    enum Protocol {
+      UNKNOWN = 0;
+      TCP = 1;
+      UDP = 2;  // This is post-MVP.
+    }
+
+    required Protocol protocol = 1 [default = TCP];
+
+    // Port expected to be open.
+    required uint32 port = 2;
+  }
+
+  required Type type = 8;
+  optional CommandInfo command = 7;
+  optional HTTPx http = 1;
+  optional Socket socket = 9;
+
+  // Specifies an initial state of the health check.
+  optional HealthState initial_state = 10 [default = HealthStatus.UNKNOWN];
 
   // Amount of time to wait until starting the health checks.
   optional double delay_seconds = 2 [default = 15.0];
@@ -386,15 +431,11 @@ message HealthCheckInfo {
   optional uint32 consecutive_failures = 5 [default = 3];
 
   // Amount of time to allow failed health checks since launch.
-  optional double grace_period_seconds = 6 [default = 10.0];
-
-  // TODO(alexr): Add an optional `KillPolicy` that should be used
-  // if the task is killed because of a health check failure.
-
-  required Type type = 1;
-  optional CommandInfo command = 2;
-  optional HTTPx http = 3;
-  optional Socket socket = 4;
+  //
+  // This field seems to be redundant because we already have
+  // `delay_seconds`.
+  optional double grace_period_seconds = 6 [default = 10.0, deprecated = true];
+}
 
 
 /**
@@ -1388,7 +1429,8 @@ message TaskInfo {
   // A health check for the task. Implemented for executor-less
   // command-based tasks. For tasks that specify an executor, it is
   // the executor's responsibility to implement the health checking.
-  optional HealthCheck health_check = 8;
+  optional HealthCheck health_check = 8 [deprecated = true];
+  optional HealthInfo health = 13;
 
   // A kill policy for the task. Implemented for executor-less
   // command-based and docker tasks. For tasks that specify other

@@ -650,16 +650,10 @@ message Archive {
  * consider killing the associated task.
  */
 message TaskHealthStatus {
-  enum State {
-    UNKNOWN = 0;
-    HEALTHY = 1;    // GREEN
-    SICKENING = 2;  // ORANGE
-    UNHEALTHY = 3;  // RED
-
   required TaskID task_id = 1;
 
   // Describes the task's health state.
-  optional State state = 5;
+  optional HealthState state = 5;
 
   // This will require a deprecation cycle via optional.
   required bool healthy = 2 [deprecated = true];
@@ -678,14 +672,8 @@ message TaskHealthStatus {
 
 
 message TaskHealthStatus {
-  enum State {
-    UNKNOWN = 0;
-    HEALTHY = 1;    // GREEN
-    SICKENING = 2;  // ORANGE
-    UNHEALTHY = 3;  // RED
-
   // Describes the task's health state.
-  optional State state = 5;
+  optional HealthState state = 5;
 
   // Additional information about the task state. For example, the return
   // code for command check, or HTTP response code for HTTP check.
