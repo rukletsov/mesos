@@ -352,8 +352,7 @@ Future<Nothing> HealthCheckerProcess::_commandHealthCheck()
       }
 
       return Failure(
-          "Command has not returned after " +
-          stringify(timeout));
+          "Command has not returned after " + stringify(timeout));
     })
     .then([](const Option<int>& status) -> Future<Nothing> {
       if (status.isNone()) {
@@ -403,7 +402,7 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       NO_SETSID,
-      None(),
+      nullptr,
       None(),
       clone);
 
@@ -512,7 +511,7 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck()
       Subprocess::PIPE(),
       Subprocess::PIPE(),
       NO_SETSID,
-      None(),
+      nullptr,
       None(),
       clone);
 
