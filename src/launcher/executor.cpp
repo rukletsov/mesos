@@ -418,11 +418,25 @@ protected:
     cout << "Forked command at " << pid << endl;
 
     if (task->has_health_check()) {
+      vector<string> namespaces;
+      if (rootfs.isSome() &&
+          task->health_check().type() == HealthCheck::COMMAND) {
+        // NOTE: When the task with command health check is running in
+        // a different rootfs with host, we need to ensure that the
+        // mount namespace of the health check is same with the task to
+        // find appropriate binaries. And the command executor shares
+        // the network namespace with its task, hence no need to enter
+        // the task's "net" namespace.
+        namespaces.push_back("mnt");
+      }
+
       Try<Owned<health::HealthChecker>> _checker =
         health::HealthChecker::create(
             task->health_check(),
             self(),
-            task->task_id());
+            task->task_id(),
+            pid,
+            namespaces);
 
       if (_checker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.

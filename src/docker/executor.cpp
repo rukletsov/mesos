@@ -181,6 +181,8 @@ public:
     inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
       .then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
+          containerPid = container.pid;
+
           TaskStatus status;
           status.mutable_task_id()->CopyFrom(taskId.get());
           status.set_state(TASK_RUNNING);
@@ -469,8 +471,8 @@ private:
 
     HealthCheck healthCheck = task.health_check();
 
-    // To make sure the health check runs in the same mount namespace
-    // with the container, we wrap the original command in `docker exec`.
+    // To make sure the health check runs in the same namespaces with
+    // the container, we wrap the original command in `docker exec`.
     if (healthCheck.has_command()) {
       // `docker exec` requires docker version greater than 1.3.0.
       Try<Nothing> validateVersion =
@@ -510,10 +512,18 @@ private:
           strings::join(" ", commandArguments));
     }
 
+    vector<string> namespaces;
+    if (healthCheck.type() == HealthCheck::HTTP ||
+        healthCheck.type() == HealthCheck::TCP) {
+      namespaces.push_back("net");
+    }
+
     Try<Owned<health::HealthChecker>> _checker = health::HealthChecker::create(
         healthCheck,
         self(),
-        task.task_id());
+        task.task_id(),
+        containerPid,
+        namespaces);
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -555,6 +565,7 @@ private:
   Option<TaskID> taskId;
   Owned<health::HealthChecker> checker;
   Option<NetworkInfo> containerNetworkInfo;
+  Option<pid_t> containerPid;
 };
 
 
