@@ -425,8 +425,7 @@ Future<Nothing> HealthCheckerProcess::_httpHealthCheck()
 
       if (curlPid != -1) {
         // Cleanup the curl process.
-        VLOG(1) << "Killing the processs of HTTP health check "
-                << curlPid;
+        VLOG(1) << "Killing the HTTP health check process " << curlPid;
 
         os::killtree(curlPid, SIGKILL);
       }
