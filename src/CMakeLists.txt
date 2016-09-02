@@ -515,13 +515,13 @@ target_link_libraries(${MESOS_PROTOBUF_TARGET} ${AGENT_LIBS})
 ##############################
 add_subdirectory(cli/)
 add_subdirectory(docker/)
+add_subdirectory(health-check/)
 add_subdirectory(launcher/)
 add_subdirectory(local/)
 add_subdirectory(log/)
 add_subdirectory(master/)
 add_subdirectory(slave/)
 add_subdirectory(slave/containerizer/mesos/)
-add_subdirectory(health-check/)
 add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.

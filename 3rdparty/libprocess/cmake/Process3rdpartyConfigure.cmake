@@ -152,6 +152,11 @@ set(
   MESOS_FETCHER mesos-fetcher
   CACHE STRING "Target for fetcher")
 
+# Define target for tcp-connect.
+set(
+  MESOS_TCP_CONNECT mesos-tcp-connect
+  CACHE STRING "Target for tcp-connect")
+
 # Define target for master.
 set(
   MESOS_MASTER mesos-master

@@ -71,7 +71,7 @@ public:
 
 // Tries to establish a TCP connection to `targetIP`:`targetPort`.
 // If the TCP handshake is successful, returns `EXIT_SUCCESS`.
-int tcpThreeWay(const string& targetIP, int targetPort)
+int testTCPConnect(const string& targetIP, int targetPort)
 {
   // Set up destination address.
   struct sockaddr_in to;
@@ -79,8 +79,7 @@ int tcpThreeWay(const string& targetIP, int targetPort)
   to.sin_family = AF_INET;
   to.sin_port = htons(targetPort);
   if (inet_pton(AF_INET, targetIP.c_str(), &to.sin_addr) != 1) {
-    cerr << "Cannot convert '" << targetIP << "' into a network address: "
-         << strerror(errno) << endl;
+    cerr << "Cannot convert '" << targetIP << "' into a network address";
     return EXIT_FAILURE;
   }
 
@@ -130,14 +129,14 @@ int main(int argc, char *argv[])
   }
 
   if (flags.ip.isNone()) {
-    cerr << flags.usage("Missing required option --target_ip") << endl;
+    cerr << flags.usage("Missing required option --ip") << endl;
     return EXIT_FAILURE;
   }
 
   if (flags.port.isNone()) {
-    cerr << flags.usage("Missing required option --target_port") << endl;
+    cerr << flags.usage("Missing required option --port") << endl;
     return EXIT_FAILURE;
   }
 
-  return tcpThreeWay(flags.ip.get(), flags.port.get());
+  return testTCPConnect(flags.ip.get(), flags.port.get());
 }
