@@ -521,6 +521,7 @@ add_subdirectory(log/)
 add_subdirectory(master/)
 add_subdirectory(slave/)
 add_subdirectory(slave/containerizer/mesos/)
+add_subdirectory(health-check/)
 add_subdirectory(usage/)
 
 # BUILD THE MESOS TESTS.
