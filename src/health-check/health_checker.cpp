@@ -31,6 +31,7 @@
 
 #include <process/collect.hpp>
 #include <process/delay.hpp>
+#include <process/dispatch.hpp>
 #include <process/http.hpp>
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
@@ -52,12 +53,12 @@
 #endif
 
 using process::delay;
+using process::dispatch;
 using process::Clock;
 using process::Failure;
 using process::Future;
 using process::NO_SETSID;
 using process::Owned;
-using process::Promise;
 using process::Subprocess;
 using process::Time;
 using process::UPID;
@@ -155,9 +156,9 @@ HealthChecker::~HealthChecker()
 }
 
 
-Future<Nothing> HealthChecker::healthCheck()
+void HealthChecker::healthCheck()
 {
-  return dispatch(process.get(), &HealthCheckerProcess::healthCheck);
+  dispatch(process.get(), &HealthCheckerProcess::healthCheck);
 }
 
 
@@ -186,7 +187,7 @@ HealthCheckerProcess::HealthCheckerProcess(
 }
 
 
-Future<Nothing> HealthCheckerProcess::healthCheck()
+void HealthCheckerProcess::healthCheck()
 {
   VLOG(1) << "Health check starting in "
           << Seconds(check.delay_seconds()) << ", grace period "
@@ -195,7 +196,6 @@ Future<Nothing> HealthCheckerProcess::healthCheck()
   startTime = Clock::now();
 
   delay(Seconds(check.delay_seconds()), self(), &Self::_healthCheck);
-  return promise.future();
 }
 
 
@@ -221,11 +221,10 @@ void HealthCheckerProcess::failure(const string& message)
   taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
   send(executor, taskHealthStatus);
 
-  if (killTask) {
-    promise.fail(message);
-  } else {
-    reschedule();
-  }
+  // Even if we set the `kill_task` flag, it is an executor who kills the task
+  // and honors the flag (or not). We have no control over the task's lifetime,
+  // hence we should continue until we are explicitly asked to stop.
+  reschedule();
 }
 
 
