@@ -161,6 +161,18 @@ void HealthChecker::healthCheck()
 }
 
 
+void HealthChecker::pause()
+{
+  dispatch(process.get(), &HealthCheckerProcess::pause);
+}
+
+
+void HealthChecker::resume()
+{
+  dispatch(process.get(), &HealthCheckerProcess::resume);
+}
+
+
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const string& _launcherDir,
@@ -176,7 +188,8 @@ HealthCheckerProcess::HealthCheckerProcess(
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
-    consecutiveFailures(0)
+    consecutiveFailures(0),
+    paused(false)
 {
 #ifdef __linux__
   if (!namespaces.empty()) {
@@ -195,6 +208,28 @@ void HealthCheckerProcess::healthCheck()
   startTime = Clock::now();
 
   reschedule(Seconds(check.delay_seconds()));
+}
+
+void HealthCheckerProcess::pause()
+{
+  if (!paused) {
+    VLOG(1) << "Health checking paused";
+
+    paused = true;
+  }
+}
+
+
+void HealthCheckerProcess::resume()
+{
+  if (paused) {
+    VLOG(1) << "Health checking resumed";
+
+    paused = false;
+
+    // Schedule a health check immediately.
+    delay(Duration::zero(), self(), &Self::_healthCheck);
+  }
 }
 
 
@@ -218,7 +253,11 @@ void HealthCheckerProcess::failure(const string& message)
   taskHealthStatus.set_consecutive_failures(consecutiveFailures);
   taskHealthStatus.set_kill_task(killTask);
   taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
-  send(executor, taskHealthStatus);
+
+  // `HealthChecker` may have been paused while performing the check.
+  if (!paused) {
+    send(executor, taskHealthStatus);
+  }
 
   // Even if we set the `kill_task` flag, it is an executor who kills the task
   // and honors the flag (or not). We have no control over the task's lifetime,
@@ -237,8 +276,12 @@ void HealthCheckerProcess::success()
     TaskHealthStatus taskHealthStatus;
     taskHealthStatus.set_healthy(true);
     taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
-    send(executor, taskHealthStatus);
     initializing = false;
+
+    // `HealthChecker` may have been paused while performing the check.
+    if (!paused) {
+      send(executor, taskHealthStatus);
+    }
   }
 
   consecutiveFailures = 0;
@@ -610,9 +653,11 @@ Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
 
 void HealthCheckerProcess::reschedule(const Duration& duration)
 {
-  VLOG(1) << "Rescheduling health check in " << duration;
+  if (!paused) {
+    VLOG(1) << "Rescheduling health check in " << duration;
 
-  delay(duration, self(), &Self::_healthCheck);
+    delay(duration, self(), &Self::_healthCheck);
+  }
 }
 
 
