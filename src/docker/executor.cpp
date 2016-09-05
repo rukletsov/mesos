@@ -224,8 +224,10 @@ public:
       // the run future.
     }));
 
-    inspect.onReady(
-        defer(self(), &Self::launchHealthCheck, containerName, task));
+    if (task.has_health_check()) {
+      inspect.onReady(
+          defer(self(), &Self::launchHealthCheck, containerName, task));
+    }
   }
 
   void killTask(ExecutorDriver* driver, const TaskID& taskId)
@@ -292,6 +294,12 @@ protected:
       const bool& initiateTaskKill)
   {
     if (driver.isNone()) {
+      return;
+    }
+
+    // We may receive an update from a health check
+    // scheduled before the task has been reaped.
+    if (terminated) {
       return;
     }
 
@@ -381,6 +389,11 @@ private:
   {
     terminated = true;
 
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->pause();
+    }
+
     // In case the stop is stuck, discard it.
     stop.discard();
 
@@ -459,15 +472,9 @@ private:
 
   void launchHealthCheck(const string& containerName, const TaskInfo& task)
   {
-    // Bail out early if we have been already killed or if the task has no
-    // associated health checks.
-    //
-    // TODO(alexr): Consider starting health checks even if we have
-    // already been killed to ensure that tasks are health checked
-    // while in their kill grace period.
-    if (killed || !task.has_health_check()) {
-      return;
-    }
+    // We may have already been killed at this point, but we start
+    // health checking regardless to ensure that the task is health
+    // checked while in its kill grace period.
 
     HealthCheck healthCheck = task.health_check();
 
