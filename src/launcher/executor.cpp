@@ -630,6 +630,11 @@ private:
   {
     terminated = true;
 
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->pause();
+    }
+
     TaskState taskState;
     string message;
 
