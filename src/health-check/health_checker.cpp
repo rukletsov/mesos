@@ -36,7 +36,6 @@
 #include <process/io.hpp>
 #include <process/subprocess.hpp>
 
-#include <stout/duration.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -195,7 +194,7 @@ void HealthCheckerProcess::healthCheck()
 
   startTime = Clock::now();
 
-  delay(Seconds(check.delay_seconds()), self(), &Self::_healthCheck);
+  reschedule(Seconds(check.delay_seconds()));
 }
 
 
@@ -204,7 +203,7 @@ void HealthCheckerProcess::failure(const string& message)
   if (check.grace_period_seconds() > 0 &&
       (Clock::now() - startTime).secs() <= check.grace_period_seconds()) {
     LOG(INFO) << "Ignoring failure as health check still in grace period";
-    reschedule();
+    reschedule(Seconds(check.interval_seconds()));
     return;
   }
 
@@ -224,7 +223,7 @@ void HealthCheckerProcess::failure(const string& message)
   // Even if we set the `kill_task` flag, it is an executor who kills the task
   // and honors the flag (or not). We have no control over the task's lifetime,
   // hence we should continue until we are explicitly asked to stop.
-  reschedule();
+  reschedule(Seconds(check.interval_seconds()));
 }
 
 
@@ -243,7 +242,7 @@ void HealthCheckerProcess::success()
   }
 
   consecutiveFailures = 0;
-  reschedule();
+  reschedule(Seconds(check.interval_seconds()));
 }
 
 
@@ -609,12 +608,11 @@ Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
 }
 
 
-void HealthCheckerProcess::reschedule()
+void HealthCheckerProcess::reschedule(const Duration& duration)
 {
-  VLOG(1) << "Rescheduling health check in "
-          << Seconds(check.interval_seconds());
+  VLOG(1) << "Rescheduling health check in " << duration;
 
-  delay(Seconds(check.interval_seconds()), self(), &Self::_healthCheck);
+  delay(duration, self(), &Self::_healthCheck);
 }
 
 
