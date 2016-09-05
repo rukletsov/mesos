@@ -215,11 +215,6 @@ void HealthCheckerProcess::failure(const string& message)
   send(executor, taskHealthStatus);
 
   if (killTask) {
-    // This is a hack to ensure the message is sent to the
-    // executor before we exit the process. Without this,
-    // we may exit before libprocess has sent the data over
-    // the socket. See MESOS-4111.
-    os::sleep(Seconds(1));
     promise.fail(message);
   } else {
     reschedule();
