@@ -60,7 +60,6 @@ using process::NO_SETSID;
 using process::Owned;
 using process::Subprocess;
 using process::Time;
-using process::UPID;
 
 using std::map;
 using std::string;
@@ -116,8 +115,8 @@ pid_t cloneWithSetns(
 
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
+    const lambda::function<void(const TaskHealthStatus&)>& callback,
     const string& launcherDir,
-    const UPID& executor,
     const TaskID& taskID,
     Option<pid_t> taskPid,
     const vector<string>& namespaces)
@@ -130,8 +129,8 @@ Try<Owned<HealthChecker>> HealthChecker::create(
 
   Owned<HealthCheckerProcess> process(new HealthCheckerProcess(
       check,
+      callback,
       launcherDir,
-      executor,
       taskID,
       taskPid,
       namespaces));
@@ -175,16 +174,16 @@ void HealthChecker::resume()
 
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
+    const lambda::function<void(const TaskHealthStatus&)>& _callback,
     const string& _launcherDir,
-    const UPID& _executor,
     const TaskID& _taskID,
     Option<pid_t> _taskPid,
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
+    healthUpdateCallback(_callback),
     launcherDir(_launcherDir),
     initializing(true),
-    executor(_executor),
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
@@ -256,7 +255,7 @@ void HealthCheckerProcess::failure(const string& message)
 
   // `HealthChecker` may have been paused while performing the check.
   if (!paused) {
-    send(executor, taskHealthStatus);
+    healthUpdateCallback(taskHealthStatus);
   }
 
   // Even if we set the `kill_task` flag, it is an executor who kills the task
@@ -280,7 +279,7 @@ void HealthCheckerProcess::success()
 
     // `HealthChecker` may have been paused while performing the check.
     if (!paused) {
-      send(executor, taskHealthStatus);
+      healthUpdateCallback(taskHealthStatus);
     }
   }
 
