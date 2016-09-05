@@ -66,7 +66,7 @@ public:
 
   ~HealthChecker();
 
-  process::Future<Nothing> healthCheck();
+  void healthCheck();
 
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
@@ -87,7 +87,7 @@ public:
 
   virtual ~HealthCheckerProcess() {}
 
-  process::Future<Nothing> healthCheck();
+  void healthCheck();
 
 private:
   void failure(const std::string& message);
@@ -117,7 +117,6 @@ private:
 
   void reschedule();
 
-  process::Promise<Nothing> promise;
   HealthCheck check;
   bool initializing;
   process::UPID executor;

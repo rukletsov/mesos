@@ -994,9 +994,13 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_capabilities()->Add()->set_type(
+      FrameworkInfo::Capability::TASK_KILLING_STATE);
+
   MockScheduler sched;
   MesosSchedulerDriver driver(
-    &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _))
     .Times(1);
@@ -1020,7 +1024,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   Future<TaskStatus> status2;
   Future<TaskStatus> status3;
   Future<TaskStatus> status4;
-  Future<TaskStatus> statusKilled;
+  Future<TaskStatus> statusKilling;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
@@ -1028,7 +1032,8 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
     .WillOnce(FutureArg<1>(&status2))
     .WillOnce(FutureArg<1>(&status3))
     .WillOnce(FutureArg<1>(&status4))
-    .WillOnce(FutureArg<1>(&statusKilled));
+    .WillOnce(FutureArg<1>(&statusKilling))
+    .WillRepeatedly(Return());
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
@@ -1051,10 +1056,8 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   EXPECT_EQ(TASK_RUNNING, status4.get().state());
   EXPECT_FALSE(status4.get().healthy());
 
-  AWAIT_READY(statusKilled);
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
-  EXPECT_TRUE(statusKilled.get().has_healthy());
-  EXPECT_FALSE(statusKilled.get().healthy());
+  AWAIT_READY(statusKilling);
+  EXPECT_EQ(TASK_KILLING, statusKilling.get().state());
 
   driver.stop();
   driver.join();
