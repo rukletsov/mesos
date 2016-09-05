@@ -163,6 +163,18 @@ void HealthChecker::healthCheck()
 }
 
 
+void HealthChecker::pause()
+{
+  dispatch(process.get(), &HealthCheckerProcess::pause);
+}
+
+
+void HealthChecker::resume()
+{
+  dispatch(process.get(), &HealthCheckerProcess::resume);
+}
+
+
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const string& _launcherDir,
@@ -178,7 +190,8 @@ HealthCheckerProcess::HealthCheckerProcess(
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
-    consecutiveFailures(0)
+    consecutiveFailures(0),
+    paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
   CHECK_SOME(create);
@@ -215,8 +228,36 @@ void HealthCheckerProcess::healthCheck()
 }
 
 
+void HealthCheckerProcess::pause()
+{
+  if (!paused) {
+    VLOG(1) << "Health checking paused";
+
+    paused = true;
+  }
+}
+
+
+void HealthCheckerProcess::resume()
+{
+  if (paused) {
+    VLOG(1) << "Health checking resumed";
+
+    paused = false;
+
+    // Schedule a health check immediately.
+    reschedule(Duration::zero());
+  }
+}
+
+
 void HealthCheckerProcess::failure(const string& message)
 {
+  // `HealthChecker` might have been paused while performing the check.
+  if (paused) {
+    return;
+  }
+
   if (initializing &&
       checkGracePeriod.secs() > 0 &&
       (Clock::now() - startTime) <= checkGracePeriod) {
@@ -251,6 +292,11 @@ void HealthCheckerProcess::failure(const string& message)
 
 void HealthCheckerProcess::success()
 {
+  // `HealthChecker` might have been paused while performing the check.
+  if (paused) {
+    return;
+  }
+
   VLOG(1) << HealthCheck::Type_Name(check.type()) << " health check passed";
 
   // Send a healthy status update on the first success,
@@ -633,9 +679,11 @@ Future<Nothing> HealthCheckerProcess::__tcpHealthCheck(
 
 void HealthCheckerProcess::reschedule(const Duration& duration)
 {
-  VLOG(1) << "Rescheduling health check in " << duration;
+  if (!paused) {
+    VLOG(1) << "Rescheduling health check in " << duration;
 
-  delay(duration, self(), &Self::_healthCheck);
+    delay(duration, self(), &Self::_healthCheck);
+  }
 }
 
 

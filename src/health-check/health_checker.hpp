@@ -71,6 +71,10 @@ public:
 
   void healthCheck();
 
+  // Idempotent helpers for pausing and resuming health checking.
+  void pause();
+  void resume();
+
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
 
@@ -92,6 +96,9 @@ public:
   virtual ~HealthCheckerProcess() {}
 
   void healthCheck();
+
+  void pause();
+  void resume();
 
 private:
   void failure(const std::string& message);
@@ -136,6 +143,7 @@ private:
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
   uint32_t consecutiveFailures;
   process::Time startTime;
+  bool paused;
 };
 
 
