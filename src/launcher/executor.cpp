@@ -465,14 +465,7 @@ protected:
              << _checker.error() << endl;
       } else {
         checker = _checker.get();
-
-        checker->healthCheck()
-          .onAny([](const Future<Nothing>& future) {
-            // Only possible to be a failure.
-            if (future.isFailed()) {
-              cerr << "Health check failed" << endl;
-            }
-          });
+        checker->healthCheck();
       }
     }
 
