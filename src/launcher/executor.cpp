@@ -302,6 +302,13 @@ protected:
       const bool healthy,
       const bool initiateTaskKill)
   {
+    // This prevents us from sending `TASK_RUNNING` after a terminal status
+    // update, because we may receive an update from a health check scheduled
+    // before the task has been reaped.
+    if (terminated) {
+      return;
+    }
+
     cout << "Received task health update, healthy: "
          << stringify(healthy) << endl;
 
@@ -622,6 +629,11 @@ private:
   void reaped(pid_t pid, const Future<Option<int>>& status_)
   {
     terminated = true;
+
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->pause();
+    }
 
     TaskState taskState;
     string message;
