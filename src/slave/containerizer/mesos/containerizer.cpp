@@ -916,6 +916,8 @@ Future<bool> MesosContainerizerProcess::launch(
                   checkpoint));
   }
 
+  LOG(INFO) << "Provisioning container " << containerId;
+
   container->provisioning = provisioner->provision(
       containerId,
       containerConfig.container_info().mesos().image());
@@ -960,6 +962,8 @@ Future<Nothing> MesosContainerizerProcess::prepare(
   CHECK_EQ(container->state, PROVISIONING);
 
   container->state = PREPARING;
+
+  LOG(INFO) << "Container " << containerId << " enters PREPARING state";
 
   if (provisionInfo.isSome()) {
     container->config.set_rootfs(provisionInfo->rootfs);
@@ -1339,6 +1343,8 @@ Future<bool> MesosContainerizerProcess::isolate(
   CHECK_EQ(containers_[containerId]->state, PREPARING);
 
   containers_[containerId]->state = ISOLATING;
+
+  LOG(INFO) << "Isolating container " << containerId << " with pid " << _pid;
 
   // Set up callbacks for isolator limitations.
   foreach (const Owned<Isolator>& isolator, isolators) {

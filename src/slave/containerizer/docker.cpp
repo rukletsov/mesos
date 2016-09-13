@@ -411,6 +411,8 @@ Future<Nothing> DockerContainerizerProcess::pull(
 
   string image = container->image();
 
+  LOG(INFO) << "Pulling image '" << image << "' for container " << containerId;
+
   Future<Docker::Image> future = docker->pull(
     container->directory,
     image,
@@ -560,6 +562,8 @@ Future<Nothing> DockerContainerizerProcess::mountPersistentVolumes(
 
   Container* container = containers_[containerId];
   container->state = Container::MOUNTING;
+
+  LOG(INFO) << "Container " << containerId << " enters MOUNTING state";
 
   if (container->task.isNone() &&
       !container->resources.persistentVolumes().empty()) {
@@ -1185,6 +1189,8 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
   Container* container = containers_[containerId];
   container->state = Container::RUNNING;
 
+  LOG(INFO) << "Container " << containerId << " enters RUNNING state";
+
   return logger->prepare(container->executor, container->directory)
     .then(defer(
         self(),
@@ -1257,6 +1263,8 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   Container* container = containers_[containerId];
   container->state = Container::RUNNING;
+
+  LOG(INFO) << "Container " << containerId << " enters RUNNING state";
 
   // Prepare environment variables for the executor.
   map<string, string> environment = container->environment;
