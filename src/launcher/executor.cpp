@@ -259,12 +259,6 @@ public:
 protected:
   virtual void initialize()
   {
-    install<TaskHealthStatus>(
-        &CommandExecutor::taskHealthUpdated,
-        &TaskHealthStatus::task_id,
-        &TaskHealthStatus::healthy,
-        &TaskHealthStatus::kill_task);
-
     Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
 
     // We initialize the library here to ensure that callbacks are only invoked
@@ -297,10 +291,7 @@ protected:
     }
   }
 
-  void taskHealthUpdated(
-      const TaskID& _taskId,
-      const bool healthy,
-      const bool initiateTaskKill)
+  void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
     // This prevents us from sending `TASK_RUNNING` after a terminal status
     // update, because we may receive an update from a health check scheduled
@@ -310,13 +301,13 @@ protected:
     }
 
     cout << "Received task health update, healthy: "
-         << stringify(healthy) << endl;
+         << stringify(healthStatus.healthy()) << endl;
 
-    update(_taskId, TASK_RUNNING, healthy);
+    update(healthStatus.task_id(), TASK_RUNNING, healthStatus.healthy());
 
-    if (initiateTaskKill) {
+    if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
-      kill(_taskId);
+      kill(healthStatus.task_id());
     }
   }
 
@@ -454,7 +445,7 @@ protected:
       Try<Owned<health::HealthChecker>> _checker =
         health::HealthChecker::create(
             task->health_check(),
-            self(),
+            defer(self(), &Self::taskHealthUpdated, lambda::_1),
             task->task_id(),
             pid,
             namespaces);

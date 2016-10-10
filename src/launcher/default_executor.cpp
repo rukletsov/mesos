@@ -35,6 +35,7 @@
 #include <process/protobuf.hpp>
 
 #include <stout/fs.hpp>
+#include <stout/lambda.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -194,12 +195,6 @@ public:
 protected:
   virtual void initialize()
   {
-    install<TaskHealthStatus>(
-        &Self::taskHealthUpdated,
-        &TaskHealthStatus::task_id,
-        &TaskHealthStatus::healthy,
-        &TaskHealthStatus::kill_task);
-
     mesos.reset(new Mesos(
         contentType,
         defer(self(), &Self::connected),
@@ -399,7 +394,7 @@ protected:
         Try<Owned<health::HealthChecker>> _checker =
           health::HealthChecker::create(
               task.health_check(),
-              self(),
+              defer(self(), &Self::taskHealthUpdated, lambda::_1),
               taskId,
               None(),
               vector<string>());
@@ -821,10 +816,7 @@ protected:
     shutdown();
   }
 
-  void taskHealthUpdated(
-      const TaskID& taskId,
-      bool healthy,
-      bool initiateTaskKill)
+  void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
     // This prevents us from sending `TASK_RUNNING` after a terminal status
     // update, because we may receive an update from a health check scheduled
@@ -833,15 +825,16 @@ protected:
       return;
     }
 
-    LOG(INFO) << "Received task health update for task '" << taskId
-              << "', task is "
-              << (healthy ? "healthy" : "not healthy");
+    LOG(INFO) << "Received task health update for task '"
+              << healthStatus.task_id() << "', task is "
+              << (healthStatus.healthy() ? "healthy" : "not healthy");
 
-    update(taskId, TASK_RUNNING, None(), healthy);
+    update(
+        healthStatus.task_id(), TASK_RUNNING, None(), healthStatus.healthy());
 
-    if (initiateTaskKill) {
+    if (healthStatus.kill_task()) {
       unhealthy = true;
-      killTask(taskId);
+      killTask(healthStatus.task_id());
     }
   }
 

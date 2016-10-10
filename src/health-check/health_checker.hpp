@@ -31,6 +31,7 @@
 #include <process/time.hpp>
 
 #include <stout/duration.hpp>
+#include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 
 #include "messages/messages.hpp"
@@ -49,8 +50,8 @@ public:
    * Attempts to create a `HealthChecker` object.
    *
    * @param check The protobuf message definition of health check.
-   * @param executor The executor UPID to which health check results will be
-   *     reported.
+   * @param callback A callback HealthChecker uses to send health status
+   *     updates to its owner (usually an executor).
    * @param taskID The TaskID of the target task.
    * @param taskPid The target task's pid used to enter the specified
    *     namespaces.
@@ -60,7 +61,7 @@ public:
    */
   static Try<process::Owned<HealthChecker>> create(
       const HealthCheck& check,
-      const process::UPID& executor,
+      const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskID,
       Option<pid_t> taskPid,
       const std::vector<std::string>& namespaces);
@@ -85,7 +86,7 @@ class HealthCheckerProcess : public ProtobufProcess<HealthCheckerProcess>
 public:
   HealthCheckerProcess(
       const HealthCheck& _check,
-      const process::UPID& _executor,
+      const lambda::function<void(const TaskHealthStatus&)>& _callback,
       const TaskID& _taskID,
       Option<pid_t> _taskPid,
       const std::vector<std::string>& _namespaces);
@@ -131,8 +132,8 @@ private:
   Duration checkGracePeriod;
   Duration checkTimeout;
 
+  lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
   bool initializing;
-  process::UPID executor;
   TaskID taskID;
   Option<pid_t> taskPid;
   std::vector<std::string> namespaces;
