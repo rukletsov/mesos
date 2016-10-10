@@ -606,44 +606,60 @@ Option<Error> healthCheck(const HealthCheck& check)
     return Error("HealthCheck must specify 'type'");
   }
 
-  if (check.type() == HealthCheck::COMMAND) {
-    if (!check.has_command()) {
-      return Error("Expecting 'command' to be set for command health check");
+  switch (check.type()) {
+    case HealthCheck::COMMAND: {
+      if (!check.has_command()) {
+        return Error("Expecting 'command' to be set for command health check");
+      }
+
+      const CommandInfo& command = check.command();
+
+      if (!command.has_value()) {
+        string commandType =
+          (command.shell() ? "'shell command'" : "'executable path'");
+
+        return Error("Command health check must contain " + commandType);
+      }
+
+      break;
     }
 
-    const CommandInfo& command = check.command();
+    case HealthCheck::HTTP: {
+      if (!check.has_http()) {
+        return Error("Expecting 'http' to be set for HTTP health check");
+      }
 
-    if (!command.has_value()) {
-      string commandType =
-        (command.shell() ? "'shell command'" : "'executable path'");
+      const HealthCheck::HTTPCheckInfo& http = check.http();
 
-      return Error("Command health check must contain " + commandType);
-    }
-  } else if (check.type() == HealthCheck::HTTP) {
-    if (!check.has_http()) {
-      return Error("Expecting 'http' to be set for HTTP health check");
-    }
+      if (http.has_scheme() &&
+          http.scheme() != "http" &&
+          http.scheme() != "https") {
+        return Error(
+            "Unsupported HTTP health check scheme: '" + http.scheme() + "'");
+      }
 
-    const HealthCheck::HTTPCheckInfo& http = check.http();
+      if (http.has_path() && !strings::startsWith(http.path(), '/')) {
+        return Error(
+            "The path '" + http.path() +
+            "' of HTTP health check must start with '/'");
+      }
 
-    if (http.has_scheme() &&
-        http.scheme() != "http" &&
-        http.scheme() != "https") {
-      return Error("Unsupported HTTP health check scheme: '" + http.scheme() +
-                   "'");
+      break;
     }
 
-    if (http.has_path() && !strings::startsWith(http.path(), '/')) {
-      return Error("The path '" + http.path() + "' of HTTP health check must "
-                   "start with '/'");
+    case HealthCheck::TCP: {
+      if (!check.has_tcp()) {
+        return Error("Expecting 'tcp' to be set for TCP health check");
+      }
+
+      break;
     }
-  } else if (check.type() == HealthCheck::TCP) {
-    if (!check.has_tcp()) {
-      return Error("Expecting 'tcp' to be set for TCP health check");
+
+    default: {
+      return Error(
+          "Unsupported health check type: '" +
+          HealthCheck::Type_Name(check.type()) + "'");
     }
-  } else {
-    return Error("Unsupported health check type: '" +
-                 HealthCheck::Type_Name(check.type()) + "'");
   }
 
   return None();
