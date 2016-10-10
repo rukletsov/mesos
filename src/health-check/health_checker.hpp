@@ -119,6 +119,11 @@ private:
   void reschedule(const Duration& duration);
 
   HealthCheck check;
+  Duration checkDelay;
+  Duration checkInterval;
+  Duration checkGracePeriod;
+  Duration checkTimeout;
+
   bool initializing;
   process::UPID executor;
   TaskID taskID;
