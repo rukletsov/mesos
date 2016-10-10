@@ -30,6 +30,7 @@
 #include <process/protobuf.hpp>
 #include <process/time.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/nothing.hpp>
 
 #include "messages/messages.hpp"
@@ -118,7 +119,7 @@ private:
           process::Future<std::string>,
           process::Future<std::string>>& t);
 
-  void reschedule();
+  void reschedule(const Duration& duration);
 
   HealthCheck check;
   std::string launcherDir;
