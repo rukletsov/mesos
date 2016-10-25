@@ -24,6 +24,7 @@ set(TEST_HELPER_SRC
   resources_utils.cpp
   test_helper_main.cpp
   utils.cpp
+  containerizer/health_check_test_helper.cpp
   containerizer/memory_test_helper.cpp
   )
 
