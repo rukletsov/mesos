@@ -228,7 +228,10 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
 }
 
 
-// Testing a healthy task reporting one healthy status to scheduler.
+// This test creates a healthy task and verifies that the healthy
+// status is reflected in the status updates sent as reconciliation
+// answers, and in the state endpoint of both the master and the
+// agent.
 TEST_F(HealthCheckTest, HealthyTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -242,8 +245,7 @@ TEST_F(HealthCheckTest, HealthyTask)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -352,8 +354,10 @@ TEST_F(HealthCheckTest, HealthyTask)
 }
 
 
-// Testing a healthy task with a container image using mesos
-// containerizer reporting one healthy status to scheduler.
+// This test creates a healthy task with a container image using mesos
+// containerizer and verifies that the healthy status is reported to the
+// scheduler and is reflected in the state endpoints of both the master
+// and the agent.
 TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -380,8 +384,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -469,8 +472,8 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 }
 
 
-// Testing a healthy task reporting one healthy status to scheduler for
-// docker executor.
+// This test creates a healthy task using the Docker executor and
+// verifies that the healthy status is reported to the scheduler.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 {
   Shared<Docker> docker(new MockDocker(
@@ -512,8 +515,7 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -599,8 +601,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -641,7 +642,9 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 }
 
 
-// Testing health status change reporting to scheduler.
+// This test creates a task whose health flaps, and verifies that the
+// health status updates are sent to the framework and reflected in the
+// state endpoint of both the master and the agent.
 TEST_F(HealthCheckTest, HealthStatusChange)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -834,7 +837,9 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 }
 
 
-// Testing health status change reporting to scheduler for docker executor.
+// This test creates a task that uses the Docker executor and whose
+// health flaps. It then verifies that the health status updates are
+// sent to the scheduler.
 TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
   Shared<Docker> docker(new MockDocker(
@@ -980,7 +985,8 @@ TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 }
 
 
-// Testing killing task after number of consecutive failures.
+// This test ensures that a task is killed if the number of maximum
+// health check failures is reached.
 TEST_F(HealthCheckTest, ConsecutiveFailures)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -994,8 +1000,7 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1057,7 +1062,8 @@ TEST_F(HealthCheckTest, ConsecutiveFailures)
 }
 
 
-// Testing command using environment variable.
+// Tests that the task's env variables are copied to the env used to
+// execute COMMAND health checks.
 TEST_F(HealthCheckTest, EnvironmentSetup)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1071,8 +1077,7 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1125,8 +1130,7 @@ TEST_F(HealthCheckTest, GracePeriod)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1167,7 +1171,8 @@ TEST_F(HealthCheckTest, GracePeriod)
 }
 
 
-// Testing continue running health check when check command timeout.
+// This test creates a task with a health check command that will time
+// out, and verifies that the health check is retried after the timeout.
 TEST_F(HealthCheckTest, CheckCommandTimeout)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -1181,8 +1186,7 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1226,7 +1230,7 @@ TEST_F(HealthCheckTest, CheckCommandTimeout)
 }
 
 
-// Testing a healthy task via HTTP without specifying `type`. HTTP health
+// Tests a healthy task via HTTP without specifying `type`. HTTP health
 // checks without `type` are allowed for backwards compatibility with the
 // v0 and v1 API.
 //
@@ -1240,9 +1244,6 @@ TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
   ASSERT_SOME(agent);
@@ -1251,8 +1252,7 @@ TEST_F(HealthCheckTest, DISABLED_HealthyTaskViaHTTPWithoutType)
   MesosSchedulerDriver driver(
     &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(&driver, _, _))
-    .Times(1);
+  EXPECT_CALL(sched, registered(&driver, _, _));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
