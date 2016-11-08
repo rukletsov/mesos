@@ -2087,6 +2087,95 @@ TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
   driver.join();
 }
 
+
+// This tests that a framework can't reserve resources using a role different
+// from the one it registered with.
+TEST_F(ReservationTest, DropReserveWithInvalidRole)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_role("role");
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+  masterFlags.roles = frameworkInfo.role();
+
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator, masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:1;mem:512";
+
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The expectation for the first offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(allocator, addFramework(_, _, _));
+
+  driver.start();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  Offer offer = offers.get()[0];
+
+  Resources unreserved = Resources::parse("cpus:1;mem:512").get();
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  // The expectation for the next offer.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Expect that the reserve offer operation will be dropped.
+  EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
+    .Times(0);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Attempt to reserve resources using a different role than the one the
+  // framework is registered with.
+  Resources dynamicallyReservedInvalidRole = unreserved.flatten(
+      "yoyo",
+      createReservationInfo(frameworkInfo.principal())).get();
+  driver.acceptOffers(
+      {offer.id()},
+      {RESERVE(dynamicallyReservedInvalidRole)},
+      filters);
+
+  // In the next offer, still expect an offer with the unreserved
+  // resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers.get().size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(unreserved));
+
+  driver.stop();
+  driver.join();
+}
+
 }  // namespace tests {
 }  // namespace internal {
 }  // namespace mesos {
