@@ -60,7 +60,6 @@ using process::Future;
 using process::Owned;
 using process::Subprocess;
 using process::Time;
-using process::UPID;
 
 using std::map;
 using std::string;
@@ -119,7 +118,7 @@ pid_t cloneWithSetns(
 Try<Owned<HealthChecker>> HealthChecker::create(
     const HealthCheck& check,
     const string& launcherDir,
-    const UPID& executor,
+    const lambda::function<void(const TaskHealthStatus&)>& callback,
     const TaskID& taskID,
     Option<pid_t> taskPid,
     const vector<string>& namespaces)
@@ -133,7 +132,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
   Owned<HealthCheckerProcess> process(new HealthCheckerProcess(
       check,
       launcherDir,
-      executor,
+      callback,
       taskID,
       taskPid,
       namespaces));
@@ -178,15 +177,15 @@ void HealthChecker::resume()
 HealthCheckerProcess::HealthCheckerProcess(
     const HealthCheck& _check,
     const string& _launcherDir,
-    const UPID& _executor,
+    const lambda::function<void(const TaskHealthStatus&)>& _callback,
     const TaskID& _taskID,
     Option<pid_t> _taskPid,
     const vector<string>& _namespaces)
   : ProcessBase(process::ID::generate("health-checker")),
     check(_check),
+    healthUpdateCallback(_callback),
     launcherDir(_launcherDir),
     initializing(true),
-    executor(_executor),
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
@@ -281,7 +280,7 @@ void HealthCheckerProcess::failure(const string& message)
   // We assume this is a local send, i.e. the health checker library
   // is not used in a binary external to the executor and hence can
   // not exit before the data is sent to the executor.
-  send(executor, taskHealthStatus);
+  healthUpdateCallback(taskHealthStatus);
 
   // Even if we set the `kill_task` flag, it is an executor who kills the task
   // and honors the flag (or not). We have no control over the task's lifetime,
@@ -305,7 +304,7 @@ void HealthCheckerProcess::success()
     TaskHealthStatus taskHealthStatus;
     taskHealthStatus.set_healthy(true);
     taskHealthStatus.mutable_task_id()->CopyFrom(taskID);
-    send(executor, taskHealthStatus);
+    healthUpdateCallback(taskHealthStatus);
     initializing = false;
   }
 
