@@ -387,6 +387,11 @@ private:
   {
     terminated = true;
 
+    // Stop health checking the task.
+    if (checker.get() != nullptr) {
+      checker->pause();
+    }
+
     // In case the stop is stuck, discard it.
     stop.discard();
 
