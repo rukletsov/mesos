@@ -129,21 +129,24 @@ private:
 
   void reschedule(const Duration& duration);
 
+  // Health check protobuf and parameters extracted from it.
   HealthCheck check;
   Duration checkDelay;
   Duration checkInterval;
   Duration checkGracePeriod;
   Duration checkTimeout;
 
+  // Extra parameters needed to set up health checking.
   lambda::function<void(const TaskHealthStatus&)> healthUpdateCallback;
   std::string launcherDir;
-  bool initializing;
   TaskID taskID;
   Option<pid_t> taskPid;
   std::vector<std::string> namespaces;
+
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
   uint32_t consecutiveFailures;
   process::Time startTime;
+  bool initializing;
   bool paused;
 };
 

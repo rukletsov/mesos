@@ -185,11 +185,11 @@ HealthCheckerProcess::HealthCheckerProcess(
     check(_check),
     healthUpdateCallback(_callback),
     launcherDir(_launcherDir),
-    initializing(true),
     taskID(_taskID),
     taskPid(_taskPid),
     namespaces(_namespaces),
     consecutiveFailures(0),
+    initializing(true),
     paused(false)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
