@@ -70,6 +70,8 @@ public:
 
   ~HealthChecker();
 
+  void stop();
+
 private:
   explicit HealthChecker(process::Owned<HealthCheckerProcess> process);
 
@@ -89,6 +91,8 @@ public:
       const std::vector<std::string>& _namespaces);
 
   virtual ~HealthCheckerProcess() {}
+
+  void stop();
 
 protected:
   virtual void initialize() override;
@@ -135,6 +139,7 @@ private:
   Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
   uint32_t consecutiveFailures;
   process::Time startTime;
+  bool stopped;
 };
 
 
