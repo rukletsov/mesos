@@ -161,7 +161,9 @@ HealthChecker::~HealthChecker()
 
 void HealthChecker::stop()
 {
-  dispatch(process.get(), &HealthCheckerProcess::stop);
+  LOG(INFO) << "Health checking stopped";
+
+  terminate(process.get(), true);
 }
 
 
@@ -180,8 +182,7 @@ HealthCheckerProcess::HealthCheckerProcess(
     taskPid(_taskPid),
     namespaces(_namespaces),
     consecutiveFailures(0),
-    initializing(true),
-    stopped(false)
+    initializing(true)
 {
   Try<Duration> create = Duration::create(check.delay_seconds());
   CHECK_SOME(create);
@@ -218,21 +219,8 @@ void HealthCheckerProcess::initialize()
 }
 
 
-void HealthCheckerProcess::stop()
-{
-  VLOG(1) << "Health checking stopped";
-
-  stopped = true;
-}
-
-
 void HealthCheckerProcess::failure(const string& message)
 {
-  // `HealthChecker` might have been stopped while performing the check.
-  if (stopped) {
-    return;
-  }
-
   if (initializing &&
       checkGracePeriod.secs() > 0 &&
       (Clock::now() - startTime) <= checkGracePeriod) {
@@ -267,11 +255,6 @@ void HealthCheckerProcess::failure(const string& message)
 
 void HealthCheckerProcess::success()
 {
-  // `HealthChecker` might have been stopped while performing the check.
-  if (stopped) {
-    return;
-  }
-
   VLOG(1) << HealthCheck::Type_Name(check.type()) << " health check passed";
 
   // Send a healthy status update on the first success,
@@ -654,11 +637,9 @@ Future<Nothing> HealthCheckerProcess::_tcpHealthCheck(
 
 void HealthCheckerProcess::scheduleNext(const Duration& duration)
 {
-  if (!stopped) {
-    VLOG(1) << "Scheduling health check in " << duration;
+  VLOG(1) << "Scheduling health check in " << duration;
 
-    delay(duration, self(), &Self::performSingleCheck);
-  }
+  delay(duration, self(), &Self::performSingleCheck);
 }
 
 

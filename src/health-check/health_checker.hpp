@@ -74,6 +74,9 @@ public:
 
   ~HealthChecker();
 
+  /**
+   * Immediately stops health checking. Any in-flight health checks are dropped.
+   */
   void stop();
 
 private:
@@ -95,8 +98,6 @@ public:
       const std::vector<std::string>& _namespaces);
 
   virtual ~HealthCheckerProcess() {}
-
-  void stop();
 
 protected:
   virtual void initialize() override;
@@ -146,7 +147,6 @@ private:
   uint32_t consecutiveFailures;
   process::Time startTime;
   bool initializing;
-  bool stopped;
 };
 
 
