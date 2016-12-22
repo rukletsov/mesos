@@ -363,6 +363,8 @@ message FrameworkInfo {
  * Describes a health check for a task or executor (or any arbitrary
  * process/command). A type is picked by specifying one of the
  * optional fields. Specifying more than one type is an error.
+ *
+ * TDOD(alexr): Rename to Probe.
  */
 message HealthCheck {
   enum Type {
@@ -455,6 +457,44 @@ message HealthCheck {
 
   // TCP health check.
   optional TCPCheckInfo tcp = 9;
+
+  // Labels are free-form key value pairs needed to distinguish among
+  // different health checks and tag them with lightweight metadata.
+  // Labels will not be interpreted or acted upon by Mesos itself.
+  // Labels should not contain duplicate key-value pairs.
+  optional Labels labels = 10;
+}
+
+
+message ProbeStatusInfo {
+  enum State {
+   UNKNOWN = 0;
+
+   // Indicates that the corresponding probe attemp was successful.
+   GREEN = 1;
+
+   // Indicates that the corresponding probe attempt was unsuccessful.
+   RED = 2;
+  }
+
+  required uint32 id = 1;
+
+  optional State state = 2;
+
+  // This field will not be populated if `state` is `GREEN`.
+  optional uint32 consecutive_failures = 4;
+
+  // Command exit code, HTTP status code, or TCP handshake return code.
+  optional uint32 code = 5;
+
+  optional string message = 6;
+
+  // For custom executors, built-in executors do not set this field.
+  optional bytes data = 7;
+
+  // These labels are copied from the health check definition in `TaskInfo`
+  // and serve to distinguish among status updates from different checks.
+  optional Labels labels = 3;
 }
 
 
@@ -1460,7 +1500,15 @@ message TaskInfo {
   // A health check for the task. Implemented for executor-less
   // command-based tasks. For tasks that specify an executor, it is
   // the executor's responsibility to implement the health checking.
+  //
+  // NOTE: This field is deprecated in favor of `probes`. Setting both
+  // `health_check` and `probes` is prohibited.
   optional HealthCheck health_check = 8;
+
+  // NOTE: Order matters!
+  //
+  // NOTE: Setting both `health_check` and `probes` is prohibited.
+  repeated HealthCheck probes = 13;
 
   // A kill policy for the task. Implemented for executor-less
   // command-based and docker tasks. For tasks that specify an
@@ -1688,7 +1736,17 @@ message TaskStatus {
   // Describes whether the task has been determined to be healthy
   // (true) or unhealthy (false) according to the HealthCheck field in
   // the command info.
-  optional bool healthy = 8;
+  //
+  // NOTE: Deprecated in favor of a more verbose `probe_status`. If
+  // `probe_status` is set, this field is also set accordingly.
+  optional bool healthy = 8 [deprecated = true];
+
+  // Contains status update from a single probe. Status updates from
+  // different probes of a single task are delivered in separate task
+  // status updates.
+  //
+  // TDOD(alexr): Upgrade to repeated for optimization purposes.
+  optional ProbeStatusInfo probe_status = 15;
 
   // Labels are free-form key value pairs which are exposed through
   // master and slave endpoints. Labels will not be interpreted or
