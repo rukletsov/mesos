@@ -459,6 +459,65 @@ message HealthCheck {
 
 
 /**
+ * Describes a probe for a task or executor (or any arbitrary
+ * process/command). A type is picked by specifying one of the
+ * optional fields. Specifying more than one type is an error.
+ *
+ * <...>
+ */
+message ProbeInfo {
+  enum Type {
+    UNKNOWN = 0;
+    COMMAND = 1;
+    HTTP = 2;
+  }
+
+  // Describes an HTTP probe. Sends a GET request to
+  // scheme://<host>:port/path. Note that <host> is not configurable and is
+  // resolved automatically, in most cases to 127.0.0.1.
+  message HTTPCheckInfo {
+    // Currently "http" and "https" are supported.
+    optional string scheme = 3;
+
+    // Port to send the HTTP request.
+    required uint32 port = 1;
+
+    // HTTP request path.
+    optional string path = 2;
+
+    // TODO(alexr): Add support for HTTP method. While adding POST
+    // and PUT is simple, supporting payload is more involved.
+
+    // TODO(alexr): Add support for custom HTTP headers.
+
+    // TODO(haosdent): Consider adding a flag to enable task's certificate
+    // validation for HTTPS probes, see MESOS-5997.
+  }
+
+  optional Type type = 1;
+
+  // Command probe.
+  optional CommandInfo command = 2;
+
+  // HTTP probe.
+  optional HTTPCheckInfo http = 3;
+
+  // Amount of time to wait until starting probing the task.
+  optional double delay_seconds = 4 [default = 15.0];
+
+  // Interval between probe attempts.
+  optional double interval_seconds = 5 [default = 10.0];
+
+  // Amount of time to wait for the probe to complete. After this
+  // timeout, the probe attempt is aborted and empty result is
+  // reported. Note that this is considered a state change if the
+  // previous result was not empty and hence may trigger a probe
+   // status change delivery to the corresponding scheduler.
+  optional double timeout_seconds = 6 [default = 20.0];
+}
+
+
+/**
  * Describes a kill policy for a task. Currently does not express
  * different policies (e.g. hitting HTTP endpoints), only controls
  * how long to wait between graceful and forcible task kill:
@@ -1461,6 +1520,12 @@ message TaskInfo {
   // the executor's responsibility to implement the health checking.
   optional HealthCheck health_check = 8;
 
+  // A probe for the task. Implemented for all built-in executors. For
+  // tasks that specify an executor, it is the executor's responsibility
+  // to implement probing support. Executors must not react on probe's
+  // result.
+  optional ProbeInfo probe = 13;
+
   // A kill policy for the task. Implemented for executor-less
   // command-based and docker tasks. For tasks that specify an
   // executor, it is the executor's responsibility to implement
@@ -1614,6 +1679,37 @@ enum TaskState {
 
 
 /**
+ * Describes the status of a health check. An empty message means that the
+ * status is currently not available, for example, due to the health check
+ * being in a grace period.
+ */
+message HealthStatusInfo {
+  // Contains either command exit code, HTTP status code, or TCP handshake
+  // return code.
+  optional int32 state = 1;
+
+  // Executor must decide locally whether the task is healthy or not based
+  // on the health check specification in corresponding `TaskInfo`.
+  optional bool healthy = 2;
+
+  // This field tells how many times the health check failed consecutively.
+  // It is particularly useful after scheduler failover or disconnect if the
+  // task killing decision is delegated to the scheduler.
+  optional uint32 consecutive_failures = 3;
+}
+
+
+/**
+ * Describes the status of a probe. An empty message means that the status
+ * is currently not available, for example, due to the timed out probe.
+ */
+message ProbeStatusInfo {
+  // Contains either command exit code or HTTP status code.
+  optional int32 state = 1;
+}
+
+
+/**
  * Describes the current status of a task.
  */
 message TaskStatus {
@@ -1686,7 +1782,30 @@ message TaskStatus {
 
   // Describes whether the task has been determined to be healthy (true) or
   // unhealthy (false) according to the `health_check` field in `TaskInfo`.
+  //
+  // NOTE: This field will be deprecated in favor of a more verbose
+  // `health_status` starting from 2.0.
   optional bool healthy = 8;
+
+  // Contains health status for the health check specified in corresponding
+  // `TaskInfo`. If no health check has been specified, this field must be
+  // absent, otherwise it must be present even if the health status is not
+  // available yet.
+  //
+  // NOTE: A task status update must be sent if:
+  // 1) The health check fails, regardless of the previous value of
+  //    `HealthStatusInfo.healthy`.
+  // 2) the value or presence of the `HealthStatusInfo.healthy` field changes.
+  optional HealthStatusInfo health_status = 15;
+
+  // Contains probe status for the probe specified in corresponding
+  // `TaskInfo`. If no probe has been specified, this field must be
+  // absent, otherwise it must be present even if the probe status is
+  // not available yet.
+  //
+  // NOTE: A task status update must be sent if and only if the value or
+  // presence of the `ProbeStatusInfo.state` field changes.
+  optional ProbeStatusInfo probe_status = 16;
 
   // Labels are free-form key value pairs which are exposed through
   // master and agent endpoints. Labels will not be interpreted or
