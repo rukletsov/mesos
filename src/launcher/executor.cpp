@@ -61,6 +61,7 @@
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 
+#include "checks/checker.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
@@ -280,6 +281,9 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), healthStatus.task_id());
+
     // This check prevents us from sending `TASK_RUNNING` updates
     // after the task has been transitioned to `TASK_KILLING`.
     if (killed || terminated) {
@@ -297,7 +301,25 @@ protected:
     }
   }
 
-  void doReliableRegistration()
+  void taskCheckUpdated(
+      const TaskID& _taskId,
+      const CheckStatusInfo& checkStatus)
+  {
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), _taskId);
+
+    // This check prevents us from sending `TASK_RUNNING` updates
+    // after the task has been transitioned to `TASK_KILLING`.
+    if (killed || terminated) {
+      return;
+    }
+
+    cout << "Received check update";
+
+    update(_taskId, TASK_RUNNING, None(), None(), checkStatus);
+  }
+
+    void doReliableRegistration()
   {
     if (state == SUBSCRIBED || state == DISCONNECTED) {
       return;
@@ -443,6 +465,35 @@ protected:
              << _checker.error() << endl;
       } else {
         checker = _checker.get();
+      }
+    }
+
+    if (task->has_check()) {
+      vector<string> namespaces;
+      if (rootfs.isSome() &&
+          task->check().type() == CheckInfo::COMMAND) {
+        // Make sure command checks are run from the task's mount namespace.
+        // Otherwise if rootfs is specified the command binary may not be
+        // available in the executor.
+        //
+        // NOTE: The command executor shares the network namespace
+        // with its task, hence no need to enter it explicitly.
+        namespaces.push_back("mnt");
+      }
+
+      Try<Owned<checks::Checker>> _checker =
+        checks::Checker::create(
+            task->check(),
+            defer(self(), &Self::taskCheckUpdated, lambda::_1, lambda::_2),
+            task->task_id(),
+            pid,
+            namespaces);
+
+      if (_checker.isError()) {
+        // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
+        cerr << "Failed to create checker: " << _checker.error() << endl;
+      } else {
+        checker2 = _checker.get();
       }
     }
 
@@ -708,7 +759,8 @@ private:
       const TaskID& _taskId,
       const TaskState& state,
       const Option<bool>& healthy = None(),
-      const Option<string>& message = None())
+      const Option<string>& message = None(),
+      const Option<CheckStatusInfo>& checkStatus = None())
   {
     UUID uuid = UUID::random();
 
@@ -727,6 +779,10 @@ private:
 
     if (message.isSome()) {
       status.set_message(message.get());
+    }
+
+    if (checkStatus.isSome()) {
+      status.mutable_check_status()->CopyFrom(checkStatus.get());
     }
 
     Call call;
@@ -798,6 +854,7 @@ private:
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
   Option<TaskInfo> task; // Unacknowledged task.
   Owned<checks::HealthChecker> checker;
+  Owned<checks::Checker> checker2;
 };
 
 } // namespace internal {
