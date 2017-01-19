@@ -502,6 +502,19 @@ protected:
           CHECK_SOME(resources);
 
           _task.mutable_resources()->CopyFrom(resources.get());
+
+
+          CheckInfo check;
+          check.set_type(CheckInfo::HTTP);
+          check.mutable_http()->set_port(8888);
+          check.set_delay_seconds(0.5);
+          check.set_interval_seconds(1);
+          check.set_timeout_seconds(2);
+
+          _task.mutable_check()->CopyFrom(check);
+
+
+
         } else {
           foreach (TaskInfo _task, taskGroup->tasks()) {
               _task.mutable_agent_id()->MergeFrom(offer.agent_id());
