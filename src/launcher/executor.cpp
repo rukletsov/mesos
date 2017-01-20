@@ -139,6 +139,7 @@ public:
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
+      lastTaskStatusUpdate(None()),
       task(None())
   {
 #ifdef __WINDOWS__
@@ -293,7 +294,7 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
-    update(healthStatus.task_id(), TASK_RUNNING, healthStatus.healthy());
+    updateParts(None(), healthStatus.healthy(), None());
 
     if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
@@ -316,7 +317,8 @@ protected:
 
     cout << "Received check update";
 
-    update(_taskId, TASK_RUNNING, None(), None(), checkStatus);
+    updateParts(
+        TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED, None(), checkStatus);
   }
 
     void doReliableRegistration()
@@ -706,7 +708,7 @@ private:
     CHECK_SOME(taskId);
 
     if (killed && killedByHealthCheck) {
-      update(taskId.get(), taskState, false, message);
+      update(taskId.get(), taskState, None(), message, false);
     } else {
       update(taskId.get(), taskState, None(), message);
     }
@@ -755,12 +757,16 @@ private:
     }
   }
 
+  // NOTE: Health updates should in general reuse the previously sent
+  // message. However, if the task is terminated due to a health check,
+  // we send a terminal status update with `TaskStatus.healthy` set to
+  // false.
   void update(
       const TaskID& _taskId,
       const TaskState& state,
-      const Option<bool>& healthy = None(),
+      const Option<TaskState::Reason>& reason = None(),
       const Option<string>& message = None(),
-      const Option<CheckStatusInfo>& checkStatus = None())
+      const Option<bool>& healthy = None())
   {
     UUID uuid = UUID::random();
 
@@ -773,18 +779,53 @@ private:
     status.set_uuid(uuid.toBytes());
     status.set_timestamp(Clock::now().secs());
 
-    if (healthy.isSome()) {
-      status.set_healthy(healthy.get());
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
     }
 
     if (message.isSome()) {
       status.set_message(message.get());
     }
 
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    sendTaskStatusUpdate(status);
+  }
+
+  // This function creates a task status update from the previous update.
+  void updateParts(
+      const Option<TaskState::Reason>& reason = None(),
+      const Option<bool>& healthy = None(),
+      const Option<CheckStatusInfo>& checkStatus = None())
+  {
+    CHECK_SOME(lastTaskStatusUpdate);
+
+    TaskStatus status;
+    status.CopyFrom(lastTaskStatusUpdate.get());
+
+    UUID uuid = UUID::random();
+    status.set_uuid(uuid.toBytes());
+    status.set_timestamp(Clock::now().secs());
+
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
+    }
+
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
     if (checkStatus.isSome()) {
       status.mutable_check_status()->CopyFrom(checkStatus.get());
     }
 
+    sendTaskStatusUpdate(status);
+  }
+
+  void sendTaskStatusUpdate(const TaskStatus& status)
+  {
     Call call;
     call.set_type(Call::UPDATE);
 
@@ -794,7 +835,10 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    updates[uuid] = call.update();
+    updates[status.uuid()] = call.update();
+
+    // Rewrite the last status update.
+    lastTaskStatusUpdate = status;
 
     mesos->send(evolve(call));
   }
@@ -852,6 +896,7 @@ private:
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
   LinkedHashMap<UUID, Call::Update> updates; // Unacknowledged updates.
+  Option<TaskStatus> lastTaskStatusUpdate;
   Option<TaskInfo> task; // Unacknowledged task.
   Owned<checks::HealthChecker> checker;
   Owned<checks::Checker> checker2;
