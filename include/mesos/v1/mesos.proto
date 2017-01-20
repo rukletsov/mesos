@@ -1763,6 +1763,11 @@ message CheckStatusInfo {
 
 /**
  * Describes the current status of a task.
+ *
+ * A task status update may be used for guaranteed delivery of some
+ * task-related information, e.g., task's health update. Such information
+ * may be shadowed by subsequent task status updates, that do not preserve
+ * fields of the previously sent message.
  */
 message TaskStatus {
   // Describes the source of the task status update.
