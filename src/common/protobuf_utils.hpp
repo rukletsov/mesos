@@ -91,6 +91,27 @@ StatusUpdate createStatusUpdate(
     const Option<SlaveID>& slaveId);
 
 
+// A task status update may be used for guaranteed delivery of some
+// task-related information, e.g., task's health update. In this case,
+// it is often desirable to preserve specific fields from the previous
+// status update to avoid shadowing information that was delivered
+// previously. Fields `task_id`, `slave_id`, `executor_id`, cannot be
+// changed; fields `timestamp` and `uuid` cannot be preserved.
+TaskStatus mergeWithTaskStatus(
+    TaskStatus taskStatus,
+    const double& timestamp,
+    const Option<TaskState>& state = None(),
+    const Option<std::string>& message = None(),
+    const Option<TaskStatus::Source>& source = None(),
+    const Option<TaskStatus::Reason>& reason = None(),
+    const Option<std::string>& data = None(),
+    const Option<bool>& healthy = None(),
+    const Option<CheckStatusInfo>& checkStatus = None(),
+    const Option<Labels>& labels = None(),
+    const Option<ContainerStatus>& containerStatus = None(),
+    const Option<TimeInfo>& unreachableTime = None());
+
+
 Task createTask(
     const TaskInfo& task,
     const TaskState& state,
