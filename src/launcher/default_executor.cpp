@@ -635,11 +635,8 @@ protected:
       deserialize<agent::Response>(contentType, response->body);
     CHECK_SOME(waitResponse);
 
-    // If the task has been health checked, stop the associated checker.
-    //
-    // TODO(alexr): Once we support `TASK_KILLING` in this executor, health
-    // checking should be stopped right before sending the `TASK_KILLING`
-    // update to avoid subsequent `TASK_RUNNING` updates.
+    // If the task is health checked, stop the associated health checker
+    // to avoid sending health updates after a terminal status update.
     if (container->healthChecker.isSome()) {
       CHECK_NOTNULL(container->healthChecker->get());
       container->healthChecker->get()->stop();
@@ -671,9 +668,9 @@ protected:
     }
 
     if (unhealthy) {
-      update(taskId, taskState, message, false);
+      update(taskId, taskState, None(), message, false);
     } else {
-      update(taskId, taskState, message, None());
+      update(taskId, taskState, None(), message);
     }
 
     CHECK(containers.contains(taskId));
@@ -875,9 +872,12 @@ protected:
   {
     CHECK(containers.contains(healthStatus.task_id()));
 
-    // This prevents us from sending `TASK_RUNNING` after a terminal status
-    // update, because we may receive an update from a health check scheduled
-    // before the task has been waited on.
+    // This prevents us from sending health updates after a terminal
+    // status update, because we may receive an update from a health
+    // check scheduled before the task has been waited on.
+    //
+    // TODO(alexr): Once we support `TASK_KILLING` in this executor,
+    // consider sending health updates after `TASK_KILLING`.
     if (containers.at(healthStatus.task_id())->healthChecker.isNone()) {
       return;
     }
@@ -886,8 +886,8 @@ protected:
               << " '" << healthStatus.task_id() << "', task is "
               << (healthStatus.healthy() ? "healthy" : "not healthy");
 
-    update(
-        healthStatus.task_id(), TASK_RUNNING, None(), healthStatus.healthy());
+    bootstrappedUpdate(
+        healthStatus.task_id(), None(), healthStatus.healthy());
 
     if (healthStatus.kill_task()) {
       unhealthy = true;
@@ -896,9 +896,17 @@ protected:
   }
 
 private:
+  // Use this helper if you want status update to be created from scratch,
+  // i.e., without previously attached extra information like `data` or
+  // `check_status`.
+  //
+  // NOTE: Health updates should in general use `bootstrappedUpdate()`.
+  // However, if the task is terminated due to a health check, we send
+  // a terminal status update with `TaskStatus.healthy` set to false.
   void update(
       const TaskID& taskId,
       const TaskState& state,
+      const Option<TaskStatus::Reason>& reason = None(),
       const Option<string>& message = None(),
       const Option<bool>& healthy = None())
   {
@@ -912,6 +920,10 @@ private:
 
     status.mutable_executor_id()->CopyFrom(executorId);
     status.set_source(TaskStatus::SOURCE_EXECUTOR);
+
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
+    }
 
     if (message.isSome()) {
       status.set_message(message.get());
@@ -928,6 +940,40 @@ private:
     ContainerStatus* containerStatus = status.mutable_container_status();
     containerStatus->mutable_container_id()->CopyFrom(container->containerId);
 
+    forward(status);
+  }
+
+  // Use this helper if you want status update to be created from the
+  // previous status update. This preserves previously attached information,
+  // e.g., `check_status` or `data`, except those you change explicitly.
+  void bootstrappedUpdate(
+      const TaskID& taskId,
+      const Option<TaskStatus::Reason>& reason = None(),
+      const Option<bool>& healthy = None())
+  {
+    CHECK(lastTaskStatuses.contains(taskId));
+    TaskStatus lastTaskStatus = lastTaskStatuses[taskId];
+
+    TaskStatus status;
+    status.CopyFrom(lastTaskStatus);
+
+    UUID uuid = UUID::random();
+    status.set_uuid(uuid.toBytes());
+    status.set_timestamp(Clock::now().secs());
+
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
+    }
+
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    forward(status);
+  }
+
+  void forward(const TaskStatus& status)
+  {
     Call call;
     call.set_type(Call::UPDATE);
 
@@ -938,6 +984,9 @@ private:
 
     // Capture the status update.
     unacknowledgedUpdates[status.uuid()] = call.update();
+
+    // Rewrite the last task status.
+    lastTaskStatuses[status.task_id()] = status;
 
     mesos->send(evolve(call));
   }
@@ -1048,6 +1097,7 @@ private:
   const ::URL agent; // Agent API URL.
   const string sandboxDirectory;
   const string launcherDirectory;
+  LinkedHashMap<TaskID, TaskStatus> lastTaskStatuses;
 
   LinkedHashMap<string, Call::Update> unacknowledgedUpdates;
 
