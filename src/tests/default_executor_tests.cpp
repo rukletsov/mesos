@@ -170,14 +170,23 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   EXPECT_NE(0, offers->offers().size());
 
   Future<v1::scheduler::Event::Update> update;
+  Future<v1::scheduler::Event::Update> updateCheck;
   EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&update));
+    .WillOnce(FutureArg<1>(&update))
+    .WillOnce(FutureArg<1>(&updateCheck));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());
 
   v1::TaskInfo taskInfo =
     evolve(createTask(slaveId, resources, SLEEP_COMMAND(1000)));
+
+  mesos::v1::CheckInfo checkInfo;
+  checkInfo.set_type(mesos::v1::CheckInfo::HTTP);
+  checkInfo.mutable_http()->set_port(8881);
+  checkInfo.set_delay_seconds(1);
+  checkInfo.set_interval_seconds(0);
+  taskInfo.mutable_check()->CopyFrom(checkInfo);
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
@@ -208,6 +217,23 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().has_timestamp());
 
+  // Acknowledge.
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACKNOWLEDGE);
+
+    Call::Acknowledge* acknowledge = call.mutable_acknowledge();
+
+    acknowledge->mutable_task_id()->CopyFrom(
+        update->status().task_id());
+
+    acknowledge->mutable_agent_id()->CopyFrom(offer.agent_id());
+    acknowledge->set_uuid(update->status().uuid());
+
+    mesos.send(call);
+  }
+
   // Ensure that the task sandbox symbolic link is created.
   EXPECT_TRUE(os::exists(path::join(
       slave::paths::getExecutorLatestRunPath(
@@ -236,6 +262,13 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   EXPECT_SOME_EQ(
       JSON::String(ExecutorInfo::Type_Name(executorInfo.type())),
       state.find<JSON::String>("frameworks[0].executors[0].type"));
+
+  AWAIT_READY(updateCheck);
+
+  ASSERT_EQ(TASK_RUNNING, updateCheck->status().state());
+  EXPECT_EQ(taskInfo.task_id(), updateCheck->status().task_id());
+  EXPECT_TRUE(updateCheck->status().has_check_status());
+  EXPECT_EQ(200, updateCheck->status().check_status().http().status_code());
 }
 
 
