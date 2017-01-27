@@ -143,7 +143,8 @@ public:
       capabilities(_capabilities),
       frameworkId(_frameworkId),
       executorId(_executorId),
-      unacknowledgedTask(None())
+      unacknowledgedTask(None()),
+      lastTaskStatus(None())
   {
 #ifdef __WINDOWS__
     processHandle = INVALID_HANDLE_VALUE;
@@ -290,8 +291,11 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
-    // This check prevents us from sending `TASK_RUNNING` updates
-    // after the task has been transitioned to `TASK_KILLING`.
+    // This prevents us from sending health updates after a terminal
+    // status update, because we may receive an update from a health
+    // check scheduled before the task has been reaped.
+    //
+    // TODO(alexr): Consider sending health updates after TASK_KILLING.
     if (killed || terminated) {
       return;
     }
@@ -299,7 +303,7 @@ protected:
     cout << "Received task health update, healthy: "
          << stringify(healthStatus.healthy()) << endl;
 
-    update(healthStatus.task_id(), TASK_RUNNING, healthStatus.healthy());
+    bootstrappedUpdate(None(), healthStatus.healthy());
 
     if (healthStatus.kill_task()) {
       killedByHealthCheck = true;
@@ -692,7 +696,7 @@ private:
     CHECK_SOME(taskId);
 
     if (killed && killedByHealthCheck) {
-      update(taskId.get(), taskState, false, message);
+      update(taskId.get(), taskState, None(), message, false);
     } else {
       update(taskId.get(), taskState, None(), message);
     }
@@ -741,11 +745,19 @@ private:
     }
   }
 
+  // Use this helper if you want status update to be created from scratch,
+  // i.e., without previously attached extra information like `data` or
+  // `check_status`.
+  //
+  // NOTE: Health updates should in general use `bootstrappedUpdate()`.
+  // However, if the task is terminated due to a health check, we send
+  // a terminal status update with `TaskStatus.healthy` set to false.
   void update(
       const TaskID& _taskId,
       const TaskState& state,
-      const Option<bool>& healthy = None(),
-      const Option<string>& message = None())
+      const Option<TaskStatus::Reason>& reason = None(),
+      const Option<string>& message = None(),
+      const Option<bool>& healthy = None())
   {
     UUID uuid = UUID::random();
 
@@ -758,14 +770,50 @@ private:
     status.set_uuid(uuid.toBytes());
     status.set_timestamp(Clock::now().secs());
 
-    if (healthy.isSome()) {
-      status.set_healthy(healthy.get());
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
     }
 
     if (message.isSome()) {
       status.set_message(message.get());
     }
 
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    forward(status);
+  }
+
+  // Use this helper if you want status update to be created from the
+  // previous status update. This preserves previously attached information,
+  // e.g., `check_status` or `data`, except those you change explicitly.
+  void bootstrappedUpdate(
+      const Option<TaskStatus::Reason>& reason = None(),
+      const Option<bool>& healthy = None())
+  {
+    CHECK_SOME(lastTaskStatus);
+
+    TaskStatus status;
+    status.CopyFrom(lastTaskStatus.get());
+
+    UUID uuid = UUID::random();
+    status.set_uuid(uuid.toBytes());
+    status.set_timestamp(Clock::now().secs());
+
+    if (reason.isSome()) {
+      status.set_reason(reason.get());
+    }
+
+    if (healthy.isSome()) {
+      status.set_healthy(healthy.get());
+    }
+
+    forward(status);
+  }
+
+  void forward(const TaskStatus& status)
+  {
     Call call;
     call.set_type(Call::UPDATE);
 
@@ -776,6 +824,9 @@ private:
 
     // Capture the status update.
     unacknowledgedUpdates[status.uuid()] = call.update();
+
+    // Rewrite the last task status.
+    lastTaskStatus = status;
 
     mesos->send(evolve(call));
   }
@@ -839,6 +890,8 @@ private:
   // `None` if there is either no task yet or no status
   // update acknowledgements have been received yet.
   Option<TaskInfo> unacknowledgedTask;
+
+  Option<TaskStatus> lastTaskStatus;
 
   Owned<checks::HealthChecker> checker;
 };
