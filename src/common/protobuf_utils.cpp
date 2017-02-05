@@ -277,6 +277,32 @@ Option<CheckStatusInfo> getTaskCheckStatus(const Task& task)
 }
 
 
+CheckStatusInfo createEmptyCheckStatusInfo(const CheckInfo& checkInfo)
+{
+  CheckStatusInfo status;
+
+  status.set_type(checkInfo.type());
+
+  switch (status.type()) {
+    case CheckInfo::COMMAND: {
+      status.mutable_command();
+      break;
+    }
+
+    case CheckInfo::HTTP: {
+      status.mutable_http();
+      break;
+    }
+
+    default: {
+      UNREACHABLE();
+    }
+  }
+
+  return status;
+}
+
+
 Option<ContainerStatus> getTaskContainerStatus(const Task& task)
 {
   // The statuses list only keeps the most recent TaskStatus for
