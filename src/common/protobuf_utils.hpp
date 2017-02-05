@@ -104,6 +104,11 @@ Option<bool> getTaskHealth(const Task& task);
 Option<CheckStatusInfo> getTaskCheckStatus(const Task& task);
 
 
+// Helper function that creates a valid `CheckStatusInfo` message with no
+// data corresponding to the given `CheckInfo`.
+CheckStatusInfo createEmptyCheckStatusInfo(const CheckInfo& checkInfo);
+
+
 Option<ContainerStatus> getTaskContainerStatus(const Task& task);
 
 
