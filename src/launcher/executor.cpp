@@ -209,7 +209,12 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
-        const UUID uuid = UUID::fromBytes(event.acknowledged().uuid()).get();
+        const string uuid = event.acknowledged().uuid();
+
+        if (!unacknowledgedUpdates.contains(uuid)) {
+          LOG(WARNING) << "Received acknowledgement for unknown status update";
+          return;
+        }
 
         // Terminate if we receive the ACK for the terminal status update.
         // NOTE: The executor receives an ACK iff it uses the HTTP library.
@@ -770,7 +775,7 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    unacknowledgedUpdates[uuid] = call.update();
+    unacknowledgedUpdates[status.uuid()] = call.update();
 
     mesos->send(evolve(call));
   }
@@ -829,7 +834,7 @@ private:
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
 
-  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+  LinkedHashMap<string, Call::Update> unacknowledgedUpdates;
 
   // `None` if there is either no task yet or no status
   // update acknowledgements have been received yet.
