@@ -196,9 +196,13 @@ public:
       }
 
       case Event::ACKNOWLEDGED: {
+        if (!unacknowledgedUpdates.contains(event.acknowledged().uuid())) {
+          LOG(WARNING) << "Received acknowledgement for unknown status update";
+          return;
+        }
+
         // Remove the corresponding update.
-        unacknowledgedUpdates.erase(
-            UUID::fromBytes(event.acknowledged().uuid()).get());
+        unacknowledgedUpdates.erase(event.acknowledged().uuid());
 
         // Remove the corresponding task.
         unacknowledgedTasks.erase(event.acknowledged().task_id());
@@ -933,7 +937,7 @@ private:
     call.mutable_update()->mutable_status()->CopyFrom(status);
 
     // Capture the status update.
-    unacknowledgedUpdates[uuid] = call.update();
+    unacknowledgedUpdates[status.uuid()] = call.update();
 
     mesos->send(evolve(call));
   }
@@ -1045,7 +1049,7 @@ private:
   const string sandboxDirectory;
   const string launcherDirectory;
 
-  LinkedHashMap<UUID, Call::Update> unacknowledgedUpdates;
+  LinkedHashMap<string, Call::Update> unacknowledgedUpdates;
 
   // A task is considered unacknowledged if no status update
   // acknowledgements have been received for it yet.
