@@ -43,9 +43,11 @@
 #include <stout/os.hpp>
 #include <stout/uuid.hpp>
 
+#include "checks/checker.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/status_utils.hpp"
 
 #include "internal/devolve.hpp"
@@ -87,6 +89,9 @@ private:
     ContainerID containerId;
     TaskID taskId;
     TaskGroupInfo taskGroup; // Task group of the child container.
+
+    // Checker for a container.
+    Option<Owned<checks::Checker>> checker;
 
     // Health checker for the container.
     Option<Owned<checks::HealthChecker>> healthChecker;
@@ -408,7 +413,30 @@ protected:
 
       unacknowledgedTasks[taskId] = task;
       containers[taskId] = Owned<Container>(new Container
-        {containerId, taskId, taskGroup, None(), None(), false, false});
+        {containerId, taskId, taskGroup, None(), None(), None(), false, false});
+
+      if (task.has_check()) {
+        // TODO(alexr): Add support for command checks.
+        CHECK_NE(CheckInfo::COMMAND, task.check().type())
+          << "Command checks are not supported yet";
+
+        Try<Owned<checks::Checker>> _checker =
+          checks::Checker::create(
+              task.check(),
+              defer(self(), &Self::taskCheckUpdated, lambda::_1, lambda::_2),
+              taskId,
+              None(),
+              vector<string>());
+
+        if (_checker.isError()) {
+          // TODO(anand): Should we send a TASK_FAILED instead?
+          LOG(ERROR) << "Failed to create checker: " << _checker.error();
+          _shutdown();
+          return;
+        }
+
+        containers.at(taskId)->checker = _checker.get();
+      }
 
       if (task.has_health_check()) {
         // TODO(anand): Add support for command health checks.
@@ -634,6 +662,14 @@ protected:
       deserialize<agent::Response>(contentType, response->body);
     CHECK_SOME(waitResponse);
 
+    // If there is an associated checker with the task, stop it to
+    // avoid sending check updates after a terminal status update.
+    if (container->checker.isSome()) {
+      CHECK_NOTNULL(container->checker->get());
+      container->checker->get()->stop();
+      container->checker = None();
+    }
+
     // If the task is health checked, stop the associated health checker
     // to avoid sending health updates after a terminal status update.
     if (container->healthChecker.isSome()) {
@@ -809,6 +845,16 @@ protected:
     CHECK(!container->killing);
     container->killing = true;
 
+    // If the task is checked, stop the associated checker.
+    //
+    // TODO(alexr): Once we support `TASK_KILLING` in this executor,
+    // consider continuing checking the task after sending `TASK_KILLING`.
+    if (container->checker.isSome()) {
+      CHECK_NOTNULL(container->checker->get());
+      container->checker->get()->stop();
+      container->checker = None();
+    }
+
     // If the task is health checked, stop the associated health checker.
     //
     // TODO(alexr): Once we support `TASK_KILLING` in this executor,
@@ -863,6 +909,31 @@ protected:
     }
 
     kill(container);
+  }
+
+  void taskCheckUpdated(
+      const TaskID& taskId,
+      const CheckStatusInfo& checkStatus)
+  {
+    CHECK(containers.contains(taskId));
+
+    // This prevents us from sending check updates after a terminal
+    // status update, because we may receive an update from a check
+    // scheduled before the task has been waited on.
+    //
+    // TODO(alexr): Once we support `TASK_KILLING` in this executor,
+    // consider sending check updates after `TASK_KILLING`.
+    if (containers.at(taskId)->checker.isNone()) {
+      return;
+    }
+
+    LOG(INFO) << "Received check update for task '" << taskId << "'";
+
+    bootstrappedUpdate(
+        taskId,
+        TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        None(),
+        checkStatus);
   }
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
@@ -930,6 +1001,16 @@ private:
       status.set_healthy(healthy.get());
     }
 
+    // If a check for the task has been defined, `check_status` field in each
+    // task status must be set to a valid `CheckStatusInfo` message even if
+    // there is no check status available yet.
+    if (unacknowledgedTasks.contains(taskId) &&
+        unacknowledgedTasks[taskId].has_check()) {
+      status.mutable_check_status()->CopyFrom(
+          protobuf::createEmptyCheckStatusInfo(
+              unacknowledgedTasks[taskId].check()));
+    }
+
     // Fill the container ID associated with this task.
     CHECK(containers.contains(taskId));
     const Owned<Container>& container = containers.at(taskId);
@@ -946,7 +1027,8 @@ private:
   void bootstrappedUpdate(
       const TaskID& taskId,
       const Option<TaskStatus::Reason>& reason = None(),
-      const Option<bool>& healthy = None())
+      const Option<bool>& healthy = None(),
+      const Option<CheckStatusInfo>& checkStatus = None())
   {
     CHECK(lastTaskStatuses.contains(taskId));
     TaskStatus lastTaskStatus = lastTaskStatuses[taskId];
@@ -964,6 +1046,10 @@ private:
 
     if (healthy.isSome()) {
       status.set_healthy(healthy.get());
+    }
+
+    if (checkStatus.isSome()) {
+      status.mutable_check_status()->CopyFrom(checkStatus.get());
     }
 
     forward(status);
