@@ -89,6 +89,9 @@ private:
     TaskID taskId;
     TaskGroupInfo taskGroup; // Task group of the child container.
 
+    // Health checker for the container.
+    Option<Owned<checks::HealthChecker>> healthChecker;
+
     // Connection used for waiting on the child container. It is possible
     // that a container is active but a connection for sending the
     // `WAIT_NESTED_CONTAINER` call has not been established yet.
@@ -401,15 +404,15 @@ protected:
       const TaskID& taskId = task.task_id();
 
       unacknowledgedTasks[taskId] = task;
-      containers[taskId] = Owned<Container>(
-          new Container {containerId, taskId, taskGroup, None(), false, false});
+      containers[taskId] = Owned<Container>(new Container
+        {containerId, taskId, taskGroup, None(), None(), false, false});
 
       if (task.has_health_check()) {
         // TODO(anand): Add support for command health checks.
         CHECK_NE(HealthCheck::COMMAND, task.health_check().type())
           << "Command health checks are not supported yet";
 
-        Try<Owned<checks::HealthChecker>> _checker =
+        Try<Owned<checks::HealthChecker>> _healthChecker =
           checks::HealthChecker::create(
               task.health_check(),
               launcherDirectory,
@@ -418,15 +421,15 @@ protected:
               None(),
               vector<string>());
 
-        if (_checker.isError()) {
+        if (_healthChecker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?
           LOG(ERROR) << "Failed to create health checker: "
-                     << _checker.error();
+                     << _healthChecker.error();
           _shutdown();
           return;
         }
 
-        checkers[taskId] = _checker.get();
+        containers.at(taskId)->healthChecker = _healthChecker.get();
       }
 
       // Currently, the Mesos agent does not expose the mapping from
@@ -633,10 +636,10 @@ protected:
     // TODO(alexr): Once we support `TASK_KILLING` in this executor, health
     // checking should be stopped right before sending the `TASK_KILLING`
     // update to avoid subsequent `TASK_RUNNING` updates.
-    if (checkers.contains(taskId)) {
-      CHECK_NOTNULL(checkers.at(taskId).get());
-      checkers.at(taskId)->stop();
-      checkers.erase(taskId);
+    if (container->healthChecker.isSome()) {
+      CHECK_NOTNULL(container->healthChecker->get());
+      container->healthChecker->get()->stop();
+      container->healthChecker = None();
     }
 
     TaskState taskState;
@@ -740,12 +743,6 @@ protected:
 
     shuttingDown = true;
 
-    // Stop health checking all tasks because we are shutting down.
-    foreach (const Owned<checks::HealthChecker>& checker, checkers.values()) {
-      checker->stop();
-    }
-    checkers.clear();
-
     if (!launched) {
       _shutdown();
       return;
@@ -814,6 +811,16 @@ protected:
     CHECK(!container->killing);
     container->killing = true;
 
+    // If the task is health checked, stop the associated health checker.
+    //
+    // TODO(alexr): Once we support `TASK_KILLING` in this executor,
+    // consider health checking the task after sending `TASK_KILLING`.
+    if (container->healthChecker.isSome()) {
+      CHECK_NOTNULL(container->healthChecker->get());
+      container->healthChecker->get()->stop();
+      container->healthChecker = None();
+    }
+
     LOG(INFO) << "Killing child container " << container->containerId;
 
     agent::Call call;
@@ -862,10 +869,12 @@ protected:
 
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
+    CHECK(containers.contains(healthStatus.task_id()));
+
     // This prevents us from sending `TASK_RUNNING` after a terminal status
     // update, because we may receive an update from a health check scheduled
     // before the task has been waited on.
-    if (!checkers.contains(healthStatus.task_id())) {
+    if (containers.at(healthStatus.task_id())->healthChecker.isNone()) {
       return;
     }
 
@@ -1051,9 +1060,6 @@ private:
   // the stale instance. We initialize this to a new value upon receiving
   // a `connected()` callback.
   Option<UUID> connectionId;
-
-  // TODO(anand): Move the health checker information to the `Container` struct.
-  hashmap<TaskID, Owned<checks::HealthChecker>> checkers; // Health checkers.
 };
 
 } // namespace internal {
