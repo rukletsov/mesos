@@ -62,6 +62,7 @@
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 
+#include "checks/checker.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
@@ -289,6 +290,41 @@ protected:
     }
   }
 
+  void taskCheckUpdated(
+      const TaskID& _taskId,
+      const CheckStatusInfo& checkStatus)
+  {
+    CHECK_SOME(taskId);
+    CHECK_EQ(taskId.get(), _taskId);
+
+    // This prevents us from sending check updates after a terminal
+    // status update, because we may receive an update from a check
+    // scheduled before the task has been reaped.
+    //
+    // TODO(alexr): Consider sending check updates after TASK_KILLING.
+    if (killed || terminated) {
+      return;
+    }
+
+    cout << "Received check update" << endl;
+
+    // Use the previous task status to preserve all attached information.
+    CHECK_SOME(lastTaskStatus);
+    TaskStatus status = protobuf::createTaskStatus(
+        lastTaskStatus.get(),
+        UUID::random(),
+        Clock::now().secs(),
+        None(),
+        None(),
+        None(),
+        TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
+        None(),
+        None(),
+        checkStatus);
+
+    forward(status);
+  }
+
   void taskHealthUpdated(const TaskHealthStatus& healthStatus)
   {
     CHECK_SOME(taskId);
@@ -474,6 +510,35 @@ protected:
 
     cout << "Forked command at " << pid << endl;
 
+    if (unacknowledgedTask->has_check()) {
+      vector<string> namespaces;
+      if (rootfs.isSome() &&
+          unacknowledgedTask->check().type() == CheckInfo::COMMAND) {
+        // Make sure command checks are run from the task's mount namespace.
+        // Otherwise if rootfs is specified the command binary may not be
+        // available in the executor.
+        //
+        // NOTE: The command executor shares the network namespace
+        // with its task, hence no need to enter it explicitly.
+        namespaces.push_back("mnt");
+      }
+
+      Try<Owned<checks::Checker>> _checker =
+        checks::Checker::create(
+            unacknowledgedTask->check(),
+            defer(self(), &Self::taskCheckUpdated, taskId.get(), lambda::_1),
+            taskId.get(),
+            pid,
+            namespaces);
+
+      if (_checker.isError()) {
+        // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
+        cerr << "Failed to create checker: " << _checker.error() << endl;
+      } else {
+        checker = _checker.get();
+      }
+    }
+
     if (unacknowledgedTask->has_health_check()) {
       vector<string> namespaces;
       if (rootfs.isSome() &&
@@ -634,6 +699,11 @@ private:
         forward(status);
       }
 
+      // Stop checking the task.
+      if (checker.get() != nullptr) {
+        checker->stop();
+      }
+
       // Stop health checking the task.
       if (healthChecker.get() != nullptr) {
         healthChecker->stop();
@@ -673,6 +743,11 @@ private:
   void reaped(pid_t pid, const Future<Option<int>>& status_)
   {
     terminated = true;
+
+    // Stop checking the task.
+    if (checker.get() != nullptr) {
+      checker->stop();
+    }
 
     // Stop health checking the task.
     if (healthChecker.get() != nullptr) {
@@ -802,6 +877,32 @@ private:
       status.set_healthy(healthy.get());
     }
 
+    // If a check for the task has been defined, `check_status` field in each
+    // task status must be set to a valid `CheckStatusInfo` message even if
+    // there is no check status available yet.
+    if (unacknowledgedTask.isSome() && unacknowledgedTask->has_check()) {
+      CheckStatusInfo checkStatusInfo;
+      checkStatusInfo.set_type(unacknowledgedTask->check().type());
+      switch (unacknowledgedTask->check().type()) {
+        case CheckInfo::COMMAND: {
+          checkStatusInfo.mutable_command();
+          break;
+        }
+
+        case CheckInfo::HTTP: {
+          checkStatusInfo.mutable_http();
+          break;
+        }
+
+        case CheckInfo::UNKNOWN: {
+          CHECK_NE(CheckInfo::UNKNOWN, unacknowledgedTask->check().type());
+          break;
+        }
+      }
+
+      status.mutable_check_status()->CopyFrom(checkStatusInfo);
+    }
+
     return status;
   }
 
@@ -886,6 +987,7 @@ private:
 
   Option<TaskStatus> lastTaskStatus;
 
+  Owned<checks::Checker> checker;
   Owned<checks::HealthChecker> healthChecker;
 };
 
