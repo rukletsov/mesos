@@ -438,8 +438,7 @@ protected:
     } else if (unacknowledgedTask->has_command()) {
       command = unacknowledgedTask->command();
     } else {
-      LOG(FATAL) << "Expecting task '" << unacknowledgedTask->task_id()
-                 << "' to have a command";
+      LOG(FATAL) << "Expecting task '" << taskId.get() << "' to have a command";
     }
 
     // TODO(jieyu): For now, we just fail the executor if the task's
@@ -449,12 +448,10 @@ protected:
     // correct solution is to perform this validation at master side.
     if (command.shell()) {
       CHECK(command.has_value())
-        << "Shell command of task '" << unacknowledgedTask->task_id()
-        << "' is not specified!";
+        << "Shell command of task '" << taskId.get() << "' is not specified";
     } else {
       CHECK(command.has_value())
-        << "Executable of task '" << unacknowledgedTask->task_id()
-        << "' is not specified!";
+        << "Executable of task '" << taskId.get() << "' is not specified";
     }
 
     // Determine the environment for the command to be launched.
@@ -482,7 +479,7 @@ protected:
       launchEnvironment.MergeFrom(command.environment());
     }
 
-    cout << "Starting task " << unacknowledgedTask->task_id() << endl;
+    cout << "Starting task " << taskId.get() << endl;
 
 #ifndef __WINDOWS__
     pid = launchTaskPosix(
@@ -557,7 +554,7 @@ protected:
             unacknowledgedTask->health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
-            unacknowledgedTask->task_id(),
+            taskId.get(),
             pid,
             namespaces);
 
@@ -574,8 +571,7 @@ protected:
     process::reap(pid)
       .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
 
-    TaskStatus status =
-      createTaskStatus(unacknowledgedTask->task_id(), TASK_RUNNING);
+    TaskStatus status = createTaskStatus(taskId.get(), TASK_RUNNING);
 
     forward(status);
     launched = true;
