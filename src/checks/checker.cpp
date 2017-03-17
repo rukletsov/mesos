@@ -437,10 +437,15 @@ void CheckerProcess::processCommandCheckResult(
   // `stat_loc` area. On Windows, `status` is obtained via calling the
   // `GetExitCodeProcess()` function.
   //
-  // TODO(alexr): Ensure `WEXITSTATUS` family macros are no-op on Windows,
-  // see MESOS-7242.
+  // TODO(alexr): Once we ensure `WEXITSTATUS` family macros are no-op
+  // on Windows, we can simplify this, see MESOS-7242.
+#ifndef __WINDOWS__
   if (result.isReady() && WIFEXITED(result.get())) {
     const int exitCode = WEXITSTATUS(result.get());
+#else
+  if (result.isReady()) {
+    const int exitCode = result.get();
+#endif // __WINDOWS__
     VLOG(1) << check.type() << " check for task "
             << taskId << " returned " << exitCode;
 
