@@ -1027,26 +1027,26 @@ TEST_F(HealthCheckTest, EnvironmentSetup)
   EXPECT_NE(0u, offers->size());
 
   map<string, string> env;
-  env["STATUS"] = "0";
+  env["STATUS"] = "1";
 
   vector<TaskInfo> tasks = populateTasks(
     SLEEP_COMMAND(120), "exit $STATUS", offers.get()[0], 0, None(), env);
 
   Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusHealthy;
+  Future<TaskStatus> statusUnhealthy;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
   .WillOnce(FutureArg<1>(&statusRunning))
-  .WillOnce(FutureArg<1>(&statusHealthy));
+  .WillOnce(FutureArg<1>(&statusUnhealthy));
 
   driver.launchTasks(offers.get()[0].id(), tasks);
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
-  AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
-  EXPECT_TRUE(statusHealthy->healthy());
+  AWAIT_READY(statusUnhealthy);
+  EXPECT_EQ(TASK_RUNNING, statusUnhealthy->state());
+  EXPECT_FALSE(statusUnhealthy->healthy());
 
   driver.stop();
   driver.join();
