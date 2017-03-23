@@ -55,6 +55,12 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+#ifndef __WINDOWS__
+#define EXIT_COMMAND(envVar) string("exit $") + envVar
+#else
+#define EXIT_COMMAND(envVar) string("cmd /C exit \"%") + envVar + "%\""
+#endif // __WINDOWS__
+
 // This command fails every other invocation. Assuming `path` does not
 // initially exist, for all runs i in Nat0, the following case i % 2 applies:
 //
@@ -296,7 +302,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   v1::CommandInfo* checkCommand =
     checkInfo->mutable_command()->mutable_command();
-  checkCommand->set_value("exit $STATUS");
+  checkCommand->set_value(EXIT_COMMAND("STATUS"));
 
   v1::Environment::Variable* variable =
     checkCommand->mutable_environment()->add_variables();
