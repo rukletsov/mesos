@@ -45,6 +45,7 @@ constexpr char FORCE_DESTROY_ON_RECOVERY_FILE[] = "force_destroy_on_recovery";
 constexpr char IO_SWITCHBOARD_DIRECTORY[] = "io_switchboard";
 constexpr char CONTAINER_DIRECTORY[] = "containers";
 constexpr char LAUNCH_ENVIRONMENT_FILE[] = "launch_environment";
+constexpr char LAUNCH_WORKING_DIRECTORY_FILE[] = "launch_working_directory";
 
 
 enum Mode
@@ -166,6 +167,18 @@ std::string getContainerLaunchEnvironmentPath(
 
 // The helper method to get the container launch environment.
 Result<Environment> getContainerLaunchEnvironment(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to get the container launch working directory path.
+std::string getContainerLaunchWorkingDirectoryPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+// The helper method to get the container launch working directory.
+Result<std::string> getContainerLaunchWorkingDirectory(
     const std::string& runtimeDir,
     const ContainerID& containerId);
 

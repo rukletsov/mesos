@@ -326,6 +326,16 @@ private:
     // while MESOS_SANDBOX is the path in the container mount namespace.
     Option<std::string> directory;
 
+    // Working directory for the container at the moment when it was
+    // launched, i.e., `ContainerLaunchInfo.working_directory`. Used to
+    // initialize the working directory of future child DEBUG containers.
+    // Checkpointed and restored on recovery.
+    //
+    // NOTE: The container may change its working directory during its
+    // lifetime. Such change will not be captured, which might be problematic
+    // for DEBUG containers relying on some data in parent working directory.
+    Option<std::string> workingDirectory;
+
     // We keep track of the future exit status for the container if it
     // has been launched. If the container has not been launched yet,
     // 'status' will be set to None().

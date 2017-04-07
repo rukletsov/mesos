@@ -929,6 +929,25 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     }
   }
 
+  // Recover containers' launch working directory.
+  foreach (const ContainerState& run, recovered) {
+    const ContainerID& containerId = run.container_id();
+
+    // Attempt to read container's launch working directory.
+    Result<string> launchWorkingDirectory =
+      containerizer::paths::getContainerLaunchWorkingDirectory(
+          flags.runtime_dir, containerId);
+
+    if (launchWorkingDirectory.isError()) {
+      return Failure("Failed to get container's launch working directory: " +
+                     launchWorkingDirectory.error());
+    }
+
+    if (launchWorkingDirectory.isSome()) {
+      containers_[containerId]->workingDirectory = launchWorkingDirectory.get();
+    }
+  }
+
   foreach (const ContainerState& run, recovered) {
     const ContainerID& containerId = run.container_id();
 
@@ -1477,9 +1496,21 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_rootfs(container->config.rootfs());
   }
 
-  // Determine the working directory for the container. It is set to container
-  // sandbox, i.e., MESOS_SANDBOX, unless one of the isolators overrides it.
-  if (launchInfo.has_rootfs()) {
+  // For a non-DEBUG container, working directory is set to container sandbox,
+  // i.e., MESOS_SANDBOX, unless one of the isolators overrides it. DEBUG
+  // containers set their working directory to their parent working directory.
+  if (container->config.has_container_class() &&
+      container->config.container_class() == ContainerClass::DEBUG) {
+    // DEBUG containers must have a parent.
+    CHECK(containerId.has_parent());
+
+    if (containers_[containerId.parent()]->workingDirectory.isSome()) {
+      launchInfo.set_working_directory(
+          containers_[containerId.parent()]->workingDirectory.get());
+    } else {
+      launchInfo.clear_working_directory();
+    }
+  } else if (launchInfo.has_rootfs()) {
     if (!launchInfo.has_working_directory()) {
       launchInfo.set_working_directory(flags.sandbox_directory);
     }
@@ -1498,12 +1529,21 @@ Future<bool> MesosContainerizerProcess::_launch(
     launchInfo.set_working_directory(container->config.directory());
   }
 
-  // TODO(klueska): Debug containers should set their working
-  // directory to their sandbox directory (once we know how to set
-  // that properly).
-  if (container->config.has_container_class() &&
-      container->config.container_class() == ContainerClass::DEBUG) {
-    launchInfo.clear_working_directory();
+  // Store container's working directory for future access.
+  container->workingDirectory = launchInfo.working_directory();
+
+  // Checkpoint container's working directory.
+  const string launchWorkingDirectoryPath =
+    containerizer::paths::getContainerLaunchWorkingDirectoryPath(
+        flags.runtime_dir, containerId);
+
+  checkpointed = slave::state::checkpoint(
+      launchWorkingDirectoryPath, launchInfo.working_directory());
+
+  if (checkpointed.isError()) {
+    LOG(ERROR) << "Failed to checkpoint container's launch working directory"
+               << " to '" << launchWorkingDirectoryPath << "': "
+               << checkpointed.error();
   }
 
   // Determine the user to launch the container as.

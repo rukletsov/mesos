@@ -379,6 +379,42 @@ Result<Environment> getContainerLaunchEnvironment(
 }
 
 
+string getContainerLaunchWorkingDirectoryPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      LAUNCH_WORKING_DIRECTORY_FILE);
+}
+
+
+Result<string> getContainerLaunchWorkingDirectory(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getContainerLaunchWorkingDirectoryPath(
+      runtimeDir, containerId);
+
+  if (!os::exists(path)) {
+    // This is possible because we don't atomically create the
+    // directory and write the 'LAUNCH_WORKING_DIRECTORY' file and thus
+    // we might terminate/restart after we've created the directory
+    // but before we've written the file.
+    return None();
+  }
+
+  const Result<string>& workingDirectory = os::read(path);
+
+  if (workingDirectory.isError()) {
+    return Error("Failed to read launch working directory of container:"
+                 " " + workingDirectory.error());
+  }
+
+  return workingDirectory;
+}
+
+
 string getSandboxPath(
     const string& rootSandboxPath,
     const ContainerID& containerId)
