@@ -909,6 +909,26 @@ Future<Nothing> MesosContainerizerProcess::__recover(
     const list<ContainerState>& recovered,
     const hashset<ContainerID>& orphans)
 {
+  // Recover containers' launch environment.
+  foreach (const ContainerState& run, recovered) {
+    const ContainerID& containerId = run.container_id();
+
+    // Attempt to read container's launch environment.
+    Result<Environment> launchEnvironment =
+      containerizer::paths::getContainerLaunchEnvironment(
+          flags.runtime_dir, containerId);
+
+    if (launchEnvironment.isError()) {
+      return Failure("Failed to get container's launch environment: " +
+                     launchEnvironment.error());
+    }
+
+    if (launchEnvironment.isSome()) {
+      containers_[containerId]->launchEnvironment.CopyFrom(
+          launchEnvironment.get());
+    }
+  }
+
   foreach (const ContainerState& run, recovered) {
     const ContainerID& containerId = run.container_id();
 
@@ -1367,26 +1387,38 @@ Future<bool> MesosContainerizerProcess::_launch(
   launchInfo.mutable_command()->clear_environment();
   launchInfo.mutable_command()->clear_user();
 
-  // Determine the environment for the command to be launched. The
-  // priority of the environment should be:
+  // Determine the environment for the command to be launched.
+  //
+  // For non-DEBUG containers, the priority of the environment is:
   //  1) User specified environment in CommandInfo.
   //  2) Environment returned by isolators (i.e., in 'launchInfo').
   //  3) Environment passed from agent (e.g., executor environment).
+  //
+  // DEBUG containers inherit parent's environment,
+  // hence the priority of the environment is:
+  //
+  // 1) User specified environment in CommandInfo.
+  // 2) Environment returned by isolators (i.e., in 'launchInfo').
+  // 3) Environment inherited from the parent container.
+  //
+  // TODO(alexr): Consider using `hashmap` for merging environments to
+  // avoid duplicates, because `MergeFrom()` appends to the list.
+  Environment containerEnvironment;
 
-  // Save a copy of the environment returned by isolators because
-  // earlier entries in 'launchInfo.environment' will be overwritten
-  // by later entries. 'launchInfo.environment' will later be used as
-  // the environment for the container, and the container will not
-  // inherit the agent environment.
-  Environment isolatorEnvironment = launchInfo.environment();
-
-  Environment* containerEnvironment = launchInfo.mutable_environment();
-  containerEnvironment->Clear();
-
-  foreachpair (const string& key, const string& value, environment) {
-    Environment::Variable* variable = containerEnvironment->add_variables();
-    variable->set_name(key);
-    variable->set_value(value);
+  // Inherit environment from the parent container
+  // or from what has been passed to containerizer.
+  if (container->config.has_container_class() &&
+      container->config.container_class() == ContainerClass::DEBUG) {
+    // DEBUG containers must have a parent.
+    CHECK(containerId.has_parent());
+    containerEnvironment.CopyFrom(
+        containers_[containerId.parent()]->launchEnvironment);
+  } else {
+    foreachpair (const string& key, const string& value, environment) {
+      Environment::Variable* variable = containerEnvironment.add_variables();
+      variable->set_name(key);
+      variable->set_value(value);
+    }
   }
 
   // TODO(klueska): Remove the check below once we have a good way of
@@ -1399,19 +1431,42 @@ Future<bool> MesosContainerizerProcess::_launch(
     // filesystem for itself, we still set 'MESOS_SANDBOX' according to
     // the root filesystem of the task (if specified). Command executor
     // itself does not use this environment variable.
-    Environment::Variable* variable = containerEnvironment->add_variables();
+    Environment::Variable* variable = containerEnvironment.add_variables();
     variable->set_name("MESOS_SANDBOX");
     variable->set_value(container->config.has_rootfs()
       ? flags.sandbox_directory
       : container->config.directory());
   }
 
-  containerEnvironment->MergeFrom(isolatorEnvironment);
+  // `launchInfo.environment` contains the environment returned by
+  // isolators. `launchInfo.environment` will later be overwritten
+  // by `containerEnvironment`, hence isolator environment will
+  // contribute to the resulting container environment.
+  containerEnvironment.MergeFrom(launchInfo.environment());
 
-  // Include any user specified environment variables.
+  // Include user specified environment.
   if (container->config.command_info().has_environment()) {
-    containerEnvironment->MergeFrom(
+    containerEnvironment.MergeFrom(
         container->config.command_info().environment());
+  }
+
+  // Set the aggregated environment of the launch command.
+  launchInfo.mutable_environment()->CopyFrom(containerEnvironment);
+
+  // Store container's launch environment for future access.
+  container->launchEnvironment.CopyFrom(containerEnvironment);
+
+  // Checkpoint container's launch environment.
+  const string launchEnvironmentPath =
+    containerizer::paths::getContainerLaunchEnvironmentPath(
+        flags.runtime_dir, containerId);
+
+  Try<Nothing> checkpointed = slave::state::checkpoint(
+      launchEnvironmentPath, containerEnvironment);
+
+  if (checkpointed.isError()) {
+    LOG(ERROR) << "Failed to checkpoint container's launch environment to '"
+               << launchEnvironmentPath << "': " << checkpointed.error();
   }
 
   // Determine the rootfs for the container to be launched.
@@ -1624,8 +1679,7 @@ Future<bool> MesosContainerizerProcess::_launch(
       containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
       containerizer::paths::PID_FILE);
 
-  Try<Nothing> checkpointed =
-    slave::state::checkpoint(pidPath, stringify(pid));
+  checkpointed = slave::state::checkpoint(pidPath, stringify(pid));
 
   if (checkpointed.isError()) {
     return Failure("Failed to checkpoint the container pid to"

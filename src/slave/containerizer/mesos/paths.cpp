@@ -343,6 +343,42 @@ Try<vector<ContainerID>> getContainerIds(const string& runtimeDir)
 }
 
 
+string getContainerLaunchEnvironmentPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      LAUNCH_ENVIRONMENT_FILE);
+}
+
+
+Result<Environment> getContainerLaunchEnvironment(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  const string path = getContainerLaunchEnvironmentPath(
+      runtimeDir, containerId);
+
+  if (!os::exists(path)) {
+    // This is possible because we don't atomically create the
+    // directory and write the 'LAUNCH_ENVIRONMENT' file and thus
+    // we might terminate/restart after we've created the directory
+    // but before we've written the file.
+    return None();
+  }
+
+  const Result<Environment>& environment = ::protobuf::read<Environment>(path);
+
+  if (environment.isError()) {
+    return Error("Failed to read launch environment of container:"
+                 " " + environment.error());
+  }
+
+  return environment;
+}
+
+
 string getSandboxPath(
     const string& rootSandboxPath,
     const ContainerID& containerId)

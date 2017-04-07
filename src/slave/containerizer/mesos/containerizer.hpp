@@ -358,6 +358,13 @@ private:
     // is only used during the launch of a container.
     mesos::slave::ContainerConfig config;
 
+    // Container's environment at the moment when it was launched. Used
+    // to bootstrap the environment of future child DEBUG containers.
+    // Checkpointed and restored on recovery.
+    //
+    // TODO(alexr): Consider using `hashmap` to avoid duplicates.
+    Environment launchEnvironment;
+
     State state;
 
     // Used when `status` needs to be collected from isolators
