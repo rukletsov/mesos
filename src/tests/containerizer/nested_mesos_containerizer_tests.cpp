@@ -581,6 +581,26 @@ TEST_F(NestedMesosContainerizerTest,
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
 
+  // Ensure launching a new debug container succeeds.
+  nestedContainerId.set_value(UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createCommandInfo("exit 42"),
+      None(),
+      None(),
+      state.id,
+      ContainerClass::DEBUG);
+
+  AWAIT_ASSERT_TRUE(launch);
+
+  wait = containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, wait.get()->status());
+
   wait = containerizer->wait(containerId);
 
   containerizer->destroy(containerId);
