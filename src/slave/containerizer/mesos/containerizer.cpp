@@ -16,6 +16,9 @@
 
 #include <set>
 
+#include <fstream>
+#include <iterator>
+
 #include <mesos/module/isolator.hpp>
 
 #include <mesos/slave/isolator.hpp>
@@ -2481,6 +2484,38 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
   }
 
   LOG(INFO) << "Container " << containerId << " has exited";
+
+  if (containers_[containerId]->directory.isSome()) {
+    auto dir = containers_[containerId]->directory.get();
+
+    LOG(INFO) << " >>> 'directory is " << std::boolalpha
+              << dir << ", exists: " << os::exists(dir);
+
+    auto ls = os::ls(dir);
+    if (ls.isSome()) {
+      LOG(INFO) << ">>> ls:";
+      foreach (const string& e, ls.get()) {
+        LOG(INFO) << " >>>   " << e;
+      }
+    }
+
+    std::ifstream ifserr(
+        path::join(dir, "stderr"));
+    std::string errc((std::istreambuf_iterator<char>(ifserr)),
+                     std::istreambuf_iterator<char>());
+
+    LOG(INFO) << " >>> stderr:";
+    LOG(INFO) << errc;
+
+    std::ifstream ifsout(path::join(dir, "stdout"));
+    std::string outc((std::istreambuf_iterator<char>(ifsout)),
+                     std::istreambuf_iterator<char>());
+
+    LOG(INFO) << " >>> stdout:";
+    LOG(INFO) << outc;
+  } else {
+    LOG(INFO) << " >>> Can't get stdout / stderr: 'directory' is none";
+  }
 
   // The executor has exited so destroy the container.
   destroy(containerId);
