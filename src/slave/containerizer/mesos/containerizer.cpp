@@ -1421,8 +1421,7 @@ Future<bool> MesosContainerizerProcess::_launch(
     }
   }
 
-  // TODO(klueska): Remove the check below once we have a good way of
-  // setting the sandbox directory for DEBUG containers.
+  // DEBUG containers inherit MESOS_SANDBOX from their parent.
   if (!container->config.has_container_class() ||
       container->config.container_class() != ContainerClass::DEBUG) {
     // TODO(jieyu): Consider moving this to filesystem isolator.
