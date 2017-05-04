@@ -558,7 +558,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
 
   Option<string> libprocessIP = os::getenv("LIBPROCESS_IP");
   if (libprocessIP.isSome()) {
-    environmentVariables["LIBPROCESS_IP"] = libprocessIP.get();
+    options.env["LIBPROCESS_IP"] = libprocessIP.get();
   }
 
   Option<string> volumeDriver;
