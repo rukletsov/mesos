@@ -173,6 +173,7 @@ Checker::Checker(
           _agentURL,
           _authorizationHeader,
           None(),
+          CheckInfo::Type_Name(check.type()) + " check",
           _commandCheckViaAgent));
 
   spawn(process.get());

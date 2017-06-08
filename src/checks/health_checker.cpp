@@ -282,6 +282,7 @@ HealthChecker::HealthChecker(
           agentURL,
           authorizationHeader,
           scheme,
+          HealthCheck::Type_Name(healthCheck.type()) + " health check",
           commandCheckViaAgent));
 
   spawn(process.get());
