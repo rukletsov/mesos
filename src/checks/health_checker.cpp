@@ -412,6 +412,8 @@ Option<Error> healthCheck(const HealthCheck& check)
             "Health check's `CommandInfo` is invalid: " + error->message);
       }
 
+      // TODO(alexr): Make sure irrelevant fields, e.g., `uris` are not set.
+
       break;
     }
 
@@ -451,6 +453,22 @@ Option<Error> healthCheck(const HealthCheck& check)
           "'" + HealthCheck::Type_Name(check.type()) + "'"
           " is not a valid health check type");
     }
+  }
+
+  if (check.has_delay_seconds() && check.delay_seconds() < 0.0) {
+    return Error("Expecting 'delay_seconds' to be non-negative");
+  }
+
+  if (check.has_grace_period_seconds() && check.grace_period_seconds() < 0.0) {
+    return Error("Expecting 'grace_period_seconds' to be non-negative");
+  }
+
+  if (check.has_interval_seconds() && check.interval_seconds() < 0.0) {
+    return Error("Expecting 'interval_seconds' to be non-negative");
+  }
+
+  if (check.has_timeout_seconds() && check.timeout_seconds() < 0.0) {
+    return Error("Expecting 'timeout_seconds' to be non-negative");
   }
 
   return None();
