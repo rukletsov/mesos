@@ -66,6 +66,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -7666,6 +7667,7 @@ void Master::offer(
 
   LOG(INFO) << "Sending " << message.offers().size()
             << " offers to framework " << *framework;
+  VLOG(1) << "Sent offers: " << message.offers();
 
   framework->send(message);
 }
