@@ -123,13 +123,6 @@ endforeach ()
 # build directory into `configure` as a prefix; so if we're going to move the
 # libraries, we might as well move them to a library folder.)
 if (NOT WIN32)
-  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --prefix=${GLOG_LIB_ROOT})
-  set(GLOG_BUILD_CMD   make libglog.la)
-  set(GLOG_INSTALL_CMD make install)
-  # Patch glog to deal with a problem that appears when compiling on clang
-  # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
-
   # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
   # MESOS-3250)" comment above for explanation.
   set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
@@ -140,9 +133,6 @@ if (NOT WIN32)
 
   set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 else ()
-  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
-
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
 
   set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
@@ -212,10 +202,46 @@ ExternalProject_Add(
   URL_HASH          ${ELFIO_HASH}
   )
 
-# The patch, configure, build, and install commands are stubbed out on Windows
-# builds so that it defaults to build using CMake. This is for the same reason
-# as the GMock code library build, see the call to `ExternalProject_Add` for
-# the GMock project below for more details.
+# glog: Google Logging Library.
+# https://github.com/google/glog
+################################
+external(glog ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
+add_dependencies(glog ${GLOG_TARGET})
+if (WIN32)
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
+  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+  # NOTE: Windows-specific workaround for a glog issue documented here[1].
+  # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
+  # need the Windows ERROR, we can use this flag to avoid defining it at all.
+  # Unlike the other fix (defining GLOG_NO_ABBREVIATED_SEVERITIES), this fix
+  # is guaranteed to require no changes to the original Mesos code. See also
+  # the note in the code itself[2].
+  #
+  # [1] https://htmlpreview.github.io/?https://github.com/google/glog/blob/master/doc/glog.html#windows
+  # [2] https://github.com/google/glog/blob/f012836db187d5897d4adaaf621b4d53ae4865da/src/windows/glog/logging.h#L965
+  set(GLOG_COMPILE_DEFINITIONS GOOGLE_GLOG_DLL_DECL= NOGDI NOMINMAX)
+  set_target_properties(glog PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}/src/windows
+    # TODO(andschwa): Remove this when glog is updated.
+    IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
+    INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
+else ()
+  # Patch glog to deal with a problem that appears when compiling on clang
+  # under the C++11 standard. cf. MESOS-860, MESOS-966.
+  patch_cmd(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
+  # TODO(andschwa): Build with CMake instead when glog is updated.
+  # NOTE: We only link to the shared library of glog because the static build
+  # doesn't have PIC.
+  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
+  set(GLOG_BUILD_CMD   make)
+  set(GLOG_INSTALL_CMD make install)
+  set_target_properties(glog PROPERTIES
+    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${CMAKE_SHARED_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
+endif ()
 ExternalProject_Add(
   ${GLOG_TARGET}
   PREFIX            ${GLOG_CMAKE_ROOT}
@@ -225,8 +251,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${GLOG_BUILD_CMD}
   INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
   URL               ${GLOG_URL}
-  URL_HASH          ${GLOG_HASH}
-  )
+  URL_HASH          ${GLOG_HASH})
 
 ExternalProject_Add(
   ${PICOJSON_TARGET}
