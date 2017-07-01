@@ -580,7 +580,6 @@ endif ()
 add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})
 add_dependencies(
   ${MESOS_LIBS_TARGET}
-  ${MESOS_PROTOBUF_TARGET}
   ${AGENT_DEPENDENCIES}
   )
 
