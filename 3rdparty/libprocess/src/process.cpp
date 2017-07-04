@@ -805,7 +805,8 @@ static Future<Message*> parse(const Request& request)
     return Failure("Failed to determine sender from request headers");
   }
 
-  // Now determine 'to'.
+  // Now determine 'to'. We assume leading '/' is present.
+  CHECK(request.url.path.front() == '/');
   size_t index = request.url.path.find('/', 1);
   index = index != string::npos ? index - 1 : string::npos;
 
@@ -2845,6 +2846,22 @@ void ProcessManager::handle(
 {
   CHECK(request != nullptr);
 
+  // Start by checking that the path starts with a '/'.
+  if (request->url.path.find('/') != 0) {
+    VLOG(1) << "Returning '400 Bad Request' for '" << request->url.path << "'";
+
+    // Get the HttpProxy pid for this socket.
+    PID<HttpProxy> proxy = socket_manager->proxy(socket);
+
+    // Enqueue the response with the HttpProxy so that it respects the
+    // order of requests to account for HTTP/1.1 pipelining.
+    dispatch(proxy, &HttpProxy::enqueue, BadRequest(), *request);
+
+    // Cleanup request.
+    delete request;
+    return;
+  }
+
   // Check if this is a libprocess request (i.e., 'User-Agent:
   // libprocess/id@ip:port') and if so, parse as a message.
   if (libprocess(request)) {
@@ -2931,22 +2948,7 @@ void ProcessManager::handle(
     return;
   }
 
-  // Treat this as an HTTP request. Start by checking that the path
-  // starts with a '/' (since the code below assumes as much).
-  if (request->url.path.find('/') != 0) {
-    VLOG(1) << "Returning '400 Bad Request' for '" << request->url.path << "'";
-
-    // Get the HttpProxy pid for this socket.
-    PID<HttpProxy> proxy = socket_manager->proxy(socket);
-
-    // Enqueue the response with the HttpProxy so that it respects the
-    // order of requests to account for HTTP/1.1 pipelining.
-    dispatch(proxy, &HttpProxy::enqueue, BadRequest(), *request);
-
-    // Cleanup request.
-    delete request;
-    return;
-  }
+  // Treat this as an HTTP request.
 
   // Ignore requests with relative paths (i.e., contain "/..").
   if (request->url.path.find("/..") != string::npos) {
