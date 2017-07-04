@@ -507,6 +507,14 @@ public:
       const Socket& socket,
       Request* request);
 
+  void handleLibprocessRequest(
+      const Socket& socket,
+      Request* request);
+
+  void handleHTTPRequest(
+      const Socket& socket,
+      Request* request);
+
   bool deliver(
       ProcessBase* receiver,
       Event* event,
@@ -2864,92 +2872,106 @@ void ProcessManager::handle(
 
   // Check if this is a libprocess request (i.e., 'User-Agent:
   // libprocess/id@ip:port') and if so, parse as a message.
+  // Otherwise, treat it as an HTTP request.
   if (libprocess(request)) {
-    // It is guaranteed that the continuation would run before the next
-    // request arrives. Also, it's fine to pass the `this` pointer to the
-    // continuation as this would get executed synchronously (if still pending)
-    // from `SocketManager::finalize()` due to it closing all active sockets
-    // during libprocess finalization.
-    parse(*request)
-      .onAny([this, socket, request](const Future<Message*>& future) {
-        // Get the HttpProxy pid for this socket.
-        PID<HttpProxy> proxy = socket_manager->proxy(socket);
+    handleLibprocessRequest(socket, request);
+  } else {
+    handleHTTPRequest(socket, request);
+  }
+}
 
-        if (!future.isReady()) {
-          Response response = InternalServerError(
-              future.isFailed() ? future.failure() : "discarded future");
+void ProcessManager::handleLibprocessRequest(
+    const Socket& socket,
+    Request* request)
+{
+  // It is guaranteed that the continuation would run before the next
+  // request arrives. Also, it's fine to pass the `this` pointer to the
+  // continuation as this would get executed synchronously (if still pending)
+  // from `SocketManager::finalize()` due to it closing all active sockets
+  // during libprocess finalization.
+  parse(*request)
+    .onAny([this, socket, request](const Future<Message*>& future) {
+      // Get the HttpProxy pid for this socket.
+      PID<HttpProxy> proxy = socket_manager->proxy(socket);
 
-          dispatch(proxy, &HttpProxy::enqueue, response, *request);
+      if (!future.isReady()) {
+        Response response = InternalServerError(
+            future.isFailed() ? future.failure() : "discarded future");
 
-          VLOG(1) << "Returning '" << response.status << "' for '"
-                  << request->url.path << "': " << response.body;
+        dispatch(proxy, &HttpProxy::enqueue, response, *request);
 
-          delete request;
-          return;
-        }
-
-        Message* message = CHECK_NOTNULL(future.get());
-
-        // Verify that the UPID this peer is claiming is on the same IP
-        // address the peer is sending from.
-        if (libprocess_flags->require_peer_address_ip_match) {
-          CHECK_SOME(request->client);
-
-          // If the client address is not an IP address (e.g. coming
-          // from a domain socket), we also reject the message.
-          Try<Address> client_ip_address =
-            network::convert<Address>(request->client.get());
-
-          if (client_ip_address.isError() ||
-              message->from.address.ip != client_ip_address->ip) {
-            Response response = BadRequest(
-                "UPID IP address validation failed: Message from " +
-                stringify(message->from) + " was sent from IP " +
-                stringify(request->client.get()));
-
-            dispatch(proxy, &HttpProxy::enqueue, response, *request);
-
-            VLOG(1) << "Returning '" << response.status << "'"
-                    << " for '" << request->url.path << "'"
-                    << ": " << response.body;
-
-            delete request;
-            delete message;
-            return;
-          }
-        }
-
-        // TODO(benh): Use the sender PID when delivering in order to
-        // capture happens-before timing relationships for testing.
-        bool accepted = deliver(message->to, new MessageEvent(message));
-
-        // Only send back an HTTP response if this isn't from libprocess
-        // (which we determine by looking at the User-Agent). This is
-        // necessary because older versions of libprocess would try and
-        // recv the data and parse it as an HTTP request which would
-        // fail thus causing the socket to get closed (but now
-        // libprocess will ignore responses, see ignore_data).
-        Option<string> agent = request->headers.get("User-Agent");
-        if (agent.getOrElse("").find("libprocess/") == string::npos) {
-          if (accepted) {
-            VLOG(2) << "Accepted libprocess message to " << request->url.path;
-            dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
-          } else {
-            VLOG(1) << "Failed to handle libprocess message to "
-                    << request->url.path << ": not found";
-            dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
-          }
-        }
+        VLOG(1) << "Returning '" << response.status << "' for '"
+                << request->url.path << "': " << response.body;
 
         delete request;
         return;
-      });
+      }
 
-    return;
-  }
+      Message* message = CHECK_NOTNULL(future.get());
 
-  // Treat this as an HTTP request.
+      // Verify that the UPID this peer is claiming is on the same IP
+      // address the peer is sending from.
+      if (libprocess_flags->require_peer_address_ip_match) {
+        CHECK_SOME(request->client);
 
+        // If the client address is not an IP address (e.g. coming
+        // from a domain socket), we also reject the message.
+          Try<Address> client_ip_address =
+            network::convert<Address>(request->client.get());
+
+        if (client_ip_address.isError() ||
+            message->from.address.ip != client_ip_address->ip) {
+          Response response = BadRequest(
+              "UPID IP address validation failed: Message from " +
+              stringify(message->from) + " was sent from IP " +
+              stringify(request->client.get()));
+
+          dispatch(proxy, &HttpProxy::enqueue, response, *request);
+
+          VLOG(1) << "Returning '" << response.status << "'"
+                  << " for '" << request->url.path << "'"
+                  << ": " << response.body;
+
+          delete request;
+          delete message;
+          return;
+        }
+      }
+
+      // TODO(benh): Use the sender PID when delivering in order to
+      // capture happens-before timing relationships for testing.
+      bool accepted = deliver(message->to, new MessageEvent(message));
+
+      // Only send back an HTTP response if this isn't from libprocess
+      // (which we determine by looking at the User-Agent). This is
+      // necessary because older versions of libprocess would try and
+      // recv the data and parse it as an HTTP request which would
+      // fail thus causing the socket to get closed (but now
+      // libprocess will ignore responses, see ignore_data).
+      Option<string> agent = request->headers.get("User-Agent");
+      if (agent.getOrElse("").find("libprocess/") == string::npos) {
+        if (accepted) {
+          VLOG(2) << "Accepted libprocess message to " << request->url.path;
+          dispatch(proxy, &HttpProxy::enqueue, Accepted(), *request);
+        } else {
+          VLOG(1) << "Failed to handle libprocess message to "
+                  << request->url.path << ": not found";
+          dispatch(proxy, &HttpProxy::enqueue, NotFound(), *request);
+        }
+      }
+
+      delete request;
+      return;
+    });
+
+  return;
+}
+
+
+void ProcessManager::handleHTTPRequest(
+    const Socket& socket,
+    Request* request)
+{
   // Ignore requests with relative paths (i.e., contain "/..").
   if (request->url.path.find("/..") != string::npos) {
     VLOG(1) << "Returning '404 Not Found' for '" << request->url.path
