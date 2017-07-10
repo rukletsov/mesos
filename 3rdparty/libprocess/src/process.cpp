@@ -639,7 +639,7 @@ static Message* parse(Request* request)
 
   // Check that URL path is present and starts with '/'.
   if (request.url.path.find('/') != 0) {
-    return Failure("Request URL path must start with '/'");
+    return nullptr;
   }
 
   // Now determine 'to'.
