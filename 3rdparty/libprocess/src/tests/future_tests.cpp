@@ -545,3 +545,81 @@ TEST(FutureTest, ArrowOperator)
   Future<string> s = string("hello");
   EXPECT_EQ(5u, s->size());
 }
+
+
+class LongRunningTask
+{
+public:
+  Future<Nothing> run() {
+    return p.future();
+  }
+
+  void cancel() {
+    p.set(Nothing());
+//    p.fail("Big bada boom");
+  }
+
+private:
+  Promise<Nothing> p;
+};
+
+std::string printFuture(const Future<Nothing> f)
+{
+  return std::string("Future state is: ") +
+      (f.isReady() ? "ready" :
+        (f.isFailed() ? "failed" :
+          (f.isDiscarded() ? "discarded" :
+            "pending")));
+}
+
+TEST(FutureTest, DiscardPropagation)
+{
+  LongRunningTask t;
+
+  Future<Nothing> f0 = t.run();
+  f0.onDiscard([&t](){ t.cancel(); });
+
+  Future<Nothing> f1 = f0.then([](const Future<Nothing>& f){
+    std::cerr << " > f1 = f0.then: " << printFuture(f) << std::endl;
+    return Nothing();
+  });
+
+  Future<Nothing> f21 = f1.then([](const Future<Nothing>& f){
+    std::cerr << " > f21 = f1.then: " << printFuture(f) << std::endl;
+    return Nothing();
+  });
+
+  Future<Nothing> f31 = f21.then([](const Future<Nothing>& f){
+    std::cerr << " > f21 = f21.then: " << printFuture(f) << std::endl;
+    return Nothing();
+  });
+
+  Future<Nothing> f22 = f1.then([](const Future<Nothing>& f){
+    std::cerr << " > f22 = f1.then: " << printFuture(f) << std::endl;
+    return Nothing();
+  });
+
+  //           f21 - f31
+  //         /
+  // f0 - f1
+  //         \
+  //           f22
+
+  EXPECT_TRUE(f0.isPending());
+  EXPECT_TRUE(f1.isPending());
+  EXPECT_TRUE(f21.isPending());
+  EXPECT_TRUE(f31.isPending());
+  EXPECT_TRUE(f22.isPending());
+
+  // Discard f21 subtree.
+  f21.discard();
+
+  AWAIT_READY(f0);
+//  AWAIT_FAILED(f0);
+
+  EXPECT_TRUE(f0.isReady()) << printFuture(f0);
+  EXPECT_TRUE(f1.isReady()) << printFuture(f1);
+  EXPECT_TRUE(f21.isDiscarded()) << printFuture(f21);
+  EXPECT_TRUE(f31.isDiscarded()) << printFuture(f1);
+  EXPECT_TRUE(f22.isReady()) << printFuture(f22);
+}
