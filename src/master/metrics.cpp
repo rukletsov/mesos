@@ -71,6 +71,9 @@ Metrics::Metrics(const Master& master)
     frameworks_inactive(
         "master/frameworks_inactive",
         defer(master, &Master::_frameworks_inactive)),
+    api_subscribers_connected(
+        "master/api_subscribers_connected",
+        defer(master, &Master::_api_subscribers_connected)),
     outstanding_offers(
         "master/outstanding_offers",
         defer(master, &Master::_outstanding_offers)),
@@ -216,6 +219,8 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(frameworks_disconnected);
   process::metrics::add(frameworks_active);
   process::metrics::add(frameworks_inactive);
+
+  process::metrics::add(api_subscribers_connected);
 
   process::metrics::add(outstanding_offers);
 
@@ -364,6 +369,8 @@ Metrics::~Metrics()
   process::metrics::remove(frameworks_disconnected);
   process::metrics::remove(frameworks_active);
   process::metrics::remove(frameworks_inactive);
+
+  process::metrics::remove(api_subscribers_connected);
 
   process::metrics::remove(outstanding_offers);
 

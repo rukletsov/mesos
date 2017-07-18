@@ -9338,6 +9338,12 @@ double Master::_frameworks_inactive()
 }
 
 
+double Master::_api_subscribers_connected()
+{
+  return subscribers.subscribed.size();
+}
+
+
 double Master::_tasks_staging()
 {
   double count = 0.0;

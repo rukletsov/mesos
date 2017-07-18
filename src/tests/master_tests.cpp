@@ -2237,6 +2237,8 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active"));
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_inactive"));
 
+  EXPECT_EQ(1u, snapshot.values.count("master/api_subscribers_connected"));
+
   EXPECT_EQ(1u, snapshot.values.count("master/outstanding_offers"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));

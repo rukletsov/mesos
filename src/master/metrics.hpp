@@ -55,6 +55,8 @@ struct Metrics
   process::metrics::Gauge frameworks_active;
   process::metrics::Gauge frameworks_inactive;
 
+  process::metrics::Gauge api_subscribers_connected;
+
   process::metrics::Gauge outstanding_offers;
 
   // Task state metrics.

@@ -1924,6 +1924,8 @@ private:
   double _frameworks_active();
   double _frameworks_inactive();
 
+  double _api_subscribers_connected();
+
   double _outstanding_offers()
   {
     return offers.size();
