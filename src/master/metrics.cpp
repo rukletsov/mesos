@@ -133,6 +133,8 @@ Metrics::Metrics(const Master& master)
         "master/messages_reconcile_tasks"),
     messages_framework_to_executor(
         "master/messages_framework_to_executor"),
+    messages_api_subscribe(
+        "master/messages_api_subscribe"),
     messages_executor_to_framework(
         "master/messages_executor_to_framework"),
     messages_register_slave(
@@ -248,6 +250,9 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(messages_reconcile_tasks);
   process::metrics::add(messages_framework_to_executor);
   process::metrics::add(messages_executor_to_framework);
+
+  // Messages from API subscribers.
+  process::metrics::add(messages_api_subscribe);
 
   // Messages from slaves.
   process::metrics::add(messages_register_slave);
@@ -393,6 +398,9 @@ Metrics::~Metrics()
   process::metrics::remove(messages_reconcile_tasks);
   process::metrics::remove(messages_framework_to_executor);
   process::metrics::remove(messages_executor_to_framework);
+
+  // Messages from API subscribers.
+  process::metrics::remove(messages_api_subscribe);
 
   // Messages from slaves.
   process::metrics::remove(messages_register_slave);

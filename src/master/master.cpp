@@ -9562,6 +9562,8 @@ void Master::exited(const UUID& id)
 
 void Master::subscribe(const HttpConnection& http)
 {
+  ++metrics->messages_api_subscribe;
+
   LOG(INFO) << "Added subscriber " << http.streamId
             << " to the list of active subscribers";
 

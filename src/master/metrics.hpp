@@ -138,6 +138,9 @@ struct Metrics
   process::metrics::Counter messages_reconcile_tasks;
   process::metrics::Counter messages_framework_to_executor;
 
+  // Messages from API subscribers.
+  process::metrics::Counter messages_api_subscribe;
+
   // Messages from executors.
   process::metrics::Counter messages_executor_to_framework;
 

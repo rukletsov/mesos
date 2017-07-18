@@ -2265,6 +2265,9 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/messages_reconcile_tasks"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_framework_to_executor"));
 
+  // Messages from subscribers.
+  EXPECT_EQ(1u, snapshot.values.count("master/messages_api_subscribe"));
+
   // Messages from executors.
   EXPECT_EQ(1u, snapshot.values.count("master/messages_executor_to_framework"));
 
