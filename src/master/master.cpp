@@ -9326,6 +9326,30 @@ double Master::_frameworks_active()
 }
 
 
+double Master::_frameworks_active_driver()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks.registered) {
+    if (framework->active() && framework->pid.isSome()) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
+double Master::_frameworks_active_http()
+{
+  double count = 0.0;
+  foreachvalue (Framework* framework, frameworks.registered) {
+    if (framework->active() && framework->http.isSome()) {
+      count++;
+    }
+  }
+  return count;
+}
+
+
 double Master::_frameworks_inactive()
 {
   double count = 0.0;

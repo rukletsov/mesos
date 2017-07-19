@@ -1922,6 +1922,8 @@ private:
   double _frameworks_connected();
   double _frameworks_disconnected();
   double _frameworks_active();
+  double _frameworks_active_driver();
+  double _frameworks_active_http();
   double _frameworks_inactive();
 
   double _api_subscribers_connected();

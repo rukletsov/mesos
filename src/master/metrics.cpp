@@ -68,6 +68,12 @@ Metrics::Metrics(const Master& master)
     frameworks_active(
         "master/frameworks_active",
         defer(master, &Master::_frameworks_active)),
+    frameworks_active_driver(
+        "master/frameworks_active_driver",
+        defer(master, &Master::_frameworks_active_driver)),
+    frameworks_active_http(
+        "master/frameworks_active_http",
+        defer(master, &Master::_frameworks_active_http)),
     frameworks_inactive(
         "master/frameworks_inactive",
         defer(master, &Master::_frameworks_inactive)),
@@ -218,6 +224,8 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(frameworks_connected);
   process::metrics::add(frameworks_disconnected);
   process::metrics::add(frameworks_active);
+  process::metrics::add(frameworks_active_driver);
+  process::metrics::add(frameworks_active_http);
   process::metrics::add(frameworks_inactive);
 
   process::metrics::add(api_subscribers_connected);
@@ -368,6 +376,8 @@ Metrics::~Metrics()
   process::metrics::remove(frameworks_connected);
   process::metrics::remove(frameworks_disconnected);
   process::metrics::remove(frameworks_active);
+  process::metrics::remove(frameworks_active_driver);
+  process::metrics::remove(frameworks_active_http);
   process::metrics::remove(frameworks_inactive);
 
   process::metrics::remove(api_subscribers_connected);

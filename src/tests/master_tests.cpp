@@ -2235,6 +2235,8 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_connected"));
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_disconnected"));
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active_driver"));
+  EXPECT_EQ(1u, snapshot.values.count("master/frameworks_active_http"));
   EXPECT_EQ(1u, snapshot.values.count("master/frameworks_inactive"));
 
   EXPECT_EQ(1u, snapshot.values.count("master/api_subscribers_connected"));

@@ -53,6 +53,8 @@ struct Metrics
   process::metrics::Gauge frameworks_connected;
   process::metrics::Gauge frameworks_disconnected;
   process::metrics::Gauge frameworks_active;
+  process::metrics::Gauge frameworks_active_driver;
+  process::metrics::Gauge frameworks_active_http;
   process::metrics::Gauge frameworks_inactive;
 
   process::metrics::Gauge api_subscribers_connected;
