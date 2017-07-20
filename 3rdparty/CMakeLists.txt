@@ -197,6 +197,13 @@ ExternalProject_Add(
   URL               ${BOOST_URL}
   URL_HASH          ${BOOST_HASH})
 
+# moodycamel::ConcurrentQueue: An industrial-strength lock-free queue.
+# https://github.com/cameron314/concurrentqueue
+######################################################################
+external(concurrentqueue ${CONCURRENTQUEUE_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(concurrentqueue INTERFACE)
+add_dependencies(concurrentqueue ${CONCURRENTQUEUE_TARGET})
+target_include_directories(concurrentqueue SYSTEM INTERFACE ${CONCURRENTQUEUE_ROOT})
 ExternalProject_Add(
   ${CONCURRENTQUEUE_TARGET}
   PREFIX            ${CONCURRENTQUEUE_CMAKE_ROOT}
@@ -204,8 +211,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${CONCURRENTQUEUE_URL}
-  URL_HASH          ${CONCURRENTQUEUE_HASH}
-  )
+  URL_HASH          ${CONCURRENTQUEUE_HASH})
 
 ExternalProject_Add(
   ${ELFIO_TARGET}
