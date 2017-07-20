@@ -16,7 +16,6 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-EXTERNAL("elfio"           ${ELFIO_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("picojson"        ${PICOJSON_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("http_parser"     ${HTTP_PARSER_VERSION}     "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
@@ -38,7 +37,6 @@ set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 
-set(ELFIO_INCLUDE_DIR           ${ELFIO_ROOT})
 set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
 set(HTTP_PARSER_INCLUDE_DIR     ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
