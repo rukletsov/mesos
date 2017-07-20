@@ -220,6 +220,7 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(slaves_disconnected);
   process::metrics::add(slaves_active);
   process::metrics::add(slaves_inactive);
+  process::metrics::add(slaves_unreachable);
 
   process::metrics::add(frameworks_connected);
   process::metrics::add(frameworks_disconnected);
@@ -372,6 +373,7 @@ Metrics::~Metrics()
   process::metrics::remove(slaves_disconnected);
   process::metrics::remove(slaves_active);
   process::metrics::remove(slaves_inactive);
+  process::metrics::remove(slaves_unreachable);
 
   process::metrics::remove(frameworks_connected);
   process::metrics::remove(frameworks_disconnected);
