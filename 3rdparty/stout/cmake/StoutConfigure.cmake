@@ -33,7 +33,6 @@ endif ()
 set(STOUT_DEPENDENCIES
   ${STOUT_DEPENDENCIES}
   ${NVML_TARGET}
-  ${PICOJSON_TARGET}
   )
 
 if (WIN32)
@@ -50,7 +49,6 @@ set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${APR_INCLUDE_DIR}
   ${NVML_INCLUDE_DIR}
-  ${PICOJSON_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
   )
 
@@ -88,6 +86,7 @@ set(STOUT_LIBS
   elfio
   glog
   ${SVN_LIBS}
+  picojson
   protobuf
   )
 
