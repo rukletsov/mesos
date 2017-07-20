@@ -16,7 +16,6 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-EXTERNAL("picojson"        ${PICOJSON_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("http_parser"     ${HTTP_PARSER_VERSION}     "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
@@ -41,7 +40,6 @@ set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
 set(HTTP_PARSER_INCLUDE_DIR     ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
 set(NVML_INCLUDE_DIR            ${NVML_ROOT})
-set(PICOJSON_INCLUDE_DIR        ${PICOJSON_ROOT})
 
 if (WIN32)
   set(APR_INCLUDE_DIR      ${LIBAPR_ROOT}/include ${LIBAPR_ROOT}-build)
