@@ -16,7 +16,6 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-EXTERNAL("boost"           ${BOOST_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("concurrentqueue" ${CONCURRENTQUEUE_VERSION} "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("elfio"           ${ELFIO_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("picojson"        ${PICOJSON_VERSION}        "${MESOS_3RDPARTY_BIN}")
@@ -40,7 +39,6 @@ set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 
-set(BOOST_INCLUDE_DIR           ${BOOST_ROOT})
 set(CONCURRENTQUEUE_INCLUDE_DIR ${CONCURRENTQUEUE_ROOT})
 set(ELFIO_INCLUDE_DIR           ${ELFIO_ROOT})
 set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
