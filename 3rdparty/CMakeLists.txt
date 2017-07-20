@@ -181,6 +181,13 @@ function(MAKE_INCLUDE TARGET)
   file(MAKE_DIRECTORY ${DIR})
 endfunction()
 
+# Boost: C++ Libraries.
+# http://www.boost.org
+#######################
+external(boost ${BOOST_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(boost INTERFACE)
+add_dependencies(boost ${BOOST_TARGET})
+target_include_directories(boost SYSTEM INTERFACE ${BOOST_ROOT})
 ExternalProject_Add(
   ${BOOST_TARGET}
   PREFIX            ${BOOST_CMAKE_ROOT}
@@ -188,8 +195,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${BOOST_URL}
-  URL_HASH          ${BOOST_HASH}
-  )
+  URL_HASH          ${BOOST_HASH})
 
 ExternalProject_Add(
   ${CONCURRENTQUEUE_TARGET}
