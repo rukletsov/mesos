@@ -1348,6 +1348,7 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_failed"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_killed"));
   EXPECT_EQ(1u, snapshot.values.count("slave/tasks_lost"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/tasks_gone"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/executors_registering"));
   EXPECT_EQ(1u, snapshot.values.count("slave/executors_running"));
@@ -1361,9 +1362,8 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/valid_framework_messages"));
   EXPECT_EQ(1u, snapshot.values.count("slave/invalid_framework_messages"));
 
-  EXPECT_EQ(
-      1u,
-      snapshot.values.count("slave/executor_directory_max_allowed_age_secs"));
+  EXPECT_EQ(1u, snapshot.values.count(
+      "slave/executor_directory_max_allowed_age_secs"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/container_launch_errors"));
 
@@ -1371,17 +1371,33 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/cpus_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/cpus_revocable_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("slave/gpus_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/gpus_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/gpus_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/gpus_revocable_percent"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/mem_percent"));
 
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/mem_revocable_percent"));
+
   EXPECT_EQ(1u, snapshot.values.count("slave/disk_total"));
   EXPECT_EQ(1u, snapshot.values.count("slave/disk_used"));
   EXPECT_EQ(1u, snapshot.values.count("slave/disk_percent"));
+
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_revocable_total"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_revocable_used"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/disk_revocable_percent"));
 }
 
 
