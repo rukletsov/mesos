@@ -340,13 +340,6 @@ if (HAS_AUTHENTICATION)
   list(APPEND MESOS_CPPFLAGS -DHAS_AUTHENTICATION=1)
 endif ()
 
-# Enable the INT64 support for PicoJSON.
-# NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
-# 'inttypes.h'.  Since other libraries may also import this header, it must
-# be globally defined so that PicoJson has access to the macros, regardless
-# of the order of inclusion.
-list(APPEND MESOS_CPPFLAGS -DPICOJSON_USE_INT64 -D__STDC_FORMAT_MACROS)
-
 list(APPEND MESOS_CPPFLAGS
   -DPKGLIBEXECDIR="${PKG_LIBEXEC_INSTALL_DIR}"
   -DLIBDIR="${LIB_INSTALL_DIR}"
