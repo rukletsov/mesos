@@ -281,6 +281,19 @@ ExternalProject_Add(
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
 
+# PicoJSON: JSON parser / serializer.
+# https://github.com/kazuho/picojson
+#####################################
+external(picojson ${PICOJSON_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(picojson INTERFACE)
+add_dependencies(picojson ${PICOJSON_TARGET})
+target_include_directories(picojson SYSTEM INTERFACE ${PICOJSON_ROOT})
+# Enable the INT64 support for PicoJSON.
+# NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
+# 'inttypes.h'.  Since other libraries may also import this header, it must
+# be globally defined so that PicoJSON has access to the macros, regardless
+# of the order of inclusion.
+target_compile_definitions(picojson INTERFACE PICOJSON_USE_INT64 __STDC_FORMAT_MACROS)
 ExternalProject_Add(
   ${PICOJSON_TARGET}
   PREFIX            ${PICOJSON_CMAKE_ROOT}
@@ -288,8 +301,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
-  URL_HASH          ${PICOJSON_HASH}
-  )
+  URL_HASH          ${PICOJSON_HASH})
 
 ExternalProject_Add(
   ${NVML_TARGET}
