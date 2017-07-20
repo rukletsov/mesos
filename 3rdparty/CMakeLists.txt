@@ -213,6 +213,13 @@ ExternalProject_Add(
   URL               ${CONCURRENTQUEUE_URL}
   URL_HASH          ${CONCURRENTQUEUE_HASH})
 
+# ELFIO: library for reading and generating ELF files.
+# http://elfio.sourceforge.net
+######################################################
+external(elfio ${ELFIO_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(elfio INTERFACE)
+add_dependencies(elfio ${ELFIO_TARGET})
+target_include_directories(elfio SYSTEM INTERFACE ${ELFIO_ROOT})
 ExternalProject_Add(
   ${ELFIO_TARGET}
   PREFIX            ${ELFIO_CMAKE_ROOT}
@@ -220,8 +227,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${ELFIO_URL}
-  URL_HASH          ${ELFIO_HASH}
-  )
+  URL_HASH          ${ELFIO_HASH})
 
 # glog: Google Logging Library.
 # https://github.com/google/glog
