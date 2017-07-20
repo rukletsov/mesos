@@ -32,7 +32,6 @@ endif ()
 ################################################################################
 set(STOUT_DEPENDENCIES
   ${STOUT_DEPENDENCIES}
-  ${ELFIO_TARGET}
   ${NVML_TARGET}
   ${PICOJSON_TARGET}
   )
@@ -50,7 +49,6 @@ endif ()
 set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${APR_INCLUDE_DIR}
-  ${ELFIO_INCLUDE_DIR}
   ${NVML_INCLUDE_DIR}
   ${PICOJSON_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
@@ -87,6 +85,7 @@ set(STOUT_LIBS
   ${APR_LIBS}
   boost
   curl
+  elfio
   glog
   ${SVN_LIBS}
   protobuf
