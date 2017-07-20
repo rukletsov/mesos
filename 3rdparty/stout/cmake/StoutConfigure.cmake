@@ -32,7 +32,6 @@ endif ()
 ################################################################################
 set(STOUT_DEPENDENCIES
   ${STOUT_DEPENDENCIES}
-  ${BOOST_TARGET}
   ${ELFIO_TARGET}
   ${NVML_TARGET}
   ${PICOJSON_TARGET}
@@ -51,7 +50,6 @@ endif ()
 set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${APR_INCLUDE_DIR}
-  ${BOOST_INCLUDE_DIR}
   ${ELFIO_INCLUDE_DIR}
   ${NVML_INCLUDE_DIR}
   ${PICOJSON_INCLUDE_DIR}
@@ -87,6 +85,7 @@ set(STOUT_LIBS
   ${STOUT_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
   ${APR_LIBS}
+  boost
   curl
   glog
   ${SVN_LIBS}
