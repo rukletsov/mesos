@@ -126,6 +126,22 @@ function(MAKE_INCLUDE TARGET)
   file(MAKE_DIRECTORY ${DIR})
 endfunction()
 
+# This function works around a CMake issue with the Ninja generator where it
+# does not understand imported libraries, and instead needs `BUILD_BYPRODUCTS`
+# explicitly set.
+# https://cmake.org/pipermail/cmake/2015-April/060234.html
+function(GET_BYPRODUCTS TARGET)
+  if (WIN32)
+    get_target_property(DEBUG ${TARGET} IMPORTED_LOCATION_DEBUG)
+    get_target_property(RELEASE ${TARGET} IMPORTED_LOCATION_RELEASE)
+    set(BYPRODUCTS ${DEBUG} ${RELEASE})
+  else ()
+    get_target_property(BYPRODUCTS ${TARGET} IMPORTED_LOCATION)
+  endif ()
+  string(TOUPPER ${TARGET} NAME)
+  set(${NAME}_BYPRODUCTS ${BYPRODUCTS} PARENT_SCOPE)
+endfunction()
+
 # Third-party libraries. Adds CMake imported or interface targets for each
 # dependency. Bundled dependencies are built with `ExternalProject_Add`,
 # otherwise `find_package()` is used.
@@ -220,9 +236,11 @@ else ()
     INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
 endif ()
 make_include(glog)
+get_byproducts(glog)
 ExternalProject_Add(
   ${GLOG_TARGET}
   PREFIX            ${GLOG_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${GLOG_BYPRODUCTS}
   PATCH_COMMAND     ${GLOG_PATCH_CMD}
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DBUILD_TESTING=OFF
   CONFIGURE_COMMAND ${GLOG_CONFIG_CMD}
@@ -294,9 +312,11 @@ set(HTTP_PARSER_PATCH_CMD
   ${CMAKE_CURRENT_SOURCE_DIR}/http-parser/CMakeLists.txt.template
   ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 make_include(http_parser)
+get_byproducts(http_parser)
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${HTTP_PARSER_BYPRODUCTS}
   PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
@@ -334,9 +354,11 @@ if (ENABLE_LIBEVENT)
     list(APPEND LIBEVENT_CMAKE_ARGS -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR})
   endif ()
   make_include(libevent)
+  get_byproducts(libevent)
   ExternalProject_Add(
     ${LIBEVENT_TARGET}
     PREFIX            ${LIBEVENT_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${LIBEVENT_BYPRODUCTS}
     CMAKE_ARGS        ${LIBEVENT_CMAKE_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBEVENT_URL}
@@ -354,9 +376,11 @@ else ()
   # Patch libev to keep it from reaping child processes.
   patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/libev-4.22.patch LIBEV_PATCH_CMD)
   make_include(libev)
+  get_byproducts(libev)
   ExternalProject_Add(
     ${LIBEV_TARGET}
     PREFIX            ${LIBEV_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${LIBEV_BYPRODUCTS}
     PATCH_COMMAND     ${LIBEV_PATCH_CMD}
     CONFIGURE_COMMAND ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-build
     BUILD_COMMAND     make
@@ -378,9 +402,11 @@ if (WIN32)
     IMPORTED_LOCATION_RELEASE ${LIBAPR_ROOT}-build/Release/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES "${LIBAPR_ROOT}/include;${LIBAPR_ROOT}-build")
   make_include(apr)
+  get_byproducts(apr)
   ExternalProject_Add(
     ${LIBAPR_TARGET}
     PREFIX            ${LIBAPR_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${APR_BYPRODUCTS}
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBAPR_URL}
@@ -431,9 +457,11 @@ if (WIN32)
     list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
   endif ()
   make_include(curl)
+  get_byproducts(curl)
   ExternalProject_Add(
     ${CURL_TARGET}
     PREFIX            ${CURL_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${CURL_BYPRODUCTS}
     PATCH_COMMAND     ${CMAKE_NOOP}
     CMAKE_ARGS        ${CURL_CMAKE_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
@@ -466,9 +494,11 @@ if (WIN32)
     IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_ROOT};${ZLIB_ROOT}-build")
   make_include(zlib)
+  get_byproducts(zlib)
   ExternalProject_Add(
     ${ZLIB_TARGET}
     PREFIX            ${ZLIB_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${ZLIB_BYPRODUCTS}
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${ZLIB_URL}
@@ -511,9 +541,12 @@ else ()
 endif ()
 make_include(gmock)
 make_include(gtest)
+get_byproducts(gmock)
+get_byproducts(gtest)
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
   PREFIX            ${GOOGLETEST_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${GMOCK_BYPRODUCTS};${GTEST_BYPRODUCTS}
   # NOTE: googletest cannot be built as a shared library, or the test runner
   # will crash with a double-free.
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DBUILD_SHARED_LIBS=OFF
@@ -550,9 +583,11 @@ else ()
     IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/protoc)
 endif ()
 make_include(protobuf)
+get_byproducts(protobuf)
 ExternalProject_Add(
   ${PROTOBUF_TARGET}
   PREFIX            ${PROTOBUF_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${PROTOBUF_BYPRODUCTS}
   SOURCE_SUBDIR     cmake
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-Dprotobuf_BUILD_TESTS=OFF
   INSTALL_COMMAND   ${CMAKE_NOOP}
@@ -592,9 +627,12 @@ else ()
   patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch ZOOKEEPER_PATCH_CMD)
 endif ()
 make_include(zookeeper)
+get_byproducts(zookeeper)
+get_byproducts(zk-hashtable)
 ExternalProject_Add(
   ${ZOOKEEPER_TARGET}
   PREFIX            ${ZOOKEEPER_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${ZOOKEEPER_BYPRODUCTS};${ZK-HASHTABLE_BYPRODUCTS}
   PATCH_COMMAND     ${ZOOKEEPER_PATCH_CMD}
   SOURCE_SUBDIR     src/c
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DWANT_CPPUNIT=OFF
@@ -615,9 +653,11 @@ if (NOT WIN32)
     INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
   patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
   make_include(leveldb)
+  get_byproducts(leveldb)
   ExternalProject_Add(
     ${LEVELDB_TARGET}
     PREFIX            ${LEVELDB_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${LEVELDB_BYPRODUCTS}
     PATCH_COMMAND     ${LEVELDB_PATCH_CMD}
     CONFIGURE_COMMAND ${CMAKE_NOOP}
     BUILD_IN_SOURCE   1
