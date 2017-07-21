@@ -394,17 +394,41 @@ else ()
     INTERFACE_INCLUDE_DIRECTORIES ${CURL_INCLUDE_DIRS})
 endif ()
 
+# zlib: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
+# https://zlib.net
+##########################################################################
 if (WIN32)
+  external(zlib ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(zlib ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(zlib ${ZLIB_TARGET})
+  # Zlib generates different libraries depending on the linkage
+  # and configuration.  i.e.:
+  #   * For a static Debug build: `zlibstaticd.lib`.
+  #   * For a shared Release build: `zlib.lib`.
+  if (NOT BUILD_SHARED_LIBS)
+    set(ZLIB_STATIC static)
+  endif ()
+  set_target_properties(zlib PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_ROOT};${ZLIB_ROOT}-build")
+  make_include(zlib)
   ExternalProject_Add(
     ${ZLIB_TARGET}
     PREFIX            ${ZLIB_CMAKE_ROOT}
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${ZLIB_URL}
-    URL_HASH          ${ZLIB_HASH}
-  )
+    URL_HASH          ${ZLIB_HASH})
+else ()
+  find_package(ZLIB REQUIRED)
+  add_library(zlib SHARED IMPORTED)
+  set_target_properties(zlib PROPERTIES
+    IMPORTED_LOCATION ${ZLIB_LIBRARIES}
+    INTERFACE_INCLUDE_DIRECTORIES ${ZLIB_INCLUDE_DIRS})
 endif ()
-
+set_target_properties(zlib PROPERTIES
+  INTERFACE_COMPILE_DEFINITIONS HAVE_LIBZ)
 
 # DEPENDENCIES FOR THE PROCESS LIBRARY TESTS AND STOUT TESTS.
 #
