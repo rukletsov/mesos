@@ -134,8 +134,6 @@ if (NOT WIN32)
   set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
 else ()
   set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
-
-  set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
 endif ()
 
 set(LIBEVENT_CMAKE_ARGS
@@ -374,15 +372,32 @@ elseif (ENABLE_LIBEVENT)
     )
 endif ()
 
+# APR: The Apache Portable Runtime Project.
+# https://apr.apache.org
+###########################################
 if (WIN32)
+  external(libapr ${LIBAPR_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(apr ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(apr ${LIBAPR_TARGET})
+  # NOTE: libapr-1 is always a static library on Windows.
+  set_target_properties(apr PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${LIBAPR_ROOT}-build/Debug/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${LIBAPR_ROOT}-build/Release/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBAPR_ROOT}/include;${LIBAPR_ROOT}-build")
+  make_include(apr)
   ExternalProject_Add(
     ${LIBAPR_TARGET}
     PREFIX            ${LIBAPR_CMAKE_ROOT}
     CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
-    INSTALL_COMMAND   ${LIBAPR_INSTALL_CMD}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBAPR_URL}
-    URL_HASH          ${LIBAPR_HASH}
-    )
+    URL_HASH          ${LIBAPR_HASH})
+else ()
+  find_package(Apr REQUIRED)
+  add_library(apr SHARED IMPORTED)
+  set_target_properties(apr PROPERTIES
+    IMPORTED_LOCATION ${APR_LIBS}
+    INTERFACE_INCLUDE_DIRECTORIES ${APR_INCLUDE_DIR})
 endif ()
 
 
