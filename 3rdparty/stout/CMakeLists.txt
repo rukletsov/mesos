@@ -23,9 +23,6 @@ link_directories(${STOUT_LIB_DIRS})
 #############################
 add_library(stout INTERFACE)
 
-# TODO(andschwa): Remove this when all dependencies have top-level targets.
-add_dependencies(stout ${STOUT_DEPENDENCIES})
-
 target_include_directories(stout INTERFACE
   include/
   ${STOUT_3RDPARTY_INCLUDE_DIRS})

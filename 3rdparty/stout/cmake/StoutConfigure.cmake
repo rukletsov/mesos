@@ -27,21 +27,12 @@ if (NOT WIN32)
   find_package(Svn REQUIRED)
 endif ()
 
-# DEFINE STOUT LIBRARY DEPENDENCIES. Tells the stout library build targets
-# download/configure/build all third-party libraries before attempting to build.
-################################################################################
-set(STOUT_DEPENDENCIES
-  ${STOUT_DEPENDENCIES}
-  ${NVML_TARGET}
-  )
-
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
 set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
   ${APR_INCLUDE_DIR}
-  ${NVML_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
   )
 
