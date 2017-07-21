@@ -303,6 +303,13 @@ ExternalProject_Add(
   URL               ${PICOJSON_URL}
   URL_HASH          ${PICOJSON_HASH})
 
+# NVML: NVIDIA Management Library.
+# https://developer.nvidia.com/nvidia-management-library-nvml
+#############################################################
+external(nvml ${NVML_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(nvml INTERFACE)
+add_dependencies(nvml ${NVML_TARGET})
+target_include_directories(nvml SYSTEM INTERFACE ${NVML_ROOT})
 ExternalProject_Add(
   ${NVML_TARGET}
   PREFIX            ${NVML_CMAKE_ROOT}
@@ -310,8 +317,7 @@ ExternalProject_Add(
   BUILD_COMMAND     ${CMAKE_NOOP}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${NVML_URL}
-  URL_HASH          ${NVML_HASH}
-  )
+  URL_HASH          ${NVML_HASH})
 
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
