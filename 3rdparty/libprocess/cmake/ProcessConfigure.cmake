@@ -125,7 +125,6 @@ endif ()
 if (WIN32)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
   )
 endif ()
 
@@ -142,13 +141,6 @@ if (NOT ENABLE_LIBEVENT)
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEV_LIB_DIR})
 else ()
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEVENT_LIB_DIR})
-endif ()
-
-if (WIN32)
-  set(PROCESS_LIB_DIRS
-    ${PROCESS_LIB_DIRS}
-    ${ZLIB_LIB_DIR}
-    )
 endif ()
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
@@ -177,8 +169,6 @@ if (ENABLE_SSL)
 endif ()
 
 if (NOT WIN32)
-  find_package(ZLIB REQUIRED)
-
   # TODO(hausdorff): (MESOS-3396) The `LINUX` flag comes from MesosConfigure;
   # when we port the bootstrap script to CMake, we should also copy this
   # logic into .cmake files in the Stout and Process libraries'
@@ -189,7 +179,6 @@ if (NOT WIN32)
 
   set(PROCESS_LIBS
     ${PROCESS_LIBS}
-    ${ZLIB_LIBRARIES}
     pthread
     )
 endif ()

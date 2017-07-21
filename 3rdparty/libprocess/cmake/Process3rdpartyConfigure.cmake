@@ -22,13 +22,6 @@ EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libapr"          ${LIBAPR_VERSION}          "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("nvml"            ${NVML_VERSION}            "${MESOS_3RDPARTY_BIN}")
 
-if (WIN32)
-  # NOTE: We expect cURL and zlib exist on Unix (usually pulled in with a
-  # package manager), but Windows has no package manager, so we have to go
-  # get it.
-  EXTERNAL("zlib" ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
-endif ()
-
 # Intermediate convenience variables for oddly-structured directories.
 set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
 set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
@@ -46,7 +39,6 @@ if (WIN32)
   set(LIBEVENT_INCLUDE_DIR
     ${LIBEVENT_ROOT}/include
     ${LIBEVENT_ROOT}-build/include)
-  set(ZLIB_INCLUDE_DIR     ${ZLIB_ROOT} ${ZLIB_ROOT}-build)
 else ()
   set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_LIB_ROOT}/include)
 endif ()
@@ -57,7 +49,6 @@ set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
 if (WIN32)
   set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_ROOT}-build/lib)
-  set(ZLIB_LIB_DIR        ${ZLIB_ROOT}-build)
 else ()
   set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
@@ -71,17 +62,6 @@ set(LIBEVENT_LFLAG    event)
 
 if (WIN32)
 
-  # Zlib generates different libraries depending on the linkage
-  # and configuration.  i.e.:
-  #   * For a static Debug build: `zlibstaticd`.
-  #   * For a shared Release build: `zlib`.
-  set(ZLIB_LFLAG zlib)
-
-  if (NOT BUILD_SHARED_LIBS)
-    string(APPEND ZLIB_LFLAG static)
-  endif ()
-
-  string(APPEND ZLIB_LFLAG $<$<CONFIG:Debug>:d>)
 else ()
   set(DL_LFLAG       dl)
   set(SASL_LFLAG     sasl2)
