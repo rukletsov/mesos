@@ -138,8 +138,6 @@ else ()
   set(LIBAPR_INSTALL_CMD ${CMAKE_NOOP})
 endif ()
 
-set(HTTP_PARSER_UPDATE_CMD ${CMAKE_COMMAND} -E copy ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template ${HTTP_PARSER_ROOT}/CMakeLists.txt)
-
 set(LIBEVENT_CMAKE_ARGS
   ${LIBEVENT_CMAKE_ARGS}
   # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
@@ -319,15 +317,39 @@ ExternalProject_Add(
   URL               ${NVML_URL}
   URL_HASH          ${NVML_HASH})
 
+# HTTP Parser: HTTP request/response parser for C.
+# https://github.com/nodejs/http-parser
+##################################################
+# TODO: Remove `GLOBAL` when `Process3rdpartyConfigure` is removed.
+external(http_parser ${HTTP_PARSER_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(http_parser ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+add_dependencies(http_parser ${HTTP_PARSER_TARGET})
+set_target_properties(http_parser PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${HTTP_PARSER_ROOT})
+# NOTE: http-parser is built as a static library unconditionally.
+if (WIN32)
+  set_target_properties(http_parser PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${HTTP_PARSER_ROOT}-build/Debug/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${HTTP_PARSER_ROOT}-build/Release/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+else ()
+  set_target_properties(http_parser PROPERTIES
+    IMPORTED_LOCATION ${HTTP_PARSER_ROOT}-build/libhttp_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+endif ()
+# NOTE: This is used to provide a CMake build for http-parser. We can't just use
+# `add_library(http_parser ...)` because `ExternalProject_Add` extracts the
+# tarball at build time, and `add_library` is a configuration time step.
+set(HTTP_PARSER_PATCH_CMD
+  ${CMAKE_COMMAND} -E copy
+  ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template
+  ${HTTP_PARSER_ROOT}/CMakeLists.txt)
+make_include(http_parser)
 ExternalProject_Add(
   ${HTTP_PARSER_TARGET}
   PREFIX            ${HTTP_PARSER_CMAKE_ROOT}
-  UPDATE_COMMAND    ${HTTP_PARSER_UPDATE_CMD}
+  PATCH_COMMAND     ${HTTP_PARSER_PATCH_CMD}
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${HTTP_PARSER_URL}
-  URL_HASH          ${HTTP_PARSER_HASH}
-  )
+  URL_HASH          ${HTTP_PARSER_HASH})
 
 if (NOT ENABLE_LIBEVENT)
   ExternalProject_Add(
