@@ -18,7 +18,6 @@
 ##################################################
 EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
-EXTERNAL("libapr"          ${LIBAPR_VERSION}          "${MESOS_3RDPARTY_BIN}")
 
 # Intermediate convenience variables for oddly-structured directories.
 set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
@@ -31,7 +30,6 @@ set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
 
 if (WIN32)
-  set(APR_INCLUDE_DIR      ${LIBAPR_ROOT}/include ${LIBAPR_ROOT}-build)
   set(LIBEVENT_INCLUDE_DIR
     ${LIBEVENT_ROOT}/include
     ${LIBEVENT_ROOT}-build/include)
