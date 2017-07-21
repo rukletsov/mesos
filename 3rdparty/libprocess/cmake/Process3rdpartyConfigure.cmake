@@ -20,7 +20,6 @@ EXTERNAL("http_parser"     ${HTTP_PARSER_VERSION}     "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libapr"          ${LIBAPR_VERSION}          "${MESOS_3RDPARTY_BIN}")
-EXTERNAL("nvml"            ${NVML_VERSION}            "${MESOS_3RDPARTY_BIN}")
 
 # Intermediate convenience variables for oddly-structured directories.
 set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
@@ -32,7 +31,6 @@ set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
 set(HTTP_PARSER_INCLUDE_DIR     ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
-set(NVML_INCLUDE_DIR            ${NVML_ROOT})
 
 if (WIN32)
   set(APR_INCLUDE_DIR      ${LIBAPR_ROOT}/include ${LIBAPR_ROOT}-build)
