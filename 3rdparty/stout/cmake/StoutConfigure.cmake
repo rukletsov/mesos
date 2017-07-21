@@ -35,13 +35,6 @@ set(STOUT_DEPENDENCIES
   ${NVML_TARGET}
   )
 
-if (WIN32)
-  set(STOUT_DEPENDENCIES
-    ${STOUT_DEPENDENCIES}
-    ${ZLIB_TARGET}
-    )
-endif ()
-
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
 # headers for our third party libs (e.g., -I/path/to/glog on Linux).
 ###############################################################################
@@ -51,28 +44,6 @@ set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${NVML_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
   )
-
-if (WIN32)
-  set(STOUT_3RDPARTY_INCLUDE_DIRS
-    ${STOUT_3RDPARTY_INCLUDE_DIRS}
-    ${ZLIB_INCLUDE_DIR}
-    )
-endif ()
-
-# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
-# toolchain where to find our third party libs (e.g., -L/path/to/glog on
-# Linux).
-########################################################################
-set(STOUT_LIB_DIRS
-  ${STOUT_LIB_DIRS}
-  )
-
-if (WIN32)
-  set(STOUT_LIB_DIRS
-    ${STOUT_LIB_DIRS}
-    ${ZLIB_LIB_DIR}
-    )
-endif ()
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
@@ -88,12 +59,12 @@ set(STOUT_LIBS
   ${SVN_LIBS}
   picojson
   protobuf
+  zlib
   )
 
 if (WIN32)
   set(STOUT_LIBS
     ${STOUT_LIBS}
-    ${ZLIB_LFLAG}
     ws2_32
     Mswsock
     Secur32
