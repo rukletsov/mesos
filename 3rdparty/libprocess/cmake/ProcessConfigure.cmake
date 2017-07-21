@@ -68,11 +68,6 @@ endmacro()
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
-set(PROCESS_DEPENDENCIES
-  ${PROCESS_DEPENDENCIES}
-  ${HTTP_PARSER_TARGET}
-  )
-
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEV_TARGET})
 else ()
@@ -92,11 +87,6 @@ endif ()
 set(PROCESS_INCLUDE_DIRS
   ${PROCESS_INCLUDE_DIRS}
   ${PROCESS_INCLUDE_DIR}
-  )
-
-set(PROCESS_3RDPARTY_INCLUDE_DIRS
-  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  ${HTTP_PARSER_INCLUDE_DIR}
   )
 
 if (NOT ENABLE_LIBEVENT)
@@ -132,11 +122,6 @@ endif ()
 # toolchain where to find our third party libs (e.g., -L/path/to/glog on
 # Linux).
 ########################################################################
-set(PROCESS_LIB_DIRS
-  ${PROCESS_LIB_DIRS}
-  ${HTTP_PARSER_LIB_DIR}
-  )
-
 if (NOT ENABLE_LIBEVENT)
   set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEV_LIB_DIR})
 else ()
@@ -152,7 +137,7 @@ set(PROCESS_LIBS
   ${PROCESS_LIBS}
   stout
   concurrentqueue
-  ${HTTP_PARSER_LFLAG}
+  http_parser
   )
 
 if (NOT ENABLE_LIBEVENT)

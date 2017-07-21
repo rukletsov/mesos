@@ -16,7 +16,6 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-EXTERNAL("http_parser"     ${HTTP_PARSER_VERSION}     "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
 EXTERNAL("libapr"          ${LIBAPR_VERSION}          "${MESOS_3RDPARTY_BIN}")
@@ -29,7 +28,6 @@ set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 
 set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
-set(HTTP_PARSER_INCLUDE_DIR     ${HTTP_PARSER_ROOT})
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
 
 if (WIN32)
@@ -45,16 +43,13 @@ endif ()
 set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
 
 if (WIN32)
-  set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_ROOT}-build/lib)
 else ()
-  set(HTTP_PARSER_LIB_DIR ${HTTP_PARSER_ROOT}-build)
   set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
 endif ()
 
 # Convenience variables for "lflags", the symbols we pass to CMake to generate
 # things like `-L/path/to/glog` or `-lglog`.
-set(HTTP_PARSER_LFLAG http_parser)
 set(LIBEV_LFLAG       ev)
 set(LIBEVENT_LFLAG    event)
 
