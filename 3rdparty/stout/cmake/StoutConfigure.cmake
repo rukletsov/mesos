@@ -23,7 +23,6 @@ if (NOT WIN32)
   # dependencies can be really annoying in some circumstances. For this reason,
   # we should support a CMake-based "distribution channel", even though this
   # way is sure to be more hackish.
-  find_package(Apr REQUIRED)
   find_package(Svn REQUIRED)
 endif ()
 
@@ -32,7 +31,6 @@ endif ()
 ###############################################################################
 set(STOUT_3RDPARTY_INCLUDE_DIRS
   ${STOUT_3RDPARTY_INCLUDE_DIRS}
-  ${APR_INCLUDE_DIR}
   ${SVN_INCLUDE_DIR}
   )
 
@@ -42,7 +40,7 @@ set(STOUT_3RDPARTY_INCLUDE_DIRS
 set(STOUT_LIBS
   ${STOUT_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
-  ${APR_LIBS}
+  apr
   boost
   curl
   elfio
@@ -65,7 +63,6 @@ else ()
   set(STOUT_LIBS
     ${STOUT_LIBS}
     ${DL_LFLAG}
-    apr-1
     )
 endif ()
 
