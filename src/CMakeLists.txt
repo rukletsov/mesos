@@ -658,6 +658,7 @@ add_dependencies(
 target_link_libraries(${MESOS_LIBS_TARGET} PUBLIC
   ${MESOS_PROTOBUF_TARGET}
   ${AGENT_LIBS}
+  $<$<PLATFORM_ID:Linux>:nvml>
   $<$<BOOL:${HAS_JAVA}>:mesos-java>)
 
 # BUILD THE MESOS EXECUTABLES.
