@@ -21,7 +21,6 @@ set(MASTER_DEPENDENCIES
   ${MASTER_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
   ${PROCESS_TARGET}
-  ${LEVELDB_TARGET}
   make_bin_include_dir
   make_bin_src_dir
   )
@@ -43,7 +42,6 @@ set(MASTER_3RDPARTY_INCLUDE_DIRS
   ${MASTER_3RDPARTY_INCLUDE_DIRS}
   ${PROCESS_INCLUDE_DIRS}
   ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  ${LEVELDB_INCLUDE_DIR}
   )
 
 # Define third-party lib install directories. Used to tell the compiler
@@ -68,7 +66,7 @@ set(MASTER_LIBS
 if (NOT WIN32)
   set(MASTER_LIBS
     ${MASTER_LIBS}
-    ${LEVELDB_LFLAG}
+    leveldb
     ${SASL_LFLAG}
     )
 endif ()
