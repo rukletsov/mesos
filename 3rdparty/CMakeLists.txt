@@ -614,22 +614,27 @@ ExternalProject_Add(
   URL               ${ZOOKEEPER_URL}
   URL_HASH          ${ZOOKEEPER_HASH})
 
-
+# LevelDB: A fast key-value storage library.
+# https://github.com/google/leveldb
+############################################
 if (NOT WIN32)
-  PATCH_CMD(
-    ${MESOS_3RDPARTY_SRC}/leveldb-${LEVELDB_VERSION}.patch
-    LEVELDB_PATCH_CMD)
-
-  # NOTE: Building leveldb as a shared library is not yet supported.
+  # TODO(andschwa): Move leveldb so these don't have to be GLOBAL.
+  external(leveldb ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(leveldb STATIC IMPORTED GLOBAL)
+  add_dependencies(leveldb ${LEVELDB_TARGET})
+  set_target_properties(leveldb PROPERTIES
+    IMPORTED_LOCATION ${LEVELDB_ROOT}/out-static/libleveldb${CMAKE_STATIC_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
+  patch_cmd(${MESOS_3RDPARTY_SRC}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
+  make_include(leveldb)
   ExternalProject_Add(
     ${LEVELDB_TARGET}
-    PREFIX            ${LEVELDB_TARGET}
+    PREFIX            ${LEVELDB_CMAKE_ROOT}
     PATCH_COMMAND     ${LEVELDB_PATCH_CMD}
     CONFIGURE_COMMAND ${CMAKE_NOOP}
     BUILD_IN_SOURCE   1
     BUILD_COMMAND     make OPT=-O2\ -DNDEBUG\ -fPIC all
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LEVELDB_URL}
-    URL_HASH          ${LEVELDB_HASH}
-    )
+    URL_HASH          ${LEVELDB_HASH})
 endif ()
