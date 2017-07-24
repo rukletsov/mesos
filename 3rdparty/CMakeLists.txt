@@ -400,6 +400,23 @@ else ()
     INTERFACE_INCLUDE_DIRECTORIES ${APR_INCLUDE_DIR})
 endif ()
 
+# Subversion: Enterprise-class centralized version control for the masses.
+# https://subversion.apache.org
+##########################################################################
+if (NOT WIN32)
+  # NOTE: This does not use `FindSubversion` because it finds the `svn`
+  # executable, but we're looking for the library.
+  find_package(Svn REQUIRED)
+  add_library(svn INTERFACE)
+  target_include_directories(svn SYSTEM INTERFACE ${SVN_INCLUDE_DIR})
+  # `FindSvn` returns finds three separate libraries.
+  foreach (lib ${SVN_LIBS})
+    get_filename_component(SVN_LIB ${lib} NAME_WE)
+    add_library(${SVN_LIB} SHARED IMPORTED)
+    set_target_properties(${SVN_LIB} PROPERTIES IMPORTED_LOCATION ${lib})
+    target_link_libraries(svn INTERFACE ${SVN_LIB})
+  endforeach ()
+endif ()
 
 # curl: command line tool and library for transferring data with URLs.
 # https://curl.haxx.se
