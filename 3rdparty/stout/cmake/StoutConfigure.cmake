@@ -14,26 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (NOT WIN32)
-  # TODO(hausdorff): (cf. MESOS-3181) Add support for attempting to find these
-  # packages on Windows, and then if that fails, use CMake macros/functions to
-  # download, configure, and build them.
-  #
-  # WHY: Windows does not have a good package manager, so getting some of our
-  # dependencies can be really annoying in some circumstances. For this reason,
-  # we should support a CMake-based "distribution channel", even though this
-  # way is sure to be more hackish.
-  find_package(Svn REQUIRED)
-endif ()
-
-# DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
-# headers for our third party libs (e.g., -I/path/to/glog on Linux).
-###############################################################################
-set(STOUT_3RDPARTY_INCLUDE_DIRS
-  ${STOUT_3RDPARTY_INCLUDE_DIRS}
-  ${SVN_INCLUDE_DIR}
-  )
-
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
 # include our third-party libs (e.g., -lglog on Linux).
 #########################################################################
@@ -45,7 +25,6 @@ set(STOUT_LIBS
   curl
   elfio
   glog
-  ${SVN_LIBS}
   picojson
   protobuf
   zlib
@@ -62,6 +41,7 @@ if (WIN32)
 else ()
   set(STOUT_LIBS
     ${STOUT_LIBS}
+    svn
     ${DL_LFLAG}
     )
 endif ()
