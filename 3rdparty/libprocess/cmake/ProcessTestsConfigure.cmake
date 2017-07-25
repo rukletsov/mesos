@@ -14,9 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO(andschwa): Remove this when gmock and gtest can be included.
-include(StoutTestsConfigure)
-
 set(
   PROCESS_TESTS_TARGET libprocess-tests
   CACHE STRING "Target we use to refer to tests for the process library")
@@ -29,7 +26,6 @@ set(PROCESS_TEST_DEPENDENCIES
   ${PROCESS_TEST_DEPENDENCIES}
   ${PROCESS_DEPENDENCIES}
   ${PROCESS_TARGET}
-  ${GOOGLETEST_TARGET}
   )
 
 # DEFINE THIRD-PARTY INCLUDE DIRECTORIES. Tells compiler toolchain where to get
@@ -38,8 +34,6 @@ set(PROCESS_TEST_DEPENDENCIES
 set(PROCESS_TEST_INCLUDE_DIRS
   ${PROCESS_TEST_INCLUDE_DIRS}
   ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  ${GMOCK_INCLUDE_DIR}
-  ${GTEST_INCLUDE_DIR}
   src
   )
 
@@ -57,9 +51,6 @@ set(PROCESS_TEST_LIB_DIRS
   ${PROCESS_TEST_LIB_DIRS}
   ${PROCESS_LIB_DIRS}
   ${CMAKE_CURRENT_BINARY_DIR}/.. # libprocess directory.
-
-  ${GMOCK_LIB_DIR}
-  ${GTEST_LIB_DIR}
   )
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
@@ -69,6 +60,5 @@ set(PROCESS_TEST_LIBS
   ${PROCESS_TEST_LIBS}
   ${PROCESS_TARGET}
   ${PROCESS_LIBS}
-  ${GMOCK_LFLAG}
-  ${GTEST_LFLAG}
+  googletest
   )
