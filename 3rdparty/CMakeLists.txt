@@ -499,30 +499,47 @@ list(
   APPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/3rdparty/stout/cmake
   )
-# TODO(andschwa): Remove this when gmock and gtest can be included.
-include(StoutTestsConfigure)
 
 set(GOOGLETEST_URL ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
 set(PROTOBUF_URL ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 
-# NOTE: `googletest` is "installed" into a lib directory, see "NOTE: (fix for
-# MESOS-3250)" comment above for explanation.
-if (NOT WIN32)
-  set(GOOGLETEST_INSTALL_CMD mkdir -p ${GOOGLETEST_ROOT}-lib/lib && cp -r ${GOOGLETEST_ROOT}-build/googlemock/. ${GOOGLETEST_ROOT}-lib/lib)
+# Google Test: Google's C++ test framework (GoogleTest and GoogleMock).
+# https://github.com/google/googletest
+#######################################################################
+external(googletest ${GOOGLETEST_VERSION} "${MESOS_3RDPARTY_BIN}")
+add_library(googletest INTERFACE)
+add_dependencies(googletest ${GOOGLETEST_TARGET})
+target_link_libraries(googletest INTERFACE gmock gtest)
+add_library(gmock IMPORTED STATIC)
+add_library(gtest IMPORTED STATIC)
+set_target_properties(gmock PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googlemock/include)
+set_target_properties(gtest PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googletest/include)
+if (WIN32)
+  set_target_properties(gmock PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/Debug/gmock${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/Release/gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(gtest PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/gtest/Debug/gtest${CMAKE_STATIC_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/gtest/Release/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
 else ()
-  set(GOOGLETEST_INSTALL_CMD ${CMAKE_NOOP})
+  set_target_properties(gmock PROPERTIES
+    IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/libgmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(gtest PROPERTIES
+    IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/gtest/libgtest${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif ()
-
+make_include(gmock)
+make_include(gtest)
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
   PREFIX            ${GOOGLETEST_CMAKE_ROOT}
   # NOTE: googletest cannot be built as a shared library, or the test runner
   # will crash with a double-free.
   CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DBUILD_SHARED_LIBS=OFF
-  INSTALL_COMMAND   ${GOOGLETEST_INSTALL_CMD}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${GOOGLETEST_URL}
-  URL_HASH          ${GOOGLETEST_HASH}
-  )
+  URL_HASH          ${GOOGLETEST_HASH})
 
 # Protocol Buffers: Google's data interchange format.
 # https://developers.google.com/protocol-buffers/
