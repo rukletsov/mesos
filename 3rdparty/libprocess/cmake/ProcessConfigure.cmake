@@ -135,18 +135,3 @@ if (ENABLE_SSL)
     ${OPENSSL_LIBRARIES}
     )
 endif ()
-
-if (NOT WIN32)
-  # TODO(hausdorff): (MESOS-3396) The `LINUX` flag comes from MesosConfigure;
-  # when we port the bootstrap script to CMake, we should also copy this
-  # logic into .cmake files in the Stout and Process libraries'
-  # folders individually.
-  if (LINUX)
-    set(PROCESS_LIBS ${PROCESS_LIBS} rt)
-  endif ()
-
-  set(PROCESS_LIBS
-    ${PROCESS_LIBS}
-    pthread
-    )
-endif ()
