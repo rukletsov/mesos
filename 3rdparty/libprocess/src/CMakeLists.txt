@@ -112,14 +112,6 @@ link_directories(${PROCESS_LIB_DIRS})
 #######################################################################
 add_library(${PROCESS_TARGET} ${PROCESS_SRC})
 
-GROUP_PROCESS_HEADERS()
-
-GROUP_SOURCE(
-  "src"
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  "*.[ch]*")
-
 set_target_properties(
   ${PROCESS_TARGET} PROPERTIES
   VERSION ${PROCESS_PACKAGE_VERSION}
