@@ -14,20 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include(StoutConfigure)
+find_package(Threads REQUIRED)
 
-# TODO(andschwa): Remove this when all libraries are fully qualified.
-link_directories(${STOUT_LIB_DIRS})
-
-# THE STOUT LIBRARY INTERFACE
-#############################
 add_library(stout INTERFACE)
-
-target_include_directories(stout INTERFACE
-  include/
-  ${STOUT_3RDPARTY_INCLUDE_DIRS})
-
+target_include_directories(stout INTERFACE include)
 target_link_libraries(stout INTERFACE
-  ${STOUT_LIBS})
+  apr
+  boost
+  curl
+  elfio
+  glog
+  picojson
+  protobuf
+  Threads::Threads
+  zlib
+  $<$<PLATFORM_ID:Linux>:rt dl svn>
+  $<$<PLATFORM_ID:Darwin>:svn>
+  $<$<PLATFORM_ID:Windows>:ws2_32 Mswsock Secur32 Userenv>)
 
 add_subdirectory(tests)
