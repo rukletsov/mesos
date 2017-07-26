@@ -16,12 +16,19 @@
 
 include(FindPackageHelper)
 
+execute_process(
+  COMMAND brew --prefix subversion
+  OUTPUT_VARIABLE SVN_PREFIX
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 set(POSSIBLE_SVN_INCLUDE_DIRS
+  ${SVN_PREFIX}/include/subversion-1
   /usr/include/subversion-1
   /usr/local/include/subversion-1
   )
 
 set(POSSIBLE_SVN_LIB_DIRS
+  ${SVN_PREFIX}/lib
   /usr/lib
   /usr/local/lib
   )
