@@ -74,7 +74,15 @@ function(FIND_PACKAGE_HELPER PACKAGE_NAME HEADER_FILE)
       ${PACKAGE_NAME}_LIB_PATH
       NAMES ${LIBRARY_NAME}
       PATHS ${POSSIBLE_${PACKAGE_NAME}_LIB_DIRS}
+      NO_DEFAULT_PATH
       )
+
+    # NOTE: We call this again to search the default paths,
+    # but it will only do so if it wasn't found above.
+    # This is recommended by the CMake documentation.
+    find_library(
+      ${PACKAGE_NAME}_LIB_PATH
+      NAMES ${LIBRARY_NAME})
 
     # Check if the library was found.
     string(
