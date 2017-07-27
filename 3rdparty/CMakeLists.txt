@@ -134,7 +134,7 @@ endfunction()
 # Boost: C++ Libraries.
 # http://www.boost.org
 #######################
-external(boost ${BOOST_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(boost ${BOOST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(boost INTERFACE)
 add_dependencies(boost ${BOOST_TARGET})
 target_include_directories(boost SYSTEM INTERFACE ${BOOST_ROOT})
@@ -150,7 +150,7 @@ ExternalProject_Add(
 # moodycamel::ConcurrentQueue: An industrial-strength lock-free queue.
 # https://github.com/cameron314/concurrentqueue
 ######################################################################
-external(concurrentqueue ${CONCURRENTQUEUE_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(concurrentqueue ${CONCURRENTQUEUE_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(concurrentqueue INTERFACE)
 add_dependencies(concurrentqueue ${CONCURRENTQUEUE_TARGET})
 target_include_directories(concurrentqueue SYSTEM INTERFACE ${CONCURRENTQUEUE_ROOT})
@@ -166,7 +166,7 @@ ExternalProject_Add(
 # ELFIO: library for reading and generating ELF files.
 # http://elfio.sourceforge.net
 ######################################################
-external(elfio ${ELFIO_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(elfio ${ELFIO_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(elfio INTERFACE)
 add_dependencies(elfio ${ELFIO_TARGET})
 target_include_directories(elfio SYSTEM INTERFACE ${ELFIO_ROOT})
@@ -182,11 +182,11 @@ ExternalProject_Add(
 # glog: Google Logging Library.
 # https://github.com/google/glog
 ################################
-external(glog ${GLOG_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(glog ${GLOG_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
 add_dependencies(glog ${GLOG_TARGET})
 if (WIN32)
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch)
+  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
   # NOTE: Windows-specific workaround for a glog issue documented here[1].
   # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
@@ -208,7 +208,7 @@ if (WIN32)
 else ()
   # Patch glog to deal with a problem that appears when compiling on clang
   # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  patch_cmd(${MESOS_3RDPARTY_SRC}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
+  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
   # TODO(andschwa): Build with CMake instead when glog is updated.
   # NOTE: We only link to the shared library of glog because the static build
   # doesn't have PIC.
@@ -234,7 +234,7 @@ ExternalProject_Add(
 # PicoJSON: JSON parser / serializer.
 # https://github.com/kazuho/picojson
 #####################################
-external(picojson ${PICOJSON_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(picojson ${PICOJSON_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(picojson INTERFACE)
 add_dependencies(picojson ${PICOJSON_TARGET})
 target_include_directories(picojson SYSTEM INTERFACE ${PICOJSON_ROOT})
@@ -256,7 +256,7 @@ ExternalProject_Add(
 # NVML: NVIDIA Management Library.
 # https://developer.nvidia.com/nvidia-management-library-nvml
 #############################################################
-external(nvml ${NVML_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(nvml ${NVML_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(nvml INTERFACE)
 add_dependencies(nvml ${NVML_TARGET})
 target_include_directories(nvml SYSTEM INTERFACE ${NVML_ROOT})
@@ -273,7 +273,7 @@ ExternalProject_Add(
 # https://github.com/nodejs/http-parser
 ##################################################
 # TODO: Remove `GLOBAL` when `Process3rdpartyConfigure` is removed.
-external(http_parser ${HTTP_PARSER_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(http_parser ${HTTP_PARSER_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(http_parser ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
 add_dependencies(http_parser ${HTTP_PARSER_TARGET})
 set_target_properties(http_parser PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${HTTP_PARSER_ROOT})
@@ -291,7 +291,7 @@ endif ()
 # tarball at build time, and `add_library` is a configuration time step.
 set(HTTP_PARSER_PATCH_CMD
   ${CMAKE_COMMAND} -E copy
-  ${MESOS_3RDPARTY_SRC}/http-parser/CMakeLists.txt.template
+  ${CMAKE_CURRENT_SOURCE_DIR}/http-parser/CMakeLists.txt.template
   ${HTTP_PARSER_ROOT}/CMakeLists.txt)
 make_include(http_parser)
 ExternalProject_Add(
@@ -307,7 +307,7 @@ if (ENABLE_LIBEVENT)
   # libevent: An event notification library.
   # http://libevent.org/
   ##########################################
-  external(libevent ${LIBEVENT_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(libevent ${LIBEVENT_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(libevent ${LIBRARY_LINKAGE} IMPORTED)
   add_dependencies(libevent ${LIBEVENT_TARGET})
   set_target_properties(libevent PROPERTIES
@@ -345,14 +345,14 @@ else ()
   # libev: Full-featured high-performance event loop.
   # https://github.com/enki/libev
   ###################################################
-  external(libev ${LIBEV_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(libev ${LIBEV_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(libev SHARED IMPORTED)
   add_dependencies(libev ${LIBEV_TARGET})
   set_target_properties(libev PROPERTIES
     IMPORTED_LOCATION ${LIBEV_ROOT}-build/lib/libev${CMAKE_SHARED_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${LIBEV_ROOT}-build/include)
   # Patch libev to keep it from reaping child processes.
-  patch_cmd(${MESOS_3RDPARTY_SRC}/libev-4.22.patch LIBEV_PATCH_CMD)
+  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/libev-4.22.patch LIBEV_PATCH_CMD)
   make_include(libev)
   ExternalProject_Add(
     ${LIBEV_TARGET}
@@ -369,7 +369,7 @@ endif ()
 # https://apr.apache.org
 ###########################################
 if (WIN32)
-  external(libapr ${LIBAPR_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(libapr ${LIBAPR_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(apr ${LIBRARY_LINKAGE} IMPORTED)
   add_dependencies(apr ${LIBAPR_TARGET})
   # NOTE: libapr-1 is always a static library on Windows.
@@ -415,7 +415,7 @@ endif ()
 # https://curl.haxx.se
 ######################################################################
 if (WIN32)
-  external(curl ${CURL_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(curl ${CURL_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(curl ${LIBRARY_LINKAGE} IMPORTED)
   add_dependencies(curl ${CURL_TARGET})
   set_target_properties(curl PROPERTIES
@@ -451,7 +451,7 @@ endif ()
 # https://zlib.net
 ##########################################################################
 if (WIN32)
-  external(zlib ${ZLIB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(zlib ${ZLIB_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(zlib ${LIBRARY_LINKAGE} IMPORTED)
   add_dependencies(zlib ${ZLIB_TARGET})
   # Zlib generates different libraries depending on the linkage
@@ -486,7 +486,7 @@ set_target_properties(zlib PROPERTIES
 # Google Test: Google's C++ test framework (GoogleTest and GoogleMock).
 # https://github.com/google/googletest
 #######################################################################
-external(googletest ${GOOGLETEST_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(googletest ${GOOGLETEST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(googletest INTERFACE)
 add_dependencies(googletest ${GOOGLETEST_TARGET})
 target_link_libraries(googletest INTERFACE gmock gtest)
@@ -525,7 +525,7 @@ ExternalProject_Add(
 # https://developers.google.com/protocol-buffers/
 #####################################################
 # TODO(andschwa): Move protobufs so these don't have to be GLOBAL.
-external(protobuf ${PROTOBUF_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(protobuf ${PROTOBUF_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(protobuf ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
 add_dependencies(protobuf ${PROTOBUF_TARGET})
 add_executable(protoc IMPORTED GLOBAL)
@@ -563,7 +563,7 @@ ExternalProject_Add(
 # https://zookeeper.apache.org/
 ##################################################
 # TODO(andschwa): Move zookeeper so these don't have to be GLOBAL.
-external(zookeeper ${ZOOKEEPER_VERSION} "${MESOS_3RDPARTY_BIN}")
+external(zookeeper ${ZOOKEEPER_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(zookeeper STATIC IMPORTED GLOBAL)
 add_library(zk-hashtable STATIC IMPORTED GLOBAL)
 add_dependencies(zookeeper ${ZOOKEEPER_TARGET})
@@ -583,13 +583,13 @@ if (WIN32)
   # NOTE: We do not specify the `--binary` patch option here because the
   # files being modified are extracted with CRLF (Windows) line endings
   # already. The `--binary` option will instead fail to apply the patch.
-  set(ZOOKEEPER_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch)
+  set(ZOOKEEPER_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch)
 else ()
   set_target_properties(zookeeper PROPERTIES
     IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/libzookeeper${CMAKE_STATIC_LIBRARY_SUFFIX})
   set_target_properties(zk-hashtable PROPERTIES
     IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/libhashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
-  patch_cmd(${MESOS_3RDPARTY_SRC}/zookeeper-${ZOOKEEPER_VERSION}.patch ZOOKEEPER_PATCH_CMD)
+  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch ZOOKEEPER_PATCH_CMD)
 endif ()
 make_include(zookeeper)
 ExternalProject_Add(
@@ -607,13 +607,13 @@ ExternalProject_Add(
 ############################################
 if (NOT WIN32)
   # TODO(andschwa): Move leveldb so these don't have to be GLOBAL.
-  external(leveldb ${LEVELDB_VERSION} "${MESOS_3RDPARTY_BIN}")
+  external(leveldb ${LEVELDB_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(leveldb STATIC IMPORTED GLOBAL)
   add_dependencies(leveldb ${LEVELDB_TARGET})
   set_target_properties(leveldb PROPERTIES
     IMPORTED_LOCATION ${LEVELDB_ROOT}/out-static/libleveldb${CMAKE_STATIC_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
-  patch_cmd(${MESOS_3RDPARTY_SRC}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
+  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
   make_include(leveldb)
   ExternalProject_Add(
     ${LEVELDB_TARGET}
