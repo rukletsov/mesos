@@ -100,71 +100,6 @@ foreach (lang C CXX)
   endforeach ()
 endforeach ()
 
-# Define build/patch/configure commands for third-party libs.
-#############################################################
-# NOTE: (fix for MESOS-3250) A few third-party libraries (libev, gmock) do not
-# have `make install` commands available, so below we have to add our own
-# "install" commands.
-#
-# The reason is: if we do not, we get runtime library load problems on OS X. In
-# particular, `dydl` will look for these libraries at the prefix we passed to
-# `configure` (or in `/usr/local` if we did not pass a prefix in), but since
-# they don't have a `make install` step, they never get placed in the prefix
-# folder.
-#
-# Our solution is to:
-#   (1) make a lib directory inside the Mesos folder for each of the libraries
-#       that has no install step, and
-#   (2) copy all such libraries into their respective directories.
-#
-# (Note that step (1) is not only convenient, but important: make will add a
-# `lib` to the end of your prefix path when linking, and since the built
-# libraries end up in a `.libs` folder, it's not enough to simply pass the
-# build directory into `configure` as a prefix; so if we're going to move the
-# libraries, we might as well move them to a library folder.)
-if (NOT WIN32)
-  # NOTE: `libev` is "installed" into a lib directory, see "NOTE: (fix for
-  # MESOS-3250)" comment above for explanation.
-  set(LIBEV_CONFIG_CMD  ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-lib)
-  set(LIBEV_BUILD_CMD   make)
-  set(LIBEV_INSTALL_CMD mkdir -p ${LIBEV_LIB_ROOT} && cp -r ${LIBEV_ROOT}-build/.libs/. ${LIBEV_LIB_ROOT})
-  # Patch libev to keep it from reaping child processes.
-  PATCH_CMD(${MESOS_3RDPARTY_SRC}/libev-4.22.patch LIBEV_PATCH_CMD)
-
-  set(LIBEVENT_INSTALL_CMD mkdir -p ${LIBEVENT_LIB_ROOT} && cp -r ${LIBEVENT_ROOT}-build/lib/. ${LIBEVENT_LIB_DIR} && cp -r ${LIBEVENT_ROOT}-build/include/. ${LIBEVENT_INCLUDE_DIR} && cp -r ${LIBEVENT_ROOT}/include/. ${LIBEVENT_INCLUDE_DIR})
-else ()
-  set(LIBEVENT_INSTALL_CMD ${CMAKE_NOOP})
-endif ()
-
-set(LIBEVENT_CMAKE_ARGS
-  ${LIBEVENT_CMAKE_ARGS}
-  # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
-  -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
-  -DEVENT__DISABLE_BENCHMARK=ON
-  -DEVENT__DISABLE_TESTS=ON
-  -DEVENT__DISABLE_SAMPLES=ON
-  )
-
-if (ENABLE_SSL)
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DEVENT__DISABLE_OPENSSL=OFF
-    )
-else ()
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DEVENT__DISABLE_OPENSSL=ON
-    )
-endif ()
-
-if (NOT WIN32)
-  set(LIBEVENT_CMAKE_ARGS
-    ${LIBEVENT_CMAKE_ARGS}
-    -DCMAKE_C_FLAGS=-fPIC
-    )
-endif ()
-
-
 # Third-party libraries. Tell the build system how to pull in and build third-
 # party libraries at compile time, using the ExternalProject_Add macro.
 ##############################################################################
@@ -349,27 +284,66 @@ ExternalProject_Add(
   URL               ${HTTP_PARSER_URL}
   URL_HASH          ${HTTP_PARSER_HASH})
 
-if (NOT ENABLE_LIBEVENT)
+if (ENABLE_LIBEVENT)
+  # libevent: An event notification library.
+  # http://libevent.org/
+  ##########################################
+  external(libevent ${LIBEVENT_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(libevent ${LIBRARY_LINKAGE} IMPORTED)
+  add_dependencies(libevent ${LIBEVENT_TARGET})
+  set_target_properties(libevent PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${LIBEVENT_ROOT}/include;${LIBEVENT_ROOT}-build/include")
+  if (WIN32)
+    set_target_properties(libevent PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${LIBEVENT_ROOT}-build/lib/Debug/event${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${LIBEVENT_ROOT}-build/lib/Release/event${LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(libevent PROPERTIES
+      IMPORTED_LOCATION ${LIBEVENT_ROOT}-build/lib/libevent${LIBRARY_SUFFIX})
+  endif ()
+  set(LIBEVENT_CMAKE_ARGS
+    # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
+    ${CMAKE_FORWARD_ARGS}
+    -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
+    -DEVENT__DISABLE_OPENSSL=$<NOT:$<BOOL:${ENABLE_SSL}>>
+    -DCMAKE_C_FLAGS=$<IF:$<PLATFORM_ID:Windows>,"",-fPIC>
+    -DEVENT__DISABLE_BENCHMARK=ON
+    -DEVENT__DISABLE_REGRESS=ON
+    -DEVENT__DISABLE_SAMPLES=ON
+    -DEVENT__DISABLE_TESTS=ON)
+  if (OPENSSL_ROOT_DIR)
+    list(APPEND LIBEVENT_CMAKE_ARGS -DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR})
+  endif ()
+  make_include(libevent)
+  ExternalProject_Add(
+    ${LIBEVENT_TARGET}
+    PREFIX            ${LIBEVENT_CMAKE_ROOT}
+    CMAKE_ARGS        ${LIBEVENT_CMAKE_ARGS}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${LIBEVENT_URL}
+    URL_HASH          ${LIBEVENT_HASH})
+else ()
+  # libev: Full-featured high-performance event loop.
+  # https://github.com/enki/libev
+  ###################################################
+  external(libev ${LIBEV_VERSION} "${MESOS_3RDPARTY_BIN}")
+  add_library(libev SHARED IMPORTED)
+  add_dependencies(libev ${LIBEV_TARGET})
+  set_target_properties(libev PROPERTIES
+    IMPORTED_LOCATION ${LIBEV_ROOT}-build/lib/libev${CMAKE_SHARED_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBEV_ROOT}-build/include)
+  # Patch libev to keep it from reaping child processes.
+  patch_cmd(${MESOS_3RDPARTY_SRC}/libev-4.22.patch LIBEV_PATCH_CMD)
+  make_include(libev)
   ExternalProject_Add(
     ${LIBEV_TARGET}
     PREFIX            ${LIBEV_CMAKE_ROOT}
     PATCH_COMMAND     ${LIBEV_PATCH_CMD}
-    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS}
-    CONFIGURE_COMMAND ${LIBEV_CONFIG_CMD}
-    BUILD_COMMAND     ${LIBEV_BUILD_CMD}
-    INSTALL_COMMAND   ${LIBEV_INSTALL_CMD}
+    CONFIGURE_COMMAND ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-build
+    BUILD_COMMAND     make
+    INSTALL_COMMAND   make install
     URL               ${LIBEV_URL}
-    URL_HASH          ${LIBEV_HASH}
-    )
-elseif (ENABLE_LIBEVENT)
-  ExternalProject_Add(
-    ${LIBEVENT_TARGET}
-    PREFIX            ${LIBEVENT_CMAKE_ROOT}
-    CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};${LIBEVENT_CMAKE_ARGS}
-    INSTALL_COMMAND   ${LIBEVENT_INSTALL_CMD}
-    URL               ${LIBEVENT_URL}
-    URL_HASH          ${LIBEVENT_HASH}
-    )
+    URL_HASH          ${LIBEV_HASH})
 endif ()
 
 # APR: The Apache Portable Runtime Project.
