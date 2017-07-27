@@ -86,9 +86,3 @@ if (NOT WIN32)
     ${SASL_LFLAG}
     )
 endif ()
-
-if (NOT ENABLE_LIBEVENT)
-  set(AGENT_LIBS ${AGENT_LIBS} ${LIBEV_LFLAG})
-else ()
-  set(AGENT_LIBS ${AGENT_LIBS} ${LIBEVENT_LFLAG})
-endif ()

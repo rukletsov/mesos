@@ -70,9 +70,3 @@ if (NOT WIN32)
     ${SASL_LFLAG}
     )
 endif ()
-
-if (NOT ENABLE_LIBEVENT)
-  set(MASTER_LIBS ${MASTER_LIBS} ${LIBEV_LFLAG})
-else ()
-  set(MASTER_LIBS ${MASTER_LIBS} ${LIBEVENT_LFLAG})
-endif ()
