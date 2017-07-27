@@ -26,7 +26,6 @@ set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 
-set(GPERFTOOLS_INCLUDE_DIR      ${GPERFTOOLS}/src)
 set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
 
 if (WIN32)
