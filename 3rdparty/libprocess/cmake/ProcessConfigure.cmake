@@ -51,12 +51,6 @@ set(PROCESS_TARGET process-${PROCESS_PACKAGE_VERSION})
 # DEFINE PROCESS LIBRARY DEPENDENCIES. Tells the process library build targets
 # download/configure/build all third-party libraries before attempting to build.
 ################################################################################
-if (NOT ENABLE_LIBEVENT)
-  set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEV_TARGET})
-else ()
-  set(PROCESS_DEPENDENCIES ${PROCESS_DEPENDENCIES} ${LIBEVENT_TARGET})
-endif ()
-
 if (WIN32)
   set(PROCESS_DEPENDENCIES
     ${PROCESS_DEPENDENCIES}
@@ -72,39 +66,11 @@ set(PROCESS_INCLUDE_DIRS
   ${PROCESS_INCLUDE_DIR}
   )
 
-if (NOT ENABLE_LIBEVENT)
-  set(PROCESS_3RDPARTY_INCLUDE_DIRS
-    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-    ${LIBEV_INCLUDE_DIR}
-    )
-else ()
-  set(PROCESS_3RDPARTY_INCLUDE_DIRS
-    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-    ${LIBEVENT_INCLUDE_DIR}
-    )
-endif ()
-
 if (ENABLE_SSL)
   set(PROCESS_3RDPARTY_INCLUDE_DIRS
     ${PROCESS_3RDPARTY_INCLUDE_DIRS}
     ${OPENSSL_INCLUDE_DIR}
     )
-endif ()
-
-if (WIN32)
-  set(PROCESS_3RDPARTY_INCLUDE_DIRS
-    ${PROCESS_3RDPARTY_INCLUDE_DIRS}
-  )
-endif ()
-
-# DEFINE THIRD-PARTY LIB INSTALL DIRECTORIES. Used to tell the compiler
-# toolchain where to find our third party libs (e.g., -L/path/to/glog on
-# Linux).
-########################################################################
-if (NOT ENABLE_LIBEVENT)
-  set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEV_LIB_DIR})
-else ()
-  set(PROCESS_LIB_DIRS ${PROCESS_LIB_DIRS} ${LIBEVENT_LIB_DIR})
 endif ()
 
 # DEFINE THIRD-PARTY LIBS. Used to generate flags that the linker uses to
@@ -120,9 +86,9 @@ set(PROCESS_LIBS
   )
 
 if (NOT ENABLE_LIBEVENT)
-  set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEV_LFLAG})
+  set(PROCESS_LIBS ${PROCESS_LIBS} libev)
 else ()
-  set(PROCESS_LIBS ${PROCESS_LIBS} ${LIBEVENT_LFLAG})
+  set(PROCESS_LIBS ${PROCESS_LIBS} libevent)
 endif ()
 
 if (ENABLE_SSL)

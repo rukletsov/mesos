@@ -118,8 +118,6 @@ set_target_properties(
   SOVERSION ${PROCESS_PACKAGE_SOVERSION}
   )
 
-add_dependencies(${PROCESS_TARGET} ${PROCESS_DEPENDENCIES})
-
 # ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
 ######################################################
 target_link_libraries(${PROCESS_TARGET} ${PROCESS_LIBS})

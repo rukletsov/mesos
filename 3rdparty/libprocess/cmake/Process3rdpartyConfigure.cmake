@@ -16,46 +16,11 @@
 
 # DEFINE DIRECTORY STRUCTURE FOR THIRD-PARTY LIBS.
 ##################################################
-EXTERNAL("libev"           ${LIBEV_VERSION}           "${MESOS_3RDPARTY_BIN}")
-EXTERNAL("libevent"        ${LIBEVENT_VERSION}        "${MESOS_3RDPARTY_BIN}")
-
-# Intermediate convenience variables for oddly-structured directories.
-set(LIBEV_LIB_ROOT    ${LIBEV_ROOT}-lib/lib)
-set(LIBEVENT_LIB_ROOT ${LIBEVENT_ROOT}-lib/lib)
 
 # Convenience variables for include directories of third-party dependencies.
 set(PROCESS_INCLUDE_DIR ${MESOS_3RDPARTY_SRC}/libprocess/include)
 
-set(LIBEV_INCLUDE_DIR           ${LIBEV_ROOT})
-
-if (WIN32)
-  set(LIBEVENT_INCLUDE_DIR
-    ${LIBEVENT_ROOT}/include
-    ${LIBEVENT_ROOT}-build/include)
-else ()
-  set(LIBEVENT_INCLUDE_DIR ${LIBEVENT_LIB_ROOT}/include)
-endif ()
-
-# Convenience variables for `lib` directories of built third-party dependencies.
-set(LIBEV_LIB_DIR       ${LIBEV_ROOT}-build/.libs)
-
-if (WIN32)
-  set(LIBEVENT_LIB_DIR    ${LIBEVENT_ROOT}-build/lib)
-else ()
-  set(LIBEVENT_LIB_DIR    ${LIBEVENT_LIB_ROOT}/lib)
-endif ()
-
-# Convenience variables for "lflags", the symbols we pass to CMake to generate
-# things like `-L/path/to/glog` or `-lglog`.
-set(LIBEV_LFLAG       ev)
-set(LIBEVENT_LFLAG    event)
-
-if (WIN32)
-
-else ()
-  set(DL_LFLAG       dl)
-  set(SASL_LFLAG     sasl2)
-endif ()
+set(SASL_LFLAG     sasl2)
 
 # Configure the process library, the last of our third-party libraries.
 #######################################################################
