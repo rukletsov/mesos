@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO(andschwa): Import this properly.
+set(SASL_LFLAG sasl2)
+
 set(LOGROTATE_CONTAINER_LOGGER_TARGET logrotate_container_logger
   CACHE STRING "Library containing the logrotate container logger."
   )
@@ -35,8 +38,6 @@ set(RESOURCE_ESTIMATOR_TARGET fixed_resource_estimator
 ################################################################################
 set(AGENT_DEPENDENCIES
   ${AGENT_DEPENDENCIES}
-  ${PROCESS_DEPENDENCIES}
-  ${PROCESS_TARGET}
   make_bin_include_dir
   make_bin_src_dir
   )
@@ -56,8 +57,6 @@ set(AGENT_INCLUDE_DIRS
 
 set(AGENT_3RDPARTY_INCLUDE_DIRS
   ${AGENT_3RDPARTY_INCLUDE_DIRS}
-  ${PROCESS_INCLUDE_DIRS}
-  ${PROCESS_3RDPARTY_INCLUDE_DIRS}
   )
 
 # Define third-party lib install directories. Used to tell the compiler
@@ -66,7 +65,6 @@ set(AGENT_3RDPARTY_INCLUDE_DIRS
 ########################################################################
 set(AGENT_LIB_DIRS
   ${AGENT_LIB_DIRS}
-  ${PROCESS_LIB_DIRS}
   )
 
 # Define third-party libs. Used to generate flags that the linker uses to
@@ -74,8 +72,7 @@ set(AGENT_LIB_DIRS
 #########################################################################
 set(AGENT_LIBS
   ${AGENT_LIBS}
-  ${PROCESS_LIBS}
-  ${PROCESS_TARGET}
+  process
   zookeeper
   )
 
