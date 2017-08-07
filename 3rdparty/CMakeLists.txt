@@ -64,7 +64,7 @@ include(ExternalProject)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/stout/cmake)
 
 # This adds our `external()` and `patch_command()` functions.
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/libprocess/cmake/macros)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(External)
 include(PatchCommand)
 
@@ -201,8 +201,11 @@ ExternalProject_Add(
 external(glog ${GLOG_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
 add_dependencies(glog ${GLOG_TARGET})
+# Patch glog to deal with a problem that appears when compiling on clang
+# under the C++11 standard. cf. MESOS-860, MESOS-966.
+# On Windows, patch it to enable stack tracing.
+patch_cmd(GLOG_PATCH_CMD glog-${GLOG_VERSION}.patch)
 if (WIN32)
-  set(GLOG_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch)
   set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
   # NOTE: Windows-specific workaround for a glog issue documented here[1].
   # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
@@ -222,9 +225,6 @@ if (WIN32)
     IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
     INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
 else ()
-  # Patch glog to deal with a problem that appears when compiling on clang
-  # under the C++11 standard. cf. MESOS-860, MESOS-966.
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/glog-${GLOG_VERSION}.patch GLOG_PATCH_CMD)
   # TODO(andschwa): Build with CMake instead when glog is updated.
   # NOTE: We only link to the shared library of glog because the static build
   # doesn't have PIC.
@@ -374,7 +374,7 @@ else ()
     IMPORTED_LOCATION ${LIBEV_ROOT}-build/lib/libev${CMAKE_SHARED_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${LIBEV_ROOT}-build/include)
   # Patch libev to keep it from reaping child processes.
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/libev-4.22.patch LIBEV_PATCH_CMD)
+  patch_cmd(LIBEV_PATCH_CMD libev-${LIBEV_VERSION}.patch)
   make_include(libev)
   get_byproducts(libev)
   ExternalProject_Add(
@@ -607,6 +607,7 @@ set_target_properties(zookeeper PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${ZOOKEEPER_ROOT}/src/c/include;${ZOOKEEPER_ROOT}/src/c/generated"
   INTERFACE_LINK_LIBRARIES zk-hashtable
   INTERFACE_COMPILE_DEFINITIONS "${ZOOKEEPER_COMPILE_DEFINITIONS}")
+patch_cmd(ZOOKEEPER_PATCH_CMD zookeeper-${ZOOKEEPER_VERSION}.patch)
 if (WIN32)
   set_target_properties(zookeeper PROPERTIES
     IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -614,17 +615,11 @@ if (WIN32)
   set_target_properties(zk-hashtable PROPERTIES
     IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
-  # Set the patch command which will utilize patch.exe in temp location for no elevation prompt
-  # NOTE: We do not specify the `--binary` patch option here because the
-  # files being modified are extracted with CRLF (Windows) line endings
-  # already. The `--binary` option will instead fail to apply the patch.
-  set(ZOOKEEPER_PATCH_CMD ${PATCHEXE_LOCATION} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch)
 else ()
   set_target_properties(zookeeper PROPERTIES
     IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/libzookeeper${CMAKE_STATIC_LIBRARY_SUFFIX})
   set_target_properties(zk-hashtable PROPERTIES
     IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/libhashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/zookeeper-${ZOOKEEPER_VERSION}.patch ZOOKEEPER_PATCH_CMD)
 endif ()
 make_include(zookeeper)
 get_byproducts(zookeeper)
@@ -651,7 +646,7 @@ if (NOT WIN32)
   set_target_properties(leveldb PROPERTIES
     IMPORTED_LOCATION ${LEVELDB_ROOT}/out-static/libleveldb${CMAKE_STATIC_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${LEVELDB_ROOT}/include)
-  patch_cmd(${CMAKE_CURRENT_SOURCE_DIR}/leveldb-${LEVELDB_VERSION}.patch LEVELDB_PATCH_CMD)
+  patch_cmd(LEVELDB_PATCH_CMD leveldb-${LEVELDB_VERSION}.patch)
   make_include(leveldb)
   get_byproducts(leveldb)
   ExternalProject_Add(
