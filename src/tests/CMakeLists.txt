@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-include(MesosTestsConfigure)
-
 # Sources for a test helper binary.
 ###################################
 set(TEST_HELPER_SRC
@@ -253,78 +251,94 @@ if (LINUX)
     )
 endif ()
 
-# INCLUDE DIRECTIVES (generates, e.g., -I/path/to/thing on Linux).
-##################################################################
-include_directories(SYSTEM ${MESOS_3RDPARTY_TESTS_INCLUDE_DIRS})
-include_directories(${MESOS_TESTS_INCLUDE_DIRS})
+# THE TEST AND HELPER EXECUTABLES.
+##################################
+add_library(mesos-tests-interface INTERFACE)
+target_link_libraries(mesos-tests-interface INTERFACE mesos googletest)
+if (NOT WIN32)
+  target_link_libraries(mesos-tests-interface INTERFACE
+    load_qos_controller
+    fixed_resource_estimator
+    logrotate_container_logger)
+endif ()
+target_compile_definitions(mesos-tests-interface INTERFACE
+  SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+  BUILD_DIR="${CMAKE_BINARY_DIR}"
+  PKGLIBEXECDIR="${PKG_LIBEXEC_INSTALL_DIR}"
+  TESTLIBEXECDIR="${TEST_LIB_EXEC_DIR}"
+  PKGMODULEDIR="${PKG_MODULE_DIR}"
+  SBINDIR="${S_BIN_DIR}")
 
-# LINKING LIBRARIES (might generate, e.g., -L/path/to/thing on Linux).
-######################################################################
-link_directories(${MESOS_TESTS_LIB_DIRS})
-
-# THE TEST AND HELPER EXECUTABLEs (generates, e.g., stout-tests, etc., on Linux).
-#################################$###############################################
-add_executable(${MESOS_TESTS_TARGET} EXCLUDE_FROM_ALL ${MESOS_TESTS_SRC})
-add_executable(${TEST_HELPER_TARGET} EXCLUDE_FROM_ALL ${TEST_HELPER_SRC})
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_TESTS_TARGET} ${MESOS_TESTS_LIBS})
-target_link_libraries(${TEST_HELPER_TARGET} ${MESOS_TESTS_LIBS})
-target_compile_definitions(${MESOS_TESTS_TARGET} PRIVATE
+add_executable(mesos-tests EXCLUDE_FROM_ALL ${MESOS_TESTS_SRC})
+target_link_libraries(mesos-tests PRIVATE mesos-tests-interface)
+target_compile_definitions(mesos-tests PRIVATE
   $<$<BOOL:${HAS_JAVA}>:MESOS_HAS_JAVA>)
 
-# ADD BINARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(
-  ${MESOS_TESTS_TARGET}
-  ${MESOS_TESTS_DEPENDENCIES}
-  ${TEST_HELPER_TARGET}
-  )
+# Helper to run tests that require a subprocess.
+add_executable(test-helper EXCLUDE_FROM_ALL ${TEST_HELPER_SRC})
+target_link_libraries(test-helper PRIVATE mesos-tests-interface)
+
+# The tests require these binaries.
+add_dependencies(mesos-tests
+  test-helper
+  mesos-agent
+  mesos-default-executor
+  mesos-docker-executor
+  mesos-executor
+  mesos-containerizer
+  mesos-tcp-connect
+  mesos-usage)
 
 if (NOT WIN32)
-  # The tests require all the test modules.
+  # The tests require these binaries.
+  # NOTE: These binaries do not yet build on Windows.
+  add_dependencies(mesos-tests
+    mesos-execute
+    mesos-fetcher
+    mesos-log
+    mesos-local
+    mesos-master
+    mesos-io-switchboard
+    mesos-cni-port-mapper
+    mesos-logrotate-logger)
+
+  # The tests require all the test modules. These are not directly linked but
+  # instead loaded at runtime, hence the manual dependency here.
   # NOTE: Modules are not supported on Windows.
-  add_dependencies(
-    ${MESOS_TESTS_TARGET}
-    ${TEST_ALLOCATOR}
-    ${TEST_ANONYMOUS}
-    ${TEST_AUTHENTICATION}
-    ${TEST_AUTHORIZER}
-    ${TEST_CONTAINER_LOGGER}
-    ${TEST_EXAMPLEMODULE}
-    ${TEST_HOOK}
-    ${TEST_HTTPAUTHENTICATOR}
-    ${TEST_ISOLATOR}
-    ${TEST_MASTER_CONTENDER}
-    ${TEST_MASTER_DETECTOR}
-    ${TEST_QOS_CONTROLLER}
-    ${TEST_RESOURCE_ESTIMATOR}
-    )
+  add_dependencies(mesos-tests
+    testallocator
+    testanonymous
+    testauthentication
+    testauthorizer
+    testcontainer_logger
+    examplemodule
+    testhook
+    testhttpauthenticator
+    testisolator
+    testmastercontender
+    testmasterdetector
+    testqos_controller
+    testresource_estimator)
 
   # The tests require all the example frameworks and executors.
-  # TODO(josephw): The scheduler driver is current not built on Windows.
-  add_dependencies(
-    ${MESOS_TESTS_TARGET}
-    ${BALLOON_EXECUTOR}
-    ${BALLOON_FRAMEWORK}
-    ${DISK_FULL_FRAMEWORK}
-    ${DOCKER_NO_EXECUTOR_FRAMEWORK}
-    ${DYNAMIC_RESERVATION_FRAMEWORK}
-    ${LOAD_GENERATOR_FRAMEWORK}
-    ${LONG_LIVED_EXECUTOR}
-    ${LONG_LIVED_FRAMEWORK}
-    ${NO_EXECUTOR_FRAMEWORK}
-    ${PERSISTENT_VOLUME_FRAMEWORK}
-    ${TEST_EXECUTOR}
-    ${TEST_FRAMEWORK}
-    ${TEST_HTTP_EXECUTOR}
-    ${TEST_HTTP_FRAMEWORK}
-    )
+  # TODO(josephw): The scheduler driver is currently not built on Windows.
+  add_dependencies(mesos-tests
+    balloon-executor
+    balloon-framework
+    disk-full-framework
+    docker-no-executor-framework
+    dynamic-reservation-framework
+    load-generator-framework
+    long-lived-executor
+    long-lived-framework
+    no-executor-framework
+    persistent-volume-framework
+    test-executor
+    test-framework
+    test-http-executor
+    test-http-framework)
 endif ()
-
-add_dependencies(${TEST_HELPER_TARGET} ${MESOS_TESTS_DEPENDENCIES})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME MesosTests COMMAND ${MESOS_TESTS_TARGET})
+add_test(NAME MesosTests COMMAND mesos-tests)

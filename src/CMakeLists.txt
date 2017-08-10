@@ -71,21 +71,16 @@ PROTOC_GENERATE(TARGET master/registry INTERNAL)
 
 # BUILD PROTOBUFS.
 ##################
-add_library(
-  ${MESOS_PROTOBUF_TARGET}
-  ${MESOS_DEFAULT_LIBRARY_LINKAGE}
-  ${PUBLIC_PROTOBUF_SRC}
-  ${INTERNAL_PROTOBUF_SRC}
-  )
-
-target_link_libraries(${MESOS_PROTOBUF_TARGET} PUBLIC protobuf)
-target_include_directories(${MESOS_PROTOBUF_TARGET} PUBLIC
+# This must always be built as a shared library because of the following issue:
+# https://github.com/google/protobuf/issues/1941
+add_library(mesos-protobufs SHARED ${PUBLIC_PROTOBUF_SRC} ${INTERNAL_PROTOBUF_SRC})
+target_link_libraries(mesos-protobufs PUBLIC protobuf)
+target_include_directories(mesos-protobufs PUBLIC
   ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS})
 
 if (WIN32)
   # Disable all compiler warnings on Protocol Buffers source.
-  set_target_properties(
-    ${MESOS_PROTOBUF_TARGET}
+  set_target_properties(mesos-protobufs
     PROPERTIES COMPILE_FLAGS "/w")
 endif ()
 
@@ -196,7 +191,7 @@ if (HAS_JAVA)
     DEPENDS mesos-jar make_bin_jni_dir)
   # We include the headers here to establish the dependency on the above custom command.
   add_library(mesos-java ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${JAVA_SRC} ${JAVA_H})
-  target_link_libraries(mesos-java stout zookeeper ${MESOS_PROTOBUF_TARGET} ${JNI_LIBRARIES})
+  target_link_libraries(mesos-java stout zookeeper mesos-protobufs ${JNI_LIBRARIES})
   target_include_directories(mesos-java PUBLIC ${JNI_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR}/java/jni)
 endif ()
 
@@ -591,12 +586,6 @@ if (WIN32)
   set(MESOS_SRC ${MESOS_SRC} ${WIN32_SRC})
 endif ()
 
-# INCLUDE DIRECTIVES FOR MESOS LIBRARY (generates, e.g., -I/path/to/thing
-# on Linux).
-#########################################################################
-include_directories(SYSTEM ${AGENT_3RDPARTY_INCLUDE_DIRS})
-include_directories(${AGENT_INCLUDE_DIRS})
-
 # Generate all binaries in the same folder.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/src)
 if (WIN32)
@@ -611,70 +600,60 @@ if (WIN32)
   SET(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/src/.libs)
 endif ()
 
-# LINKING LIBRARIES BY DIRECTORY (might generate, e.g., -L/path/to/thing on
-# Linux).
-###########################################################################
-link_directories(${AGENT_LIB_DIRS})
-
-# THE MESOS LIBRARY (generates, e.g., libmesos.so, etc., on Linux).
-###################################################################
-add_library(${MESOS_LIBS_TARGET} ${MESOS_DEFAULT_LIBRARY_LINKAGE} ${MESOS_SRC})
-set_target_properties(
-  ${MESOS_LIBS_TARGET} PROPERTIES
+# THE MESOS LIBRARY (generates, e.g., libmesos.so on Linux).
+############################################################
+add_library(mesos ${MESOS_SRC})
+set_target_properties(mesos PROPERTIES
   VERSION ${MESOS_PACKAGE_VERSION}
-  SOVERSION ${MESOS_PACKAGE_SOVERSION}
-  )
+  SOVERSION ${MESOS_PACKAGE_SOVERSION})
+target_include_directories(mesos PUBLIC
+  ${MESOS_PUBLIC_INCLUDE_DIR}
+  # Contains (e.g.) compiled *.pb.h files.
+  ${MESOS_BIN_INCLUDE_DIR}
+  ${MESOS_BIN_INCLUDE_DIR}/mesos
+  ${MESOS_BIN_SRC_DIR}
+  ${MESOS_SRC_DIR})
+target_link_libraries(mesos PUBLIC
+  process
+  zookeeper
+  mesos-protobufs
+  $<$<PLATFORM_ID:Linux>:nvml>
+  $<$<BOOL:${HAS_JAVA}>:mesos-java>)
+if (NOT WIN32)
+  target_link_libraries(mesos PUBLIC leveldb sasl2)
+endif ()
 
 if (ENABLE_PRECOMPILED_HEADERS)
   # These exluded headers either cause namespace resolution issues or
   # are problematic for incremental builds.
-  set_property(DIRECTORY
-    PROPERTY COTIRE_PREFIX_HEADER_IGNORE_PATH
+  set(COTIRE_PREFIX_HEADER_IGNORE_PATH
       "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/basic_authenticator_factory.hpp"
       "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/combined_authenticator.hpp"
       "${CMAKE_SOURCE_DIR}/src/sched/constants.hpp"
       "${CMAKE_SOURCE_DIR}/src/sched/flags.hpp"
       "${CMAKE_BINARY_DIR}/src/common/build_config.hpp")
 
-  # For now, we include agent headers, because the Windows build currently
-  # does not build all of the Mesos master (only enough for testing the agent).
-  set_property(DIRECTORY
-    PROPERTY COTIRE_PREFIX_HEADER_INCLUDE_PATH
-      "${AGENT_INCLUDE_DIRS};${AGENT_3RDPARTY_INCLUDE_DIRS}")
-
-  cotire(${MESOS_LIBS_TARGET})
+  get_target_property(COTIRE_PREFIX_HEADER_INCLUDE_PATH mesos INCLUDE_DIRECTORIES)
+  set_target_properties(mesos PROPERTIES
+    COTIRE_PREFIX_HEADER_INCLUDE_PATH ${COTIRE_PREFIX_HEADER_INCLUDE_PATH}
+    COTIRE_PREFIX_HEADER_IGNORE_PATH ${COTIRE_PREFIX_HEADER_IGNORE_PATH})
+  cotire(mesos)
 endif ()
-
-# ADD LIBRARY DEPENDENCIES (tells CMake what to compile/build first).
-####################################################################
-add_dependencies(${MESOS_TARGET} ${MESOS_LIBS_TARGET})
-add_dependencies(
-  ${MESOS_LIBS_TARGET}
-  ${AGENT_DEPENDENCIES}
-  )
-
-# ADD LINKER FLAGS (generates, e.g., -lglog on Linux).
-######################################################
-target_link_libraries(${MESOS_LIBS_TARGET} PUBLIC
-  ${MESOS_PROTOBUF_TARGET}
-  ${AGENT_LIBS}
-  $<$<PLATFORM_ID:Linux>:nvml>
-  $<$<BOOL:${HAS_JAVA}>:mesos-java>)
 
 # BUILD THE MESOS EXECUTABLES.
 ##############################
-add_subdirectory(checks/)
-add_subdirectory(cli/)
-add_subdirectory(docker/)
-add_subdirectory(examples/)
-add_subdirectory(launcher/)
-add_subdirectory(local/)
-add_subdirectory(log/)
-add_subdirectory(master/)
-add_subdirectory(slave/)
-add_subdirectory(slave/containerizer/mesos/)
-add_subdirectory(usage/)
+add_subdirectory(checks)
+add_subdirectory(cli)
+add_subdirectory(docker)
+add_subdirectory(examples)
+add_subdirectory(launcher)
+add_subdirectory(local)
+add_subdirectory(log)
+add_subdirectory(master)
+add_subdirectory(slave)
+add_subdirectory(slave/containerizer/mesos)
+add_subdirectory(usage)
 
 # BUILD THE MESOS TESTS.
-#########################################################
-add_subdirectory(tests/)
+########################
+add_subdirectory(tests)

@@ -32,17 +32,12 @@ set(PACKAGE_VERSION
 set(MESOS_PACKAGE_VERSION ${PACKAGE_VERSION})
 set(MESOS_PACKAGE_SOVERSION 0)
 
-
 # CMAKE MODULE SETUP.
 #####################
 # Paths that are searched when `include(...)` is called.
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/3rdparty/cmake)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/src/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/src/examples/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/src/master/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/src/slave/cmake)
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/src/tests/cmake)
 
 # Macros.
 include(Versions)
@@ -51,12 +46,10 @@ include(cotire)
 # Configuration.
 include(MesosConfigure)
 
-
 # SUBDIRECTORIES.
 #################
 add_subdirectory(3rdparty)
 add_subdirectory(src)
-
 
 # TESTS.
 ########

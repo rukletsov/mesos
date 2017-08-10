@@ -100,6 +100,7 @@ list(APPEND CMAKE_FORWARD_ARGS
   # TODO(andschwa): Set the CMAKE_GENERATOR explicitly as an argmuent to
   # `ExternalProject_Add`.
   -G${CMAKE_GENERATOR}
+  -DCMAKE_POSITION_INDEPENDENT_CODE=${CMAKE_POSITION_INDEPENDENT_CODE}
   -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS})
 
 # This only matters for single-configuration generators.
