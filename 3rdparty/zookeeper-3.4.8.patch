@@ -46,7 +46,7 @@ index 000000000..50f50fc46
 +if(WANT_SYNCAPI)
 +  add_definitions(-DTHREADED)
 +  if(WIN32)
-+    add_compile_options(/MT)
++    add_compile_options(/MT$<$<CONFIG:Debug>:d>)
 +  endif()
 +endif()
 +
