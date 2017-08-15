@@ -200,7 +200,7 @@ ExternalProject_Add(
 # https://github.com/google/glog
 ################################
 external(glog ${GLOG_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-add_library(glog ${LIBRARY_LINKAGE} IMPORTED)
+add_library(glog ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
 add_dependencies(glog ${GLOG_TARGET})
 # Patch glog to deal with a problem that appears when compiling on clang
 # under the C++11 standard. cf. MESOS-860, MESOS-966.
@@ -443,7 +443,7 @@ endif ()
 ######################################################################
 if (WIN32)
   external(curl ${CURL_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-  add_library(curl ${LIBRARY_LINKAGE} IMPORTED)
+  add_library(curl ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
   add_dependencies(curl ${CURL_TARGET})
   set_target_properties(curl PROPERTIES
     IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
@@ -521,8 +521,8 @@ external(googletest ${GOOGLETEST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(googletest INTERFACE)
 add_dependencies(googletest ${GOOGLETEST_TARGET})
 target_link_libraries(googletest INTERFACE gmock gtest)
-add_library(gmock IMPORTED STATIC)
-add_library(gtest IMPORTED STATIC)
+add_library(gmock IMPORTED GLOBAL STATIC)
+add_library(gtest IMPORTED GLOBAL STATIC)
 set_target_properties(gmock PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googlemock/include)
 set_target_properties(gtest PROPERTIES

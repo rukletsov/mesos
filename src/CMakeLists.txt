@@ -624,19 +624,9 @@ if (NOT WIN32)
 endif ()
 
 if (ENABLE_PRECOMPILED_HEADERS)
-  # These exluded headers either cause namespace resolution issues or
-  # are problematic for incremental builds.
-  set(COTIRE_PREFIX_HEADER_IGNORE_PATH
-      "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/basic_authenticator_factory.hpp"
-      "${CMAKE_SOURCE_DIR}/include/mesos/authentication/http/combined_authenticator.hpp"
-      "${CMAKE_SOURCE_DIR}/src/sched/constants.hpp"
-      "${CMAKE_SOURCE_DIR}/src/sched/flags.hpp"
-      "${CMAKE_BINARY_DIR}/src/common/build_config.hpp")
-
-  get_target_property(COTIRE_PREFIX_HEADER_INCLUDE_PATH mesos INCLUDE_DIRECTORIES)
   set_target_properties(mesos PROPERTIES
-    COTIRE_PREFIX_HEADER_INCLUDE_PATH ${COTIRE_PREFIX_HEADER_INCLUDE_PATH}
-    COTIRE_PREFIX_HEADER_IGNORE_PATH ${COTIRE_PREFIX_HEADER_IGNORE_PATH})
+    COTIRE_ADD_UNITY_BUILD FALSE
+    COTIRE_PREFIX_HEADER_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/3rdparty;${CMAKE_BINARY_DIR}/3rdparty")
   cotire(mesos)
 endif ()
 
