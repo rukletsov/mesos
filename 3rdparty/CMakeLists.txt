@@ -217,23 +217,26 @@ if (WIN32)
   #
   # [1] https://htmlpreview.github.io/?https://github.com/google/glog/blob/master/doc/glog.html#windows
   # [2] https://github.com/google/glog/blob/f012836db187d5897d4adaaf621b4d53ae4865da/src/windows/glog/logging.h#L965
-  set(GLOG_COMPILE_DEFINITIONS GOOGLE_GLOG_DLL_DECL= NOGDI NOMINMAX)
+  set(GLOG_COMPILE_DEFINITIONS NOGDI NOMINMAX)
+  if (NOT BUILD_SHARED_LIBS)
+    list(APPEND GLOG_COMPILE_DEFINITIONS GOOGLE_GLOG_DLL_DECL=)
+  endif ()
   set_target_properties(glog PROPERTIES
     IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${GLOG_ROOT}-build/Debug/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${GLOG_ROOT}-build/Release/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}/src/windows
     # TODO(andschwa): Remove this when glog is updated.
     IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
     INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
 else ()
   # TODO(andschwa): Build with CMake instead when glog is updated.
-  # NOTE: We only link to the shared library of glog because the static build
-  # doesn't have PIC.
-  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
+  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
   set(GLOG_BUILD_CMD   make)
   set(GLOG_INSTALL_CMD make install)
   set_target_properties(glog PROPERTIES
-    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${CMAKE_SHARED_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
 endif ()
 make_include(glog)
@@ -293,10 +296,10 @@ ExternalProject_Add(
 ##################################################
 # TODO: Remove `GLOBAL` when `Process3rdpartyConfigure` is removed.
 external(http_parser ${HTTP_PARSER_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-add_library(http_parser ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
+# NOTE: http-parser is built as a static library unconditionally.
+add_library(http_parser STATIC IMPORTED GLOBAL)
 add_dependencies(http_parser ${HTTP_PARSER_TARGET})
 set_target_properties(http_parser PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${HTTP_PARSER_ROOT})
-# NOTE: http-parser is built as a static library unconditionally.
 if (WIN32)
   set_target_properties(http_parser PROPERTIES
     IMPORTED_LOCATION_DEBUG ${HTTP_PARSER_ROOT}-build/Debug/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX}
@@ -395,7 +398,7 @@ endif ()
 ###########################################
 if (WIN32)
   external(libapr ${LIBAPR_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-  add_library(apr ${LIBRARY_LINKAGE} IMPORTED)
+  add_library(apr STATIC IMPORTED)
   add_dependencies(apr ${LIBAPR_TARGET})
   # NOTE: libapr-1 is always a static library on Windows.
   set_target_properties(apr PROPERTIES
@@ -445,18 +448,20 @@ if (WIN32)
   external(curl ${CURL_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
   add_library(curl ${LIBRARY_LINKAGE} IMPORTED GLOBAL)
   add_dependencies(curl ${CURL_TARGET})
-  set_target_properties(curl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
-    INTERFACE_COMPILE_DEFINITIONS CURL_STATICLIB
-    INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include)
-  set(CURL_CMAKE_ARGS ${CMAKE_FORWARD_ARGS} -DBUILD_CURL_TESTS=OFF)
-
   # NOTE: curl does not respect BUILD_SHARED_LIBS.
+  set(CURL_CMAKE_ARGS ${CMAKE_FORWARD_ARGS} -DBUILD_CURL_TESTS=OFF)
   if (NOT BUILD_SHARED_LIBS)
     # This is both a CMake argument, and a pre-processor definition.
     list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
+    set_target_properties(curl PROPERTIES
+      INTERFACE_COMPILE_DEFINITIONS CURL_STATICLIB)
   endif ()
+  set_target_properties(curl PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include)
   make_include(curl)
   get_byproducts(curl)
   ExternalProject_Add(
@@ -486,13 +491,17 @@ if (WIN32)
   # Zlib generates different libraries depending on the linkage
   # and configuration.  i.e.:
   #   * For a static Debug build: `zlibstaticd.lib`.
-  #   * For a shared Release build: `zlib.lib`.
+  #   * For a shared Release build: `zlib1.lib`.
   if (NOT BUILD_SHARED_LIBS)
     set(ZLIB_STATIC static)
+  else ()
+    set(ZLIB_SHARED 1)
   endif ()
   set_target_properties(zlib PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${ZLIB_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${ZLIB_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_ROOT};${ZLIB_ROOT}-build")
   make_include(zlib)
   get_byproducts(zlib)
@@ -521,8 +530,11 @@ external(googletest ${GOOGLETEST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(googletest INTERFACE)
 add_dependencies(googletest ${GOOGLETEST_TARGET})
 target_link_libraries(googletest INTERFACE gmock gtest)
-add_library(gmock IMPORTED GLOBAL STATIC)
-add_library(gtest IMPORTED GLOBAL STATIC)
+# Note that Google Test is always built with static libraries because of the
+# following open issue when using shared libraries, on both Windows and Linux:
+# https://github.com/google/googletest/issues/930
+add_library(gmock STATIC IMPORTED GLOBAL)
+add_library(gtest STATIC IMPORTED GLOBAL)
 set_target_properties(gmock PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${GOOGLETEST_ROOT}/googlemock/include)
 set_target_properties(gtest PROPERTIES
@@ -544,13 +556,16 @@ make_include(gmock)
 make_include(gtest)
 get_byproducts(gmock)
 get_byproducts(gtest)
+set(GOOGLETEST_CMAKE_FORWARD_ARGS ${CMAKE_FORWARD_ARGS})
+# Unconditionally build static libraries.
+list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS -DBUILD_SHARED_LIBS=OFF)
+# Link to the correct CRT based on other libraries' linkage.
+list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS -Dgtest_force_shared_crt=${BUILD_SHARED_LIBS})
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
   PREFIX            ${GOOGLETEST_CMAKE_ROOT}
   BUILD_BYPRODUCTS  ${GMOCK_BYPRODUCTS};${GTEST_BYPRODUCTS}
-  # NOTE: googletest cannot be built as a shared library, or the test runner
-  # will crash with a double-free.
-  CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-DBUILD_SHARED_LIBS=OFF
+  CMAKE_ARGS        ${GOOGLETEST_CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${GOOGLETEST_URL}
   URL_HASH          ${GOOGLETEST_HASH})

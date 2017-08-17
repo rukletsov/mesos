@@ -73,15 +73,22 @@ PROTOC_GENERATE(TARGET master/registry INTERNAL)
 ##################
 # This must always be built as a shared library because of the following issue:
 # https://github.com/google/protobuf/issues/1941
-add_library(mesos-protobufs SHARED ${PUBLIC_PROTOBUF_SRC} ${INTERNAL_PROTOBUF_SRC})
+#
+# Unfortunately, this is not supported on Windows. But because modules are not
+# yet supported either, for now we can build it statically.
+if (WIN32)
+  set(MESOS_PROTOBUFS_LINKAGE STATIC)
+else ()
+  set(MESOS_PROTOBUFS_LINKAGE SHARED)
+endif ()
+add_library(mesos-protobufs ${MESOS_PROTOBUFS_LINKAGE} ${PUBLIC_PROTOBUF_SRC} ${INTERNAL_PROTOBUF_SRC})
 target_link_libraries(mesos-protobufs PUBLIC protobuf)
 target_include_directories(mesos-protobufs PUBLIC
   ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS})
 
 if (WIN32)
   # Disable all compiler warnings on Protocol Buffers source.
-  set_target_properties(mesos-protobufs
-    PROPERTIES COMPILE_FLAGS "/w")
+  target_compile_options(mesos-protobufs PRIVATE "/w")
 endif ()
 
 # BUILD JAVA STUFF.
