@@ -70,6 +70,9 @@ function(PROTOC_GENERATE)
     set(JAVA ${MESOS_BIN_SRC_DIR}/java/generated/org/apache/${PROTOC_JAVA_DIR}/Protos.java)
   endif ()
 
+  list(APPEND PROTOBUF_PROTO ${PROTO})
+  set(PROTOBUF_PROTO ${PROTOBUF_PROTO} PARENT_SCOPE)
+
   # Export variables holding the target filenames.
   if (PROTOC_INTERNAL)
     list(APPEND INTERNAL_PROTOBUF_SRC ${CC})

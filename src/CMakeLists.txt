@@ -18,6 +18,9 @@
 #########################################
 include(MesosProtobuf)
 
+# FIXME: Add comment.
+set(PROTOBUF_PROTO "")
+
 # Build the protobuf structs.
 #
 # NOTE: `PROTOC_GENERATE` side effect is that it appends to the lists
@@ -609,7 +612,7 @@ endif ()
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so on Linux).
 ############################################################
-add_library(mesos ${MESOS_SRC})
+add_library(mesos ${MESOS_SRC} ${PROTOBUF_PROTO})
 set_target_properties(mesos PROPERTIES
   VERSION ${MESOS_PACKAGE_VERSION}
   SOVERSION ${MESOS_PACKAGE_SOVERSION})
