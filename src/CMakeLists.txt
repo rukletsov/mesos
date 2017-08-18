@@ -612,7 +612,7 @@ endif ()
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so on Linux).
 ############################################################
-add_library(mesos ${MESOS_SRC} ${PROTOBUF_PROTO})
+add_library(mesos ${MESOS_SRC} ${PROTOBUF_PROTO} ${MESOS_DOCS})
 set_target_properties(mesos PROPERTIES
   VERSION ${MESOS_PACKAGE_VERSION}
   SOVERSION ${MESOS_PACKAGE_SOVERSION})

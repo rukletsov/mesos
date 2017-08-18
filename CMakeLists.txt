@@ -46,6 +46,12 @@ include(cotire)
 # Configuration.
 include(MesosConfigure)
 
+# Include docs.
+file(GLOB_RECURSE MESOS_DOCS docs "*.md")
+
+# TODO(alexr): Include other non-code files for IDEs to index,
+# e.g., CHANGELOG, python scripts, java script files, etc.
+
 # SUBDIRECTORIES.
 #################
 add_subdirectory(3rdparty)
