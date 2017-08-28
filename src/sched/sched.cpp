@@ -1186,7 +1186,9 @@ protected:
 
     LOG(INFO) << "Got error '" << message << "'";
 
+    LOG(INFO) << " >> Calling driver->abort()";
     driver->abort();
+    LOG(INFO) << " >> driver->abort() returned";
 
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
@@ -1194,6 +1196,7 @@ protected:
     }
 
     scheduler->error(driver, message);
+    LOG(INFO) << " >> Scheduler::error() finished";
 
     VLOG(1) << "Scheduler::error took " << stopwatch.elapsed();
   }

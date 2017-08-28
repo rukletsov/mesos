@@ -236,6 +236,7 @@ void V0ToV1Adapter::error(
     SchedulerDriver*,
     const string& message)
 {
+  std::cerr << " >> Dispatching error()";
   process::dispatch(process.get(), &V0ToV1AdapterProcess::error, message);
 }
 
@@ -508,6 +509,9 @@ void V0ToV1AdapterProcess::executorLost(
 
 void V0ToV1AdapterProcess::error(const string& message)
 {
+  LOG(INFO) << " >> Got error: " << message;
+  std::cerr << " >> Got error: " << message;
+
   Event event;
   event.set_type(Event::ERROR);
 
@@ -533,6 +537,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
 {
   CHECK_NOTNULL(driver);
 
+  LOG(INFO) << " >> Processing send()";
+
   scheduler::Call call = devolve(_call);
 
   Option<Error> error = validation::scheduler::call::validate(call);
@@ -545,6 +551,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
   switch (call.type()) {
     case Call::SUBSCRIBE: {
       subscribeCall = true;
+
+      LOG(INFO) << " >> Subscribe received";
 
       heartbeatTimer = process::delay(interval, self(), &Self::heartbeat);
 
@@ -670,6 +678,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
 
 void V0ToV1AdapterProcess::received(const Event& event)
 {
+  LOG(INFO) << " >> Received event " << Event::Type_Name(event.type());
+
   // For compatibility with the v1 interface, we only start sending events
   // once the scheduler has sent the subscribe call. An exception to this
   // is an error event, which can be sent before the subscribe call.
@@ -686,6 +696,8 @@ void V0ToV1AdapterProcess::received(const Event& event)
 
 void V0ToV1AdapterProcess::_received()
 {
+  LOG(INFO) << " >> Subscribe has been called, sending pending events";
+
   CHECK(subscribeCall);
 
   while (!pending.empty()) {
