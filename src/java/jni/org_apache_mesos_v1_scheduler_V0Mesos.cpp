@@ -358,6 +358,8 @@ void V0ToV1AdapterProcess::registered(
     const FrameworkID& _frameworkId,
     const MasterInfo& masterInfo)
 {
+  LOG(INFO) << "Registered with the Mesos master; connecting the scheduler";
+
   connect();
 
   // We need this copy to populate the fields in `Event::Subscribed` upon
@@ -404,6 +406,8 @@ void V0ToV1AdapterProcess::disconnected()
   // - Any outstanding offers are invalidated by the master upon a scheduler
   //   (re-)registration.
   // - Any task status updates could be reconciled by the scheduler.
+  LOG(INFO) << "Dropping " << pending.size() << " pending event(s)";
+
   pending = queue<Event>();
   subscribeCall = false;
 
@@ -411,6 +415,8 @@ void V0ToV1AdapterProcess::disconnected()
     Clock::cancel(heartbeatTimer.get());
     heartbeatTimer = None();
   }
+
+  LOG(INFO) << "Disconnecting the scheduler";
 
   disconnect();
 }
