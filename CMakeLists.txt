@@ -47,11 +47,13 @@ include(cotire)
 # Configuration.
 include(MesosConfigure)
 
-# Include docs.
-#
-# TODO(alexr): Include other non-code files for IDEs to index, e.g.,
-# CHANGELOG, python scripts, java soruces, java script files, etc.
-file(GLOB_RECURSE MESOS_DOCS docs "*.md")
+# Include docs, java, js files, CHANGELOG, review board helpers
+# and other files to facilitate indexing.
+file(GLOB_RECURSE MESOS_DOCS "docs/*.md")
+file(GLOB_RECURSE MESOS_JAVA "src/*.java")
+file(GLOB_RECURSE MESOS_WEBUI "src/webui/*.html" "src/webui/*.css" "src/webui/*.js")
+file(GLOB_RECURSE MESOS_SUPPORT "support/*.py" "support/*.sh" "support/*.md")
+file(GLOB MESOS_CHANGELOG "CHANGELOG")
 
 
 # SUBDIRECTORIES.

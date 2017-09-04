@@ -594,7 +594,15 @@ endif ()
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so on Linux).
 ############################################################
-add_library(mesos ${MESOS_SRC} ${MESOS_PROTOS} ${MESOS_DOCS})
+add_library(
+  mesos
+  ${MESOS_SRC}
+  ${MESOS_PROTOS}
+  ${MESOS_JAVA}
+  ${MESOS_DOCS}
+  ${MESOS_WEBUI}
+  ${MESOS_SUPPORT}
+  ${MESOS_CHANGELOG})
 
 set_target_properties(
   mesos PROPERTIES
