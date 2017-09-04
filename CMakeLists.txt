@@ -47,6 +47,14 @@ include(cotire)
 # Configuration.
 include(MesosConfigure)
 
+# Include java, webui files, docs, review board helpers,
+# CHANGELOG, and other files to facilitate indexing.
+file(GLOB_RECURSE MESOS_JAVA "src/*.java")
+file(GLOB_RECURSE MESOS_WEBUI "src/webui/*.html" "src/webui/*.css" "src/webui/*.js")
+file(GLOB_RECURSE MESOS_DOCS "docs/*.md")
+file(GLOB_RECURSE MESOS_SUPPORT "support/*.py" "support/*.sh" "support/*.md")
+file(GLOB MESOS_CHANGELOG "CHANGELOG")
+
 
 # SUBDIRECTORIES.
 #################
