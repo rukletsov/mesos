@@ -22,7 +22,10 @@ include(MesosProtobuf)
 #
 # NOTE: `PROTOC_GENERATE` will list append to `PUBLIC_PROTOBUF_SRC`,
 # `INTERNAL_PROTOBUF_SRC`, and/or `JAVA_PROTOBUF_SRC` depending on the
-# `INTERNAL` and `JAVA` options.
+# `INTERNAL` and `JAVA` options. It will also append all protobuf files
+# to `MESOS_PROTOS`.
+set(MESOS_PROTOS "")
+
 set(PUBLIC_PROTOBUF_SRC "")
 PROTOC_GENERATE(TARGET mesos/agent/agent)
 PROTOC_GENERATE(TARGET mesos/allocator/allocator)
@@ -591,7 +594,7 @@ endif ()
 
 # THE MESOS LIBRARY (generates, e.g., libmesos.so on Linux).
 ############################################################
-add_library(mesos ${MESOS_SRC})
+add_library(mesos ${MESOS_SRC} ${MESOS_PROTOS})
 
 set_target_properties(
   mesos PROPERTIES
