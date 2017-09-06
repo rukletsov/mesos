@@ -196,8 +196,7 @@ if (NOT WIN32)
     containerizer/provisioner_appc_tests.cpp
     containerizer/provisioner_backend_tests.cpp
     containerizer/provisioner_docker_tests.cpp
-    containerizer/provisioner_paths_tests.cpp
-    containerizer/volume_sandbox_path_isolator_tests.cpp)
+    containerizer/provisioner_paths_tests.cpp)
 endif ()
 
 if (LINUX)
@@ -222,6 +221,7 @@ if (LINUX)
     containerizer/sched_tests.cpp
     containerizer/volume_host_path_isolator_tests.cpp
     containerizer/volume_image_isolator_tests.cpp
+    containerizer/volume_sandbox_path_isolator_tests.cpp
     containerizer/volume_secret_isolator_tests.cpp)
 endif ()
 

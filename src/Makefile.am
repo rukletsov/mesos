@@ -2461,8 +2461,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_appc_tests.cpp		\
   tests/containerizer/provisioner_backend_tests.cpp		\
   tests/containerizer/provisioner_docker_tests.cpp		\
-  tests/containerizer/provisioner_paths_tests.cpp		\
-  tests/containerizer/volume_sandbox_path_isolator_tests.cpp
+  tests/containerizer/provisioner_paths_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\
@@ -2517,6 +2516,7 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/setns_test_helper.cpp			\
   tests/containerizer/volume_host_path_isolator_tests.cpp	\
   tests/containerizer/volume_image_isolator_tests.cpp		\
+  tests/containerizer/volume_sandbox_path_isolator_tests.cpp	\
   tests/containerizer/volume_secret_isolator_tests.cpp
 endif
 
