@@ -6857,6 +6857,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(FutureArg<1>(&update));
+    .WillRepeatedly(Return());
 
   const v1::Offer offer = offers->offers(0);
   const v1::AgentID& agentId = offer.agent_id();
@@ -6904,7 +6905,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(update);
 
-  ASSERT_EQ(TASK_RUNNING, update->status().state());
+  ASSERT_EQ(TASK_STARTING, update->status().state());
   ASSERT_EQ(taskInfo.task_id(), update->status().task_id());
 
   Future<Nothing> _statusUpdateAcknowledgement =

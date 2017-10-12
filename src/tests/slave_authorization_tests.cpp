@@ -730,10 +730,12 @@ TEST_F(ExecutorAuthorizationTest, RunTaskGroup)
       Resources::parse("cpus:0.5;mem:32").get(),
       "sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> status0;
+  Future<TaskStatus> status1;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&status0))
+    .WillOnce(FutureArg<1>(&status1));
 
   Resources executorResources =
     allocatedResources(Resources::parse("cpus:0.1;mem:32;disk:32").get(), "*");
@@ -749,10 +751,13 @@ TEST_F(ExecutorAuthorizationTest, RunTaskGroup)
 
   driver.acceptOffers({offer.id()}, {LAUNCH_GROUP(executor, taskGroup)});
 
-  AWAIT_READY(status);
+  AWAIT_READY(status0);
+  ASSERT_EQ(task.task_id(), status0->task_id());
+  EXPECT_EQ(TASK_STARTING, status0->state());
 
-  ASSERT_EQ(task.task_id(), status->task_id());
-  EXPECT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(status1);
+  ASSERT_EQ(task.task_id(), status1->task_id());
+  EXPECT_EQ(TASK_RUNNING, status1->state());
 
   driver.stop();
   driver.join();
