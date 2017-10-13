@@ -124,14 +124,20 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
       Resources::parse("cpus:1;mem:256;disk:1024").get(),
       "while true; do dd count=512 bs=1M if=/dev/zero of=./temp; done");
 
+  Future<TaskStatus> starting;
   Future<TaskStatus> running;
   Future<TaskStatus> killed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&starting))
     .WillOnce(FutureArg<1>(&running))
     .WillOnce(FutureArg<1>(&killed))
     .WillRepeatedly(Return());       // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(starting);
+  EXPECT_EQ(task.task_id(), starting->task_id());
+  EXPECT_EQ(TASK_STARTING, starting->state());
 
   AWAIT_READY(running);
   EXPECT_EQ(task.task_id(), running->task_id());
@@ -245,6 +251,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
       Resources::parse("cpus:1;mem:256;disk:1024").get(),
       "while true; do dd count=512 bs=1M if=/dev/zero of=./temp; done");
 
+  Future<TaskStatus> starting;
   Future<TaskStatus> running;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&running));
@@ -254,6 +261,10 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
     FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(starting);
+  EXPECT_EQ(task.task_id(), starting->task_id());
+  EXPECT_EQ(TASK_STARTING, starting->state());
 
   AWAIT_READY(running);
   EXPECT_EQ(task.task_id(), running->task_id());

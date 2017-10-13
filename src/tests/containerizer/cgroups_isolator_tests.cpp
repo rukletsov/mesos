@@ -179,11 +179,17 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   container->set_type(ContainerInfo::MESOS);
   container->mutable_mesos()->mutable_image()->CopyFrom(image);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(Return());
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY_FOR(statusRunning, Seconds(60));
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -320,11 +326,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_RevocableCpu)
       cpus,
       "sleep 120");
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers2.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -416,11 +427,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CFS_EnableCfs)
       Resources::parse("cpus:0.5").get(),
       command);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -617,11 +633,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
       offers.get()[0].resources(),
       command);
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -801,15 +822,20 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   // explicitly killing this task to perform the cleanup test.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   // Capture the update to verify that the task has been launched.
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(statusStarting);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Task is ready.  Make sure there is exactly 1 container in the hashset.
   Future<hashset<ContainerID>> containers = containerizer->containers();
@@ -857,7 +883,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   Future<Nothing> gcSchedule = FUTURE_DISPATCH(
       _, &slave::GarbageCollectorProcess::schedule);
 
-  driver.killTask(status->task_id());
+  driver.killTask(statusRunning->task_id());
 
   AWAIT_READY(gcSchedule);
 
@@ -927,14 +953,19 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_ContainerStatus)
   // Create a task to be launched in the mesos-container.
   TaskInfo task = createTask(offers.get()[0], "sleep 1000");
 
-  Future<TaskStatus> status;
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
-    .WillOnce(FutureArg<1>(&status));
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(status);
-  ASSERT_EQ(TASK_RUNNING, status->state());
+  AWAIT_READY(statusStarting);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Task is ready. Verify `ContainerStatus` is present in slave state.
   Future<Response> response = process::http::get(
@@ -1017,11 +1048,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_Sample)
 
   TaskInfo task = createTask(offers.get()[0], "sleep 120");
 
+  Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
@@ -1131,8 +1167,10 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   AWAIT_READY(offers1);
   ASSERT_FALSE(offers1->empty());
 
+  Future<TaskStatus> statusStarting1;
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillRepeatedly(Return());
 
@@ -1146,6 +1184,9 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   filters.set_refuse_seconds(0);
 
   driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
+
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY(statusRunning1);
   EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
@@ -1203,12 +1244,17 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_PerfForward)
   // Start a new container which will start reporting perf statistics.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
 
+  Future<TaskStatus> statusStarting2;
   Future<TaskStatus> statusRunning2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  EXPECT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY(statusRunning2);
   EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
@@ -1292,8 +1338,10 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   AWAIT_READY(offers1);
   ASSERT_FALSE(offers1->empty());
 
+  Future<TaskStatus> statusStarting1;
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillRepeatedly(Return());
 
@@ -1307,6 +1355,9 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   filters.set_refuse_seconds(0);
 
   driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
+
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY(statusRunning1);
   EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
@@ -1361,12 +1412,17 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   // Start a new container which will start reporting memory statistics.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
 
+  Future<TaskStatus> statusStarting2;
   Future<TaskStatus> statusRunning2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  EXPECT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY(statusRunning2);
   EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
@@ -1448,8 +1504,10 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   AWAIT_READY(offers1);
   ASSERT_FALSE(offers1->empty());
 
+  Future<TaskStatus> statusStarting1;
   Future<TaskStatus> statusRunning1;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
     .WillOnce(FutureArg<1>(&statusRunning1))
     .WillRepeatedly(Return());
 
@@ -1463,6 +1521,9 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
   filters.set_refuse_seconds(0);
 
   driver.launchTasks(offers1.get()[0].id(), {task1}, filters);
+
+  AWAIT_READY(statusStarting1);
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
 
   AWAIT_READY(statusRunning1);
   EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
@@ -1517,12 +1578,17 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryBackward)
 
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
 
+  Future<TaskStatus> statusStarting2;
   Future<TaskStatus> statusRunning2;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
     .WillOnce(FutureArg<1>(&statusRunning2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.launchTasks(offers2.get()[0].id(), {task2});
+
+  AWAIT_READY(statusStarting2);
+  EXPECT_EQ(TASK_STARTING, statusStarting2->state());
 
   AWAIT_READY(statusRunning2);
   EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
