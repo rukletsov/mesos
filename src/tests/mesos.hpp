@@ -2067,71 +2067,65 @@ public:
   MOCK_METHOD2_T(failure, void(Mesos*, const typename Event::Failure&));
   MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
 
-  void event(Mesos* mesos, const Event& event)
+  void events(Mesos* mesos, std::queue<Event> events)
   {
-    LOG(INFO) << " >>> Entering MockHTTPScheduler::event():";
+    while (!events.empty()) {
+      Event event = std::move(events.front());
+      events.pop();
 
-    switch (event.type()) {
-      case Event::SUBSCRIBED:
-        subscribed(mesos, event.subscribed());
-        break;
-      case Event::OFFERS:
-        offers(mesos, event.offers());
-        break;
-      case Event::INVERSE_OFFERS:
-        inverseOffers(mesos, event.inverse_offers());
-        break;
-      case Event::RESCIND:
-        rescind(mesos, event.rescind());
-        break;
-      case Event::RESCIND_INVERSE_OFFER:
-        rescindInverseOffers(mesos, event.rescind_inverse_offer());
-        break;
-      case Event::UPDATE:
-        update(mesos, event.update());
-        break;
-      case Event::MESSAGE:
-        message(mesos, event.message());
-        break;
-      case Event::FAILURE:
-        failure(mesos, event.failure());
-        break;
-      case Event::ERROR:
-        error(mesos, event.error());
-        break;
-      case Event::HEARTBEAT:
-        heartbeat(mesos);
-        break;
-      case Event::UNKNOWN:
-        LOG(FATAL) << "Received unexpected UNKNOWN event";
-        break;
+      switch (event.type()) {
+        case Event::SUBSCRIBED:
+          subscribed(mesos, event.subscribed());
+          break;
+        case Event::OFFERS:
+          offers(mesos, event.offers());
+          break;
+        case Event::INVERSE_OFFERS:
+          inverseOffers(mesos, event.inverse_offers());
+          break;
+        case Event::RESCIND:
+          rescind(mesos, event.rescind());
+          break;
+        case Event::RESCIND_INVERSE_OFFER:
+          rescindInverseOffers(mesos, event.rescind_inverse_offer());
+          break;
+        case Event::UPDATE:
+          update(mesos, event.update());
+          break;
+        case Event::MESSAGE:
+          message(mesos, event.message());
+          break;
+        case Event::FAILURE:
+          failure(mesos, event.failure());
+          break;
+        case Event::ERROR:
+          error(mesos, event.error());
+          break;
+        case Event::HEARTBEAT:
+          heartbeat(mesos);
+          break;
+        case Event::UNKNOWN:
+          LOG(FATAL) << "Received unexpected UNKNOWN event";
+          break;
+      }
     }
-
-    LOG(INFO) << " >>> Leaving MockHTTPScheduler::event()";
   }
-};
-
-
-template <typename Mesos, typename Event>
-struct FubarBundy {
-  std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
 };
 
 
 // A generic testing interface for the scheduler library that can be used to
 // test the library across various versions.
 template <typename Mesos, typename Event>
-class TestMesos : private FubarBundy<Mesos, Event>, public Mesos
+class TestMesos : public Mesos
 {
 public:
   TestMesos(
       const std::string& master,
       ContentType contentType,
-      const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
+      MockHTTPScheduler<Mesos, Event>* _scheduler,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
           detector = None())
-    : FubarBundy<Mesos, Event>{_scheduler},
-      Mesos(
+    : Mesos(
           master,
           contentType,
           // We don't pass the `_scheduler` shared pointer as the library
@@ -2142,7 +2136,8 @@ public:
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
                        _scheduler,
                        this),
-          lambda::bind(&TestMesos<Mesos, Event>::events,
+          lambda::bind(&MockHTTPScheduler<Mesos, Event>::events,
+                       _scheduler,
                        this,
                        lambda::_1),
           v1::DEFAULT_CREDENTIAL,
@@ -2167,18 +2162,6 @@ public:
     // Return the Clock to its original state.
     if (!paused) {
       process::Clock::resume();
-    }
-  }
-
-protected:
-  void events(std::queue<Event> events)
-  {
-    while (!events.empty()) {
-      Event event = std::move(events.front());
-      events.pop();
-      LOG(INFO) << " >>> TestMesos::events(): popping event: "
-                << Event::Type_Name(event.type());
-      this->scheduler->event(this, event);
     }
   }
 };
