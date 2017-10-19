@@ -209,10 +209,14 @@ public:
     } else {
       detector = _detector.get();
     }
+
+    LOG(INFO) << " >>> MesosProcess c-tor finished";
   }
 
   virtual ~MesosProcess()
   {
+    LOG(INFO) << " >>> MesosProcess d-tor started";
+
     disconnect();
 
     // Check and see if we need to shutdown a local cluster.
@@ -886,6 +890,8 @@ Mesos::Mesos(
       flags);
 
   spawn(process);
+
+  LOG(INFO) << " >>> Mesos c-tor finished";
 }
 
 
@@ -907,6 +913,8 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
+  LOG(INFO) << " >>> Mesos d-tor started";
+
   if (process != nullptr) {
     stop();
   }

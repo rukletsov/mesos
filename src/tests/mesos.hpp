@@ -2141,10 +2141,15 @@ public:
                        this,
                        lambda::_1),
           v1::DEFAULT_CREDENTIAL,
-          detector) {}
+          detector)
+  {
+    LOG(INFO) << " >>> TestMesos c-tor finished";
+  }
 
   virtual ~TestMesos()
   {
+    LOG(INFO) << " >>> TestMesos d-tor started";
+
     // Since the destructor for `TestMesos` is invoked first, the library can
     // make more callbacks to the `scheduler` object before the `Mesos` (base
     // class) destructor is invoked. To prevent this, we invoke `stop()` here
