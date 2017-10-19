@@ -155,7 +155,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -268,7 +268,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -493,7 +493,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -643,7 +643,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -725,7 +725,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -848,7 +848,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -950,7 +950,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -1110,7 +1110,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -1206,7 +1206,7 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
 
@@ -1320,7 +1320,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
 
@@ -1501,7 +1501,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -1631,7 +1631,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, TaskWithFileURI)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -1747,7 +1747,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -1904,7 +1904,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -2050,7 +2050,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -2177,7 +2177,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -2394,7 +2394,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());
@@ -2626,7 +2626,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(subscribed);
   v1::FrameworkID frameworkId(subscribed->framework_id());

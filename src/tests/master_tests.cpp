@@ -6624,7 +6624,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -8408,7 +8408,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

@@ -1478,7 +1478,7 @@ TEST_P(DefaultExecutorCniTest, ROOT_VerifyContainerIP)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

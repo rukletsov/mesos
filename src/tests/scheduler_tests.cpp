@@ -133,7 +133,7 @@ TEST_P(SchedulerTest, Subscribe)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -180,7 +180,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -215,7 +215,7 @@ TEST_P(SchedulerTest, SchedulerFailover)
   v1::scheduler::TestMesos mesos2(
       master.get()->pid,
       contentType,
-      scheduler2);
+      scheduler2.get());
 
   AWAIT_READY(connected2);
 
@@ -274,7 +274,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler,
+      scheduler.get(),
       detector);
 
   AWAIT_READY(connected);
@@ -359,7 +359,7 @@ TEST_P(SchedulerTest, MetricsEndpoint)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -429,7 +429,7 @@ TEST_P(SchedulerTest, TaskRunning)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -558,7 +558,7 @@ TEST_P(SchedulerTest, TaskGroupRunning)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -801,7 +801,7 @@ TEST_P(SchedulerTest, ReconcileTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -929,7 +929,7 @@ TEST_P(SchedulerTest, KillTask)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1074,7 +1074,7 @@ TEST_P(SchedulerTest, ShutdownExecutor)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1200,7 +1200,7 @@ TEST_P(SchedulerTest, Decline)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1292,7 +1292,7 @@ TEST_P(SchedulerTest, Revive)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1390,7 +1390,7 @@ TEST_P(SchedulerTest, Suppress)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1507,7 +1507,7 @@ TEST_P(SchedulerTest, NoOffersWithAllRolesSuppressed)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1590,7 +1590,7 @@ TEST_P(SchedulerTest, Message)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1708,7 +1708,7 @@ TEST_P(SchedulerTest, Request)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1771,7 +1771,7 @@ TEST_P(SchedulerTest, SchedulerReconnect)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler,
+      scheduler.get(),
       detector);
 
   AWAIT_READY(connected);
@@ -1850,7 +1850,7 @@ TEST_P(SchedulerReconcileTasks_BENCHMARK_Test, SchedulerLibrary)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2049,7 +2049,10 @@ TEST_P(SchedulerSSLTest, RunTaskAndTeardown)
 
   ContentType contentType = std::get<0>(GetParam());
 
-  v1::scheduler::TestMesos mesos(master.get()->pid, contentType, scheduler);
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler.get());
 
   AWAIT_READY(connected);
 

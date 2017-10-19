@@ -375,7 +375,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
                     FutureSatisfy(&connected)));
 
   v1::scheduler::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+      master.get()->pid, ContentType::PROTOBUF, scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -503,7 +503,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
                     FutureSatisfy(&connected)));
 
   v1::scheduler::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+      master.get()->pid, ContentType::PROTOBUF, scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -632,7 +632,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
                     FutureSatisfy(&connected)));
 
   v1::scheduler::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+      master.get()->pid, ContentType::PROTOBUF, scheduler.get());
 
   AWAIT_READY(connected);
 

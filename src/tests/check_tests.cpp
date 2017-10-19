@@ -261,7 +261,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -415,7 +415,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -540,7 +540,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -653,7 +653,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -784,7 +784,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -897,7 +897,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1054,7 +1054,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1192,7 +1192,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1409,7 +1409,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1613,7 +1613,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1782,7 +1782,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1937,7 +1937,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2115,7 +2115,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2271,7 +2271,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2449,7 +2449,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2602,7 +2602,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2761,7 +2761,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

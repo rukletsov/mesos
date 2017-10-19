@@ -806,7 +806,7 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -965,7 +965,7 @@ TEST_F(ExecutorAuthorizationTest, FailedApiCalls)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

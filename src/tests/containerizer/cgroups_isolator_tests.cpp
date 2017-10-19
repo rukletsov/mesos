@@ -505,7 +505,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_LimitSwap)
                     FutureSatisfy(&connected)));
 
   v1::scheduler::TestMesos mesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler);
+      master.get()->pid, ContentType::PROTOBUF, scheduler.get());
 
   AWAIT_READY(connected);
 

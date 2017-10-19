@@ -113,7 +113,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
     v1::scheduler::TestMesos schedulerLibrary(
         master.get()->pid,
         contentType,
-        scheduler);
+        scheduler.get());
 
     AWAIT_READY(connected);
 
@@ -172,7 +172,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterFailoverTimeout)
     v1::scheduler::TestMesos schedulerLibrary(
         master.get()->pid,
         contentType,
-        scheduler);
+        scheduler.get());
 
     AWAIT_READY(connected);
 
@@ -229,7 +229,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
     v1::scheduler::TestMesos schedulerLibrary(
         master.get()->pid,
         contentType,
-        scheduler);
+        scheduler.get());
 
     AWAIT_READY(connected);
 
@@ -295,7 +295,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerSubscribeAfterTeardown)
     v1::scheduler::TestMesos schedulerLibrary(
         master.get()->pid,
         contentType,
-        scheduler);
+        scheduler.get());
 
     AWAIT_READY(connected);
 
@@ -356,7 +356,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
   v1::scheduler::TestMesos schedulerLibrary(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -446,7 +446,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverStatusUpdate)
   v1::scheduler::TestMesos schedulerLibrary2(
       master.get()->pid,
       contentType,
-      scheduler2);
+      scheduler2.get());
 
   AWAIT_READY(connected2);
 
@@ -537,7 +537,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   v1::scheduler::TestMesos schedulerLibrary(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -612,7 +612,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverExecutorToFrameworkMessage)
   v1::scheduler::TestMesos schedulerLibrary2(
       master.get()->pid,
       contentType,
-      scheduler2);
+      scheduler2.get());
 
   AWAIT_READY(connected2);
 
@@ -709,7 +709,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   v1::scheduler::TestMesos schedulerLibrary(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -782,7 +782,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
   v1::scheduler::TestMesos schedulerLibrary2(
       master.get()->pid,
       contentType,
-      scheduler2);
+      scheduler2.get());
 
   AWAIT_READY(connected2);
 
@@ -878,7 +878,7 @@ TEST_F(HttpFaultToleranceTest, SchedulerExit)
   v1::scheduler::TestMesos schedulerLibrary(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

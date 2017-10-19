@@ -1756,7 +1756,7 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2079,7 +2079,7 @@ TEST_F(SlaveTest, HTTPExecutorBadAuthentication)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -4367,7 +4367,7 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -5837,7 +5837,7 @@ TEST_F(SlaveTest, RunTaskGroup)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -5975,7 +5975,7 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -6176,7 +6176,7 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -6386,7 +6386,7 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -6596,7 +6596,7 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -6823,7 +6823,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -7008,7 +7008,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -7206,7 +7206,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -7321,7 +7321,7 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

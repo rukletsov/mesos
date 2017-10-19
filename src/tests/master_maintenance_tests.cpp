@@ -367,7 +367,7 @@ TEST_F(MasterMaintenanceTest, PendingUnavailabilityTest)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1188,7 +1188,7 @@ TEST_F(MasterMaintenanceTest, InverseOffers)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -1521,7 +1521,7 @@ TEST_F(MasterMaintenanceTest, InverseOffersFilters)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 

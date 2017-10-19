@@ -2021,7 +2021,7 @@ TEST_P(MasterAPITest, Subscribe)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2262,7 +2262,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
@@ -2571,7 +2571,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler,
+      scheduler.get(),
       detector);
 
   AWAIT_READY(connected);
@@ -3354,7 +3354,7 @@ TEST_P(MasterAPITest, Teardown)
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       contentType,
-      scheduler);
+      scheduler.get());
 
   AWAIT_READY(connected);
 
