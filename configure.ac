@@ -458,11 +458,11 @@ debug_flags="-g1"
 if test "x$enable_debug" = "xyes"; then
   debug_flags="-g"
 elif test "x$enable_optimize" = "xyes"; then
-  debug_flags=""
+  debug_flags="-g"
 fi
 
 if test "x$enable_optimize" = "xyes"; then
-  optimize_flags="-O2"
+  optimize_flags="-O0"
 else
   optimize_flags="-O0"
 fi
