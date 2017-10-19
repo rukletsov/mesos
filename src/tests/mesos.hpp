@@ -2069,6 +2069,8 @@ public:
 
   void event(Mesos* mesos, const Event& event)
   {
+    LOG(INFO) << " >>> Entering MockHTTPScheduler::event():";
+
     switch (event.type()) {
       case Event::SUBSCRIBED:
         subscribed(mesos, event.subscribed());
@@ -2104,6 +2106,8 @@ public:
         LOG(FATAL) << "Received unexpected UNKNOWN event";
         break;
     }
+
+    LOG(INFO) << " >>> Leaving MockHTTPScheduler::event()";
   }
 };
 
@@ -2166,6 +2170,8 @@ protected:
     while (!events.empty()) {
       Event event = std::move(events.front());
       events.pop();
+      LOG(INFO) << " >>> TestMesos::events(): popping event: "
+                << Event::Type_Name(event.type());
       scheduler->event(this, event);
     }
   }

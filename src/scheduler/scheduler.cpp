@@ -907,6 +907,7 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
+  LOG(INFO) << " >>> Destructing Mesos scheduler library";
   if (process != nullptr) {
     stop();
   }
