@@ -2130,10 +2130,10 @@ public:
           // We don't pass the `_scheduler` shared pointer as the library
           // interface expects a `std::function` object.
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::connected,
-                       _scheduler.get(),
+                       _scheduler,
                        this),
           lambda::bind(&MockHTTPScheduler<Mesos, Event>::disconnected,
-                       _scheduler.get(),
+                       _scheduler,
                        this),
           lambda::bind(&TestMesos<Mesos, Event>::events,
                        this,
