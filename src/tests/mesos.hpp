@@ -2112,10 +2112,16 @@ public:
 };
 
 
+template <typename Mesos, typename Event>
+struct FubarBundy {
+  std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
+};
+
+
 // A generic testing interface for the scheduler library that can be used to
 // test the library across various versions.
 template <typename Mesos, typename Event>
-class TestMesos : public Mesos
+class TestMesos : private FubarBundy<Mesos, Event>, public Mesos
 {
 public:
   TestMesos(
@@ -2124,7 +2130,8 @@ public:
       const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& _scheduler,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
           detector = None())
-    : Mesos(
+    : FubarBundy<Mesos, Event>{_scheduler},
+      Mesos(
           master,
           contentType,
           // We don't pass the `_scheduler` shared pointer as the library
@@ -2139,8 +2146,7 @@ public:
                        this,
                        lambda::_1),
           v1::DEFAULT_CREDENTIAL,
-          detector),
-      scheduler(_scheduler) {}
+          detector) {}
 
   virtual ~TestMesos()
   {
@@ -2172,12 +2178,9 @@ protected:
       events.pop();
       LOG(INFO) << " >>> TestMesos::events(): popping event: "
                 << Event::Type_Name(event.type());
-      scheduler->event(this, event);
+      this->scheduler->event(this, event);
     }
   }
-
-private:
-  std::shared_ptr<MockHTTPScheduler<Mesos, Event>> scheduler;
 };
 
 } // namespace scheduler {
