@@ -907,9 +907,7 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
-  if (process != nullptr) {
-    stop();
-  }
+  stop();
 }
 
 
