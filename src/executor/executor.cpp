@@ -837,14 +837,22 @@ Mesos::Mesos(
 
 Mesos::~Mesos()
 {
-  terminate(process.get());
-  wait(process.get());
+  stop();
 }
 
 
 void Mesos::send(const Call& call)
 {
   dispatch(process.get(), &MesosProcess::send, call);
+}
+
+void Mesos::stop()
+{
+  if (process.get() != nullptr) {
+    terminate(process.get());
+    wait(process.get());
+    process.reset();
+  }
 }
 
 } // namespace executor {

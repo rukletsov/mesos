@@ -2332,6 +2332,28 @@ public:
                        executor,
                        this,
                        lambda::_1)) {}
+
+  virtual ~TestMesos()
+  {
+    // Since the destructor for `TestMesos` is invoked first, the library can
+    // make more callbacks to the `exectuor` object before the `Mesos` (base
+    // class) destructor is invoked. To prevent this, we invoke `stop()` here
+    // to explicitly stop the library.
+    this->stop();
+
+    bool paused = process::Clock::paused();
+
+    // Need to settle the Clock to ensure that all the pending async callbacks
+    // with references to `this` and `executor` queued on libprocess are
+    // executed before the object is destructed.
+    process::Clock::pause();
+    process::Clock::settle();
+
+    // Return the Clock to its original state.
+    if (!paused) {
+      process::Clock::resume();
+    }
+  }
 };
 
 } // namespace executor {
