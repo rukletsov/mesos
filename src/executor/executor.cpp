@@ -20,10 +20,10 @@
 #include <mesos/v1/executor.hpp>
 #include <mesos/v1/mesos.hpp>
 
-#include <process/async.hpp>
 #include <process/clock.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/executor.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
@@ -66,7 +66,6 @@ using mesos::internal::recordio::Reader;
 
 using mesos::internal::slave::validation::executor::call::validate;
 
-using process::async;
 using process::Clock;
 using process::delay;
 using process::dispatch;
@@ -349,6 +348,11 @@ protected:
     connect();
   }
 
+  virtual void finalize()
+  {
+    dispatcher.stop();
+  }
+
   void connect()
   {
     CHECK(state == DISCONNECTED || state == CONNECTING) << state;
@@ -439,7 +443,7 @@ protected:
     // and non-subscribe connections with the agent.
     mutex.lock()
       .then(defer(self(), [this]() {
-        return async(callbacks.connected);
+        return dispatcher.execute(callbacks.connected);
       }))
       .onAny(lambda::bind(&Mutex::unlock, mutex));
   }
@@ -466,7 +470,7 @@ protected:
       // the agent.
       mutex.lock()
         .then(defer(self(), [this]() {
-          return async(callbacks.disconnected);
+          return dispatcher.execute(callbacks.disconnected);
         }))
         .onAny(lambda::bind(&Mutex::unlock, mutex));
     }
@@ -526,7 +530,8 @@ protected:
 
   Future<Nothing> _receive()
   {
-    Future<Nothing> future = async(callbacks.received, events);
+    Future<Nothing> future =
+      dispatcher.execute(std::bind(callbacks.received, events));
     events = queue<Event>();
     return future;
   }
@@ -821,6 +826,9 @@ private:
   Option<Timer> recoveryTimer;
   Duration shutdownGracePeriod;
   Option<string> authenticationToken;
+
+  // A dedicated process to run scheduler callbacks.
+  process::Executor dispatcher;
 };
 
 
