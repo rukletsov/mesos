@@ -73,14 +73,12 @@ public:
   // events without ever being sent to the agent.
   virtual void send(const Call& call) override;
 
-protected:
   // Stops the library so that:
-  //   - No more calls can be sent to the agent.
+  //   - No more calls can be sent to the master: `send()` can be safely called
+  //     but is a no-op.
   //   - No more callbacks can be made to the executor. In some cases, there
   //     may be one additional callback if the library was in the middle of
   //     processing an event.
-  //
-  // NOTE: This is used for testing.
   virtual void stop();
 
 private:

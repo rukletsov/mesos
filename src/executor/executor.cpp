@@ -843,7 +843,12 @@ Mesos::~Mesos()
 
 void Mesos::send(const Call& call)
 {
-  dispatch(process.get(), &MesosProcess::send, call);
+  // If `stop()` has been called, we cannot dispatch to the underlying process
+  // anymore. Users, e.g., callbacks in flight, may still try to use the
+  // library; this should be prevented.
+  if (process.get() != nullptr) {
+    dispatch(process.get(), &MesosProcess::send, call);
+  }
 }
 
 void Mesos::stop()

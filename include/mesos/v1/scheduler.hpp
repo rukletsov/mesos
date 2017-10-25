@@ -107,6 +107,14 @@ public:
   // would get a 'disconnected' callback followed by a 'connected' callback.
   virtual void reconnect() override;
 
+  // Stops the library so that:
+  //   - No more calls can be sent to the master: `send()` and `reconnect()`
+  //     can be safely called but are no-ops.
+  //   - No more callbacks can be made to the scheduler. In some cases, there
+  //     may be one additional callback if the library was in the middle of
+  //     processing an event.
+  virtual void stop();
+
 protected:
   // NOTE: This constructor is used for testing.
   Mesos(
@@ -118,15 +126,6 @@ protected:
       const Option<Credential>& credential,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
         detector);
-
-  // Stops the library so that:
-  //   - No more calls can be sent to the master.
-  //   - No more callbacks can be made to the scheduler. In some cases, there
-  //     may be one additional callback if the library was in the middle of
-  //     processing an event.
-  //
-  // NOTE: This is used for testing.
-  virtual void stop();
 
 private:
   MesosProcess* process;
