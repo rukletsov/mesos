@@ -875,7 +875,7 @@ Mesos::Mesos(
     LOG(WARNING) << warning.message;
   }
 
-  process = new MesosProcess(
+  process.reset(new MesosProcess(
       master,
       contentType,
       connected,
@@ -883,9 +883,9 @@ Mesos::Mesos(
       received,
       credential,
       detector,
-      flags);
+      flags));
 
-  spawn(process);
+  spawn(process.get());
 }
 
 
@@ -916,8 +916,8 @@ void Mesos::send(const Call& call)
   // If `stop()` has been called, we cannot dispatch to the underlying process
   // anymore. Users, e.g., callbacks in flight, may still try to use the
   // library; this should be prevented.
-  if (process != nullptr) {
-    dispatch(process, &MesosProcess::send, call);
+  if (process.get() != nullptr) {
+    dispatch(process.get(), &MesosProcess::send, call);
   }
 }
 
@@ -927,20 +927,18 @@ void Mesos::reconnect()
   // If `stop()` has been called, we cannot dispatch to the underlying process
   // anymore. Users, e.g., callbacks in flight, may still try to use the
   // library; this should be prevented.
-  if (process != nullptr) {
-    dispatch(process, &MesosProcess::reconnect);
+  if (process.get() != nullptr) {
+    dispatch(process.get(), &MesosProcess::reconnect);
   }
 }
 
 
 void Mesos::stop()
 {
-  if (process != nullptr) {
-    terminate(process);
-    wait(process);
-
-    delete process;
-    process = nullptr;
+  if (process.get() != nullptr) {
+    terminate(process.get());
+    wait(process.get());
+    process.reset();
   }
 }
 
