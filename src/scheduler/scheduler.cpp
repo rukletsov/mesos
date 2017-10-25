@@ -43,11 +43,11 @@
 
 #include <mesos/module/http_authenticatee.hpp>
 
-#include <process/async.hpp>
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/executor.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
@@ -338,6 +338,11 @@ protected:
       .onAny(defer(self(), &MesosProcess::detected, lambda::_1));
   }
 
+  virtual void finalize()
+  {
+    dispatcher.stop();
+  }
+
   void connect(const UUID& _connectionId)
   {
     // It is possible that a new master was detected while we were waiting
@@ -407,7 +412,7 @@ protected:
     // and non-subscribe connections with the master.
     mutex.lock()
       .then(defer(self(), [this]() {
-        return async(callbacks.connected);
+        return dispatcher.execute(callbacks.connected);
       }))
       .onAny(lambda::bind(&Mutex::unlock, mutex));
   }
@@ -457,7 +462,7 @@ protected:
       // Invoke the disconnected callback if we were previously connected.
       mutex.lock()
         .then(defer(self(), [this]() {
-          return async(callbacks.disconnected);
+          return dispatcher.execute(callbacks.disconnected);
         }))
       .onAny(lambda::bind(&Mutex::unlock, mutex));
     }
@@ -515,7 +520,8 @@ protected:
 
   Future<Nothing> _receive()
   {
-    Future<Nothing> future = async(callbacks.received, events);
+    Future<Nothing> future =
+      dispatcher.execute(lambda::bind(callbacks.received, events));
     events = queue<Event>();
     return future;
   }
@@ -850,6 +856,9 @@ private:
 
   // Master detection future.
   process::Future<Option<mesos::MasterInfo>> detection;
+
+  // A dedicated process to run scheduler callbacks.
+  process::Executor dispatcher;
 };
 
 
