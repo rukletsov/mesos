@@ -28,6 +28,8 @@
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 
+#include <process/owned.hpp>
+
 namespace mesos {
 
 namespace master {
@@ -128,7 +130,7 @@ protected:
         detector);
 
 private:
-  MesosProcess* process;
+  process::Owned<MesosProcess> process;
 };
 
 } // namespace scheduler {
