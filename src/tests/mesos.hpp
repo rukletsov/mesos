@@ -315,6 +315,8 @@ public:
   {
     delete server;
     server = nullptr;
+
+    MesosTest::TearDownTestCase();
   }
 
   virtual void SetUp()

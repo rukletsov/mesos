@@ -756,6 +756,8 @@ void Environment::TearDown()
     FAIL() << "Tests completed with child processes remaining:\n"
            << pstree.get();
   }
+
+  stout::internal::tests::Environment::TearDown();
 }
 
 

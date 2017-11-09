@@ -607,8 +607,6 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUpTestCase()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
 {
-  MesosTest::TearDownTestCase();
-
   Result<string> user = os::user();
   EXPECT_SOME(user);
 
@@ -622,6 +620,8 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDownTestCase()
       }
     }
   }
+
+  MesosTest::TearDownTestCase();
 }
 
 
@@ -719,8 +719,6 @@ void ContainerizerTest<slave::MesosContainerizer>::SetUp()
 
 void ContainerizerTest<slave::MesosContainerizer>::TearDown()
 {
-  MesosTest::TearDown();
-
   Result<string> user = os::user();
   EXPECT_SOME(user);
 
@@ -755,6 +753,8 @@ void ContainerizerTest<slave::MesosContainerizer>::TearDown()
       }
     }
   }
+
+  MesosTest::TearDown();
 }
 #endif // __linux__
 

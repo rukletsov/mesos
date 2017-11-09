@@ -178,6 +178,8 @@ public:
     foreach (const Docker::Container& container, containers.get()) {
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
+
+    MesosTest::TearDown();
   }
 };
 
@@ -4736,13 +4738,13 @@ protected:
 
   virtual void TearDown()
   {
-    DockerContainerizerTest::TearDown();
-
     os::unsetenv("LIBPROCESS_IP6");
     process::reinitialize(
         None(),
         READWRITE_HTTP_AUTHENTICATION_REALM,
         READONLY_HTTP_AUTHENTICATION_REALM);
+
+    DockerContainerizerTest::TearDown();
   }
 };
 
@@ -4960,8 +4962,6 @@ protected:
 
   virtual void TearDown()
   {
-    DockerContainerizerTest::TearDown();
-
     Try<string> dockerCommand = strings::format(
         "docker network rm %s",
         DOCKER_IPv6_NETWORK);
@@ -4988,6 +4988,8 @@ protected:
       << "Unable to delete the docker IPv6 network "
       << DOCKER_IPv6_NETWORK
       << " : " << err.get();
+
+    DockerContainerizerTest::TearDown();
   }
 };
 

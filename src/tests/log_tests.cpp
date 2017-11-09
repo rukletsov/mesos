@@ -2144,6 +2144,8 @@ protected:
     if (sandbox.isSome()) {
       ASSERT_SOME(os::rmdir(sandbox.get()));
     }
+
+    ZooKeeperTest::TearDown();
   }
 
   // Used to change the status of a replicated log from `EMPTY` to `VOTING`.

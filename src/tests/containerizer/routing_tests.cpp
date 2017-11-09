@@ -205,6 +205,8 @@ class RoutingAdvancedTest : public RoutingTest
 protected:
   virtual void SetUp()
   {
+    RoutingTest::SetUp();
+
     ASSERT_SOME(routing::check())
       << "-------------------------------------------------------------\n"
       << "We cannot run any routing advanced tests because either your\n"
@@ -254,6 +256,8 @@ protected:
   virtual void TearDown()
   {
     link::remove(TEST_VETH_LINK);
+
+    RoutingAdvancedTest::TearDown();
   }
 };
 
