@@ -347,6 +347,16 @@ protected:
       return;
     }
 
+    // Shutdown if a kill task request is received before the task is launched.
+    // This can happen, for example, if `ExecutorRegisteredMessage` or
+    // `RunTaskMessage` have not been delivered.
+    if (!connected || !tasks.contains(taskId)) {
+      LOG(WARNING) << "Shutting down because kill task message has been"
+                   << " received before the task had been launched";
+      shutdown();
+      return;
+    }
+
     VLOG(1) << "Executor asked to kill task '" << taskId << "'";
 
     Stopwatch stopwatch;
