@@ -227,25 +227,25 @@ protected:
       const SlaveID& slaveId,
       const SlaveInfo& slaveInfo)
   {
-    if (aborted.load()) {
-      VLOG(1) << "Ignoring registered message from agent " << slaveId
-              << " because the driver is aborted!";
-      return;
-    }
+//    if (aborted.load()) {
+//      VLOG(1) << "Ignoring registered message from agent " << slaveId
+//              << " because the driver is aborted!";
+//      return;
+//    }
 
-    LOG(INFO) << "Executor registered on agent " << slaveId;
+//    LOG(INFO) << "Executor registered on agent " << slaveId;
 
-    connected = true;
-    connection = UUID::random();
+//    connected = true;
+//    connection = UUID::random();
 
-    Stopwatch stopwatch;
-    if (FLAGS_v >= 1) {
-      stopwatch.start();
-    }
+//    Stopwatch stopwatch;
+//    if (FLAGS_v >= 1) {
+//      stopwatch.start();
+//    }
 
-    executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
+//    executor->registered(driver, executorInfo, frameworkInfo, slaveInfo);
 
-    VLOG(1) << "Executor::registered took " << stopwatch.elapsed();
+//    VLOG(1) << "Executor::registered took " << stopwatch.elapsed();
   }
 
   void reregistered(const SlaveID& slaveId, const SlaveInfo& slaveInfo)
