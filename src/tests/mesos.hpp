@@ -755,6 +755,13 @@ inline TTaskInfo createTask(
     TExecutorInfo executor;
     executor.mutable_executor_id()->CopyFrom(executorId.get());
     executor.mutable_command()->CopyFrom(command);
+
+    // Increase executor's log verbosity.
+    auto variable = executor.mutable_command()->
+      mutable_environment()->mutable_variables()->Add();
+    variable->set_name("GLOG_v");
+    variable->set_value("2");
+
     task.mutable_executor()->CopyFrom(executor);
   } else {
     task.mutable_command()->CopyFrom(command);
