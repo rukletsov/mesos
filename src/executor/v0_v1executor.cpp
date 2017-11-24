@@ -150,6 +150,11 @@ public:
     Event event;
     event.set_type(Event::SHUTDOWN);
 
+    if (!subscribeCall) {
+      LOG(INFO) << "Implicitly connecting the scheduler to shut it down";
+      callbacks.connected();
+    }
+
     received(event);
   }
 
@@ -161,6 +166,11 @@ public:
     Event::Error* error = event.mutable_error();
 
     error->set_message(message);
+
+    if (!subscribeCall) {
+      LOG(INFO) << "Implicitly connecting the scheduler to send an error";
+      callbacks.connected();
+    }
 
     received(event);
   }
