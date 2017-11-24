@@ -776,11 +776,13 @@ public:
     }
 
     if (http.isSome()) {
+      LOG(INFO) << " >>>> bingo! http->send";
       if (!http->send(message)) {
         LOG(WARNING) << "Unable to send event to executor " << *this
                      << ": connection closed";
       }
     } else if (pid.isSome()) {
+      LOG(INFO) << " >>>> bingo! slave->send() ";
       slave->send(pid.get(), message);
     } else {
       LOG(WARNING) << "Unable to send event to executor " << *this

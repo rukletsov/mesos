@@ -24,6 +24,7 @@
 
 #include <mesos/slave/containerizer.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -58,13 +59,16 @@ using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::slave::ContainerTermination;
 
+using::process::Clock;
 using process::Future;
+using process::Message;
 using process::Owned;
 using process::PID;
 
 using std::string;
 using std::vector;
 
+using ::testing::Eq;
 using ::testing::WithParamInterface;
 
 namespace mesos {
@@ -85,6 +89,75 @@ INSTANTIATE_TEST_CASE_P(
     HTTPCommandExecutor,
     CommandExecutorTest,
     ::testing::Bool());
+
+
+//
+TEST_P(CommandExecutorTest, KillWithNoLaunch)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Launch a task with the command executor.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
+
+  // Drop
+  Future<RunTaskMessage> runTaskMessage =
+    FUTURE_PROTOBUF(RunTaskMessage(), _, _);
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(runTaskMessage);
+
+  Clock::pause();
+  Clock::settle();
+  Clock::settle();
+  os::sleep(Seconds(1));
+  Clock::settle();
+  Clock::settle();
+  Clock::resume();
+
+
+
+  // There should only be a TASK_KILLED update.
+  Future<TaskStatus> statusLost;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusLost));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusLost);
+  EXPECT_EQ(TASK_LOST, statusLost->state());
+
+  driver.stop();
+  driver.join();
+}
 
 
 // This test ensures that the command executor does not send

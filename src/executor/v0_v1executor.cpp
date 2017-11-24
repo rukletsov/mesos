@@ -18,6 +18,8 @@
 
 #include <mesos/v1/executor/executor.hpp>
 
+#include "logging/logging.hpp"
+
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/process.hpp>
@@ -118,6 +120,8 @@ public:
 
     kill->mutable_task_id()->CopyFrom(evolve(taskId));
 
+    LOG(INFO) << " >>> evolved, calling Adapter::received()";
+
     received(event);
   }
 
@@ -215,6 +219,7 @@ protected:
     // For compatibility with the v1 interface, we only start sending events
     // once the executor has sent the subscribe call.
     if (!subscribeCall) {
+      LOG(INFO) << " >>> pushed in pending";
       pending.push(event);
       return;
     }
@@ -293,6 +298,7 @@ void V0ToV1Adapter::disconnected(ExecutorDriver*)
 
 void V0ToV1Adapter::killTask(ExecutorDriver*, const mesos::TaskID& taskId)
 {
+  LOG(INFO) << " >>> Adapter::killTask()";
   process::dispatch(process.get(), &V0ToV1AdapterProcess::killTask, taskId);
 }
 
