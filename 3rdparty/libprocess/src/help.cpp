@@ -228,7 +228,7 @@ Future<http::Response> Help::help(const http::Request& request)
     document += "## HELP\n";
     foreachkey (const string& id, helps) {
       document += "> [/" + id + "][" + id + "]\n";
-      references += "[" + id + "]: help/" + id + "\n";
+      references += "[" + id + "]: " + id + "\n";
     }
   } else if (name.isNone()) {    // http://ip:port/help/id
     if (helps.count(id.get()) == 0) {
