@@ -193,6 +193,7 @@ public:
   Option<std::string> advertise_ip;
   Option<std::string> advertise_port;
   Option<flags::SecurePathOrValue> master;
+  bool memory_profiling;
 
   Duration zk_session_timeout;
 
