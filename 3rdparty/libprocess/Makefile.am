@@ -302,6 +302,7 @@ libprocess_tests_SOURCES =					\
   src/tests/limiter_tests.cpp					\
   src/tests/loop_tests.cpp					\
   src/tests/main.cpp						\
+  src/tests/memory_profiler_tests.cpp					\
   src/tests/metrics_tests.cpp					\
   src/tests/mutex_tests.cpp					\
   src/tests/owned_tests.cpp					\
