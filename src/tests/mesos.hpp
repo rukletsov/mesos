@@ -3400,6 +3400,10 @@ ACTION_P(SendFrameworkMessage, data)
   FutureProtobuf(message, from, to)
 
 
+#define FUTURE_PROTOBUF_PREDICATE(message, from, to, matcher)              \
+  FutureProtobuf(message, from, to, false, Option<testing::Matcher<decltype(message)>>(matcher)) // NOLINT(whitespace/line_length)
+
+
 #define DROP_PROTOBUF(message, from, to)              \
   FutureProtobuf(message, from, to, true)
 
@@ -3482,12 +3486,24 @@ T _FutureProtobuf(const process::Message& message);
 
 
 template <typename T, typename From, typename To>
-process::Future<T> FutureProtobuf(T t, From from, To to, bool drop = false)
+process::Future<T> FutureProtobuf(
+    T t,
+    From from,
+    To to,
+    bool drop = false,
+    Option<testing::Matcher<T>> matcher = None())
 {
   // Help debugging by adding some "type constraints".
   { google::protobuf::Message* m = &t; (void) m; }
 
-  return process::FutureMessage(testing::Eq(t.GetTypeName()), from, to, drop)
+  auto predicate = [matcher](const process::MessageEvent& e) {
+    return (matcher.isSome()
+              ? matcher->Matches(_FutureProtobuf<T>(e.message))
+              : true);
+  };
+
+  return process::FutureMessage(
+      testing::Eq(t.GetTypeName()), from, to, drop, predicate)
     .then(lambda::bind(&_FutureProtobuf<T>, lambda::_1));
 }
 
