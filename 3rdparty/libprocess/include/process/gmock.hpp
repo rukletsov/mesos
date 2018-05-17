@@ -342,12 +342,16 @@ private:
 };
 
 
-MATCHER_P3(MessageMatcher, name, from, to, "")
+inline bool AnyMessageEvent(const MessageEvent&) { return true; }
+
+
+MATCHER_P4(MessageMatcher, name, from, to, predicate, "")
 {
   const MessageEvent& event = ::std::get<0>(arg);
   return (testing::Matcher<std::string>(name).Matches(event.message.name) &&
           testing::Matcher<UPID>(from).Matches(event.message.from) &&
-          testing::Matcher<UPID>(to).Matches(event.message.to));
+          testing::Matcher<UPID>(to).Matches(event.message.to) &&
+          predicate(event));
 }
 
 
@@ -458,13 +462,18 @@ Future<http::Request> FutureUnionHttpRequest(
 
 
 template <typename Name, typename From, typename To>
-Future<Message> FutureMessage(Name name, From from, To to, bool drop = false)
+Future<Message> FutureMessage(
+    Name name,
+    From from,
+    To to,
+    bool drop = false,
+    const std::function<bool(const MessageEvent&)>& predicate = AnyMessageEvent)
 {
   TestsFilter* filter = FilterTestEventListener::instance()->install();
   Future<Message> future;
   synchronized (filter->mutex) {
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-      .With(MessageMatcher(name, from, to))
+      .With(MessageMatcher(name, from, to, predicate))
       .WillOnce(testing::DoAll(FutureArgNotPointerField<0>(
                                    &MessageEvent::message,
                                    &future),
@@ -521,7 +530,7 @@ void DropMessages(Name name, From from, To to)
   TestsFilter* filter = FilterTestEventListener::instance()->install();
   synchronized (filter->mutex) {
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-      .With(MessageMatcher(name, from, to))
+      .With(MessageMatcher(name, from, to, AnyMessageEvent))
       .WillRepeatedly(testing::Return(true));
   }
 }
@@ -619,7 +628,7 @@ void ExpectNoFutureMessages(Name name, From from, To to)
   TestsFilter* filter = FilterTestEventListener::instance()->install();
   synchronized (filter->mutex) {
     EXPECT_CALL(filter->mock, filter(testing::A<const MessageEvent&>()))
-      .With(MessageMatcher(name, from, to))
+      .With(MessageMatcher(name, from, to, AnyMessageEvent))
       .Times(0);
   }
 }
