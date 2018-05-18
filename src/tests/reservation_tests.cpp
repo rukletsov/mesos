@@ -2454,8 +2454,11 @@ TEST_F(ReservationCheckpointingTest, SendingCheckpointResourcesMessage)
   Future<CheckpointResourcesMessage> message2 =
     FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
 
-  Future<CheckpointResourcesMessage> message1 =
-    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  Future<CheckpointResourcesMessage> message1 = FUTURE_PROTOBUF_PREDICATE(
+      CheckpointResourcesMessage(),
+      _,
+      _,
+      CheckpointResourcesMessageResourcesEq(reserved1));
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -2474,7 +2477,6 @@ TEST_F(ReservationCheckpointingTest, SendingCheckpointResourcesMessage)
   // Expect the 'RESERVE(reserved1)' as the first message.
   // The checkpointed resources should correspond to 'reserved1'.
   AWAIT_READY(message1);
-  EXPECT_EQ(Resources(message1->resources()), reserved1);
 
   // Expect the 'RESERVE(reserved2)' as the second message.
   // The checkpointed resources should correspond to

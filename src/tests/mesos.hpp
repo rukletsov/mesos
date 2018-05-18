@@ -3792,6 +3792,12 @@ MATCHER_P(OptionTaskGroupHasTaskID, taskId, "")
 }
 
 
+MATCHER_P(CheckpointResourcesMessageResourcesEq, resources, "")
+{
+  return arg.resources() == resources;
+}
+
+
 struct ParamExecutorType
 {
 public:
