@@ -318,6 +318,81 @@ TEST_F(SSLTest, VerifyCertificate)
 }
 
 
+// Ensure that a SERVER must present a valid certificate if
+// LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT flag is enabled.
+//
+// TODO(alexr): Add a test with an SSL server not presenting any certificate
+// and check that a libprocess-based client with
+// LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT refuses to connect.
+TEST_F(SSLTest, VerifyServerOnlyBadCertificate)
+{
+  Try<Socket> server = setup_server({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT", "true"},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
+  ASSERT_SOME(server);
+
+  Try<Subprocess> client = launch_client({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT", "true"},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}},
+      server.get(),
+      true);
+  ASSERT_SOME(client);
+
+  // Though the certificate verification is supposed to fail, the socket will
+  // be successfully created, but the connection will be dropped right after.
+  Future<Socket> socket = server->accept();
+  AWAIT_ASSERT_READY(socket);
+
+  // TODO(alexr): Try to send or receive some data to clearly demonstarte that
+  // the connection is broken.
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), None()));
+}
+
+
+// Ensure that a CLIENT must NOT present a valid certificate if
+// LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT flag is enabled.
+TEST_F(SSLTest, NoVerifyClientBadCertificate)
+{
+  Try<Socket> server = setup_server({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT", "true"},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
+  ASSERT_SOME(server);
+
+  Try<Subprocess> client = launch_client({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
+      {"LIBPROCESS_SSL_CA_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT", "true"},
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}},
+      server.get(),
+      true);
+  ASSERT_SOME(client);
+
+  Future<Socket> socket = server->accept();
+  AWAIT_ASSERT_READY(socket);
+
+  // TODO(jmlvanre): Remove const copy.
+  AWAIT_ASSERT_EQ(data, Socket(socket.get()).recv());
+  AWAIT_ASSERT_READY(Socket(socket.get()).send(data));
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), 0));
+}
+
+
 // Ensure that key exchange using ECDHE algorithm works.
 TEST_F(SSLTest, ECDHESupport)
 {
