@@ -122,6 +122,7 @@ protected:
     os::unsetenv("LIBPROCESS_SSL_CERT_FILE");
     os::unsetenv("LIBPROCESS_SSL_KEY_FILE");
     os::unsetenv("LIBPROCESS_SSL_VERIFY_CERT");
+    os::unsetenv("LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT");
     os::unsetenv("LIBPROCESS_SSL_REQUIRE_CERT");
     os::unsetenv("LIBPROCESS_SSL_VERIFY_DEPTH");
     os::unsetenv("LIBPROCESS_SSL_CA_DIR");

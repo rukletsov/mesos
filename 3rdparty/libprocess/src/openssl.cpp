@@ -87,7 +87,14 @@ Flags::Flags()
 
   add(&Flags::verify_cert,
       "verify_cert",
-      "Whether or not to verify peer certificates.",
+      "Whether or not to verify peer certificates in both client and server "
+      "modes.",
+      false);
+
+  add(&Flags::verify_server_only_cert,
+      "verify_server_only_cert",
+      "Relax peer certificate verification to client mode only. "
+      "This implies certificate verification is on.",
       false);
 
   add(&Flags::require_cert,
@@ -515,9 +522,10 @@ void reinitialize()
               << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
   }
 
-  if (!ssl_flags->verify_cert) {
+  if (!ssl_flags->verify_cert && !ssl_flags->verify_server_only_cert) {
     LOG(INFO) << "Will not verify peer certificate!\n"
-              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
+              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 or "
+              << "LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT=1 to enable "
               << "peer certificate verification";
   }
 
@@ -538,6 +546,15 @@ void reinitialize()
 
     LOG(INFO) << "LIBPROCESS_SSL_REQUIRE_CERT implies "
               << "peer certificate verification.\n"
+              << "LIBPROCESS_SSL_VERIFY_CERT set to true";
+  }
+
+  if (ssl_flags->verify_server_only_cert && !ssl_flags->verify_cert) {
+    // Verifying server certificates implies that verification should be on.
+    ssl_flags->verify_cert = true;
+
+    LOG(INFO) << "LIBPROCESS_SSL_VERIFY_SERVER_ONLY_CERT implies "
+              << "client side certificate verification.\n"
               << "LIBPROCESS_SSL_VERIFY_CERT set to true";
   }
 
