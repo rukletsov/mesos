@@ -617,13 +617,19 @@ void reinitialize()
                 << "' and/or directory '" << ca_dir << "'";
     }
 
-    // Set SSL peer verification callback.
-    int mode = SSL_VERIFY_PEER;
+    // If mode is `SSL_VERIFY_NONE`, certificate verification can be finalized
+    // _after_ TLS handshake, see `verify()` for details.
+    int mode = SSL_VERIFY_NONE;
 
-    if (ssl_flags->require_cert) {
-      mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+    if (!ssl_flags->verify_server_only_cert) {
+      mode = SSL_VERIFY_PEER;
+
+      if (ssl_flags->require_cert) {
+        mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+      }
     }
 
+    // Set SSL peer verification callback.
     SSL_CTX_set_verify(ctx, mode, &verify_callback);
 
     SSL_CTX_set_verify_depth(ctx, ssl_flags->verification_depth);
@@ -739,11 +745,18 @@ SSL_CTX* context()
 
 Try<Nothing> verify(
     const SSL* const ssl,
+    const bool is_client_cert,
     const Option<string>& hostname,
     const Option<net::IP>& ip)
 {
   // Return early if we don't need to verify.
   if (!ssl_flags->verify_cert) {
+    return Nothing();
+  }
+
+  // If this is server verifying client's certificate, skip if requested.
+  if (is_client_cert && ssl_flags->verify_server_only_cert) {
+    VLOG(1) << "Skip client certificate verification";
     return Nothing();
   }
 

@@ -438,7 +438,8 @@ void LibeventSSLSocketImpl::event_callback(short events)
     // Do post-validation of connection.
     SSL* ssl = bufferevent_openssl_get_ssl(bev);
 
-    Try<Nothing> verify = openssl::verify(ssl, peer_hostname, peer_ip);
+    // Verify _server_'s certificate.
+    Try<Nothing> verify = openssl::verify(ssl, false, peer_hostname, peer_ip);
     if (verify.isError()) {
       VLOG(1) << "Failed connect, verification error: " << verify.error();
       SSL_free(ssl);
@@ -1170,8 +1171,9 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
           SSL* ssl = bufferevent_openssl_get_ssl(bev);
           CHECK_NOTNULL(ssl);
 
+          // Verify _client_'s certificate.
           Try<Nothing> verify =
-            openssl::verify(ssl, peer_hostname, request->ip);
+            openssl::verify(ssl, true, peer_hostname, request->ip);
 
           if (verify.isError()) {
             VLOG(1) << "Failed accept, verification error: " << verify.error();

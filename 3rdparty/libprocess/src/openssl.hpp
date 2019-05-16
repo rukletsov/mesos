@@ -68,6 +68,7 @@ SSL_CTX* context();
 // certificate associated with the specified SSL connection.
 Try<Nothing> verify(
     const SSL* const ssl,
+    const bool is_client_cert,
     const Option<std::string>& hostname = None(),
     const Option<net::IP>& ip = None());
 
